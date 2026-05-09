@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../transaction/presentation/add_transaction_screen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -54,12 +55,9 @@ class _ReportScreenState extends State<ReportScreen> {
       // TOMBOL TAMBAH MELAYANG (FAB)
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Fitur Tambah Transaksi segera hadir!'),
-              backgroundColor: primaryGreen,
-              duration: const Duration(seconds: 2),
-            ),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
           );
         },
         backgroundColor: primaryGreen,
@@ -79,6 +77,7 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             const SizedBox(height: 16),
 
+            // FILTER WAKTU
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -166,6 +165,7 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             const SizedBox(height: 24),
 
+            // GRAFIK LINGKARAN KATEGORI & LEGENDA
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -190,6 +190,7 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             const SizedBox(height: 24),
 
+            // GRAFIK BATANG PERBANDINGAN & 5 BULAN
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -262,7 +263,7 @@ class _ReportScreenState extends State<ReportScreen> {
           const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('100%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black87)),
+              Text('75%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black87)),
               Text('TOTAL', style: TextStyle(fontSize: 10, color: Colors.grey)),
             ],
           ),
@@ -272,10 +273,10 @@ class _ReportScreenState extends State<ReportScreen> {
               centerSpaceRadius: 65,
               startDegreeOffset: 270,
               sections: [
-                PieChartSectionData(color: const Color(0xFF05A660), value: 40, title: '', radius: 15), // Makan & Minum
-                PieChartSectionData(color: const Color(0xFF4F46E5), value: 20, title: '', radius: 15), // Belanja
-                PieChartSectionData(color: const Color(0xFFFF8FA3), value: 15, title: '', radius: 15), // Transportasi
-                PieChartSectionData(color: Colors.grey.shade200, value: 25, title: '', radius: 15), // Sisa
+                PieChartSectionData(color: const Color(0xFF05A660), value: 40, title: '', radius: 15),
+                PieChartSectionData(color: const Color(0xFF4F46E5), value: 20, title: '', radius: 15),
+                PieChartSectionData(color: const Color(0xFFFF8FA3), value: 15, title: '', radius: 15),
+                PieChartSectionData(color: Colors.grey.shade200, value: 25, title: '', radius: 15),
               ],
             ),
           ),
@@ -284,6 +285,7 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // Fungsi pembantu untuk membuat list item Legenda Kategori
   Widget _buildPieLegendItem(Color color, String title, String percentage) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
