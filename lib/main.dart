@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/auth/presentation/passcode_screen.dart'; // Pastikan path ini sesuai
 
 void main() {
@@ -40,7 +41,8 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      home: const PasscodeScreen(),
+      //home: const PasscodeScreen(),
+      home: const DashboardScreen(),
     );
   }
 }
