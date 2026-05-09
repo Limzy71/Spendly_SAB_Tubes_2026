@@ -5,16 +5,13 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Warna hijau mint yang sesuai dengan gambar Figma
-    const Color mintBgColor = Color(0xFFEDF7F7);
-    const Color primaryTeal = Color(0xFF008080);
+    const Color primaryGreen = Color(0xFF05A660);
+    const Color backgroundColor = Color(0xFFF8F9FA);
 
     return Scaffold(
-      // Menggunakan warna latar belakang yang sedikit lebih gelap agar elemen kartu menonjol
-      backgroundColor: mintBgColor, // Pastikan ini terpanggil
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        // UBAH: Ganti menjadi Colors.white agar kontras dengan background body
-        backgroundColor: Colors.white,
+        backgroundColor: backgroundColor,
         elevation: 0,
         centerTitle: false,
         titleSpacing: 0,
@@ -23,15 +20,12 @@ class DashboardScreen extends StatelessWidget {
           padding: EdgeInsets.only(left: 20.0, right: 10.0),
           child: CircleAvatar(
             radius: 18,
-            backgroundColor: Colors.grey,
-            backgroundImage: AssetImage('assets/profile.png'),
+            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
           ),
         ),
-
         title: const Text(
           'Spendly',
           style: TextStyle(
-            color: Color(0xFF008080), // Warna Teal sesuai brand
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -51,22 +45,19 @@ class DashboardScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
 
-            // 1a. Total Saldo Card
-            _buildBalanceCard(),
+            _buildBalanceCard(primaryGreen),
 
             const SizedBox(height: 20),
 
-            // 1b. Ringkasan Pemasukan & Pengeluaran
-            // CARI Row ringkasan ini dan GANTI isinya:
             Row(
               children: [
                 Expanded(
                   child: _buildSummaryCard(
                     title: "Pemasukan",
                     amount: "Rp 12.5M",
-                    indicatorColor: Colors.teal,
+                    indicatorColor: primaryGreen,
                     icon: Icons.trending_up,
-                    iconBgColor: const Color(0xFFE0F2F1),
+                    iconBgColor: const Color(0xFFF1FAF5),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -84,7 +75,6 @@ class DashboardScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // 1d. Daftar Transaksi Terakhir
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -94,50 +84,25 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: () {},
-                  child: const Text("Lihat Semua", style: TextStyle(color: Color(0xFF008080), fontSize: 13)),
+                  child: const Text("Lihat Semua", style: TextStyle(color: primaryGreen, fontSize: 13)),
                 ),
               ],
             ),
 
-            _buildTransactionItem("Gaji", "25 Okt 2023", "+ Rp 15.000.000", const Color(0xFFF3E5F5), Icons.wallet, Colors.green),
+            _buildTransactionItem("Gaji", "25 Okt 2023", "+ Rp 15.000.000", const Color(0xFFF1FAF5), Icons.wallet, primaryGreen),
             _buildTransactionItem("Makan Siang", "24 Okt 2023", "- Rp 85.000", const Color(0xFFFFF3E0), Icons.restaurant, Colors.red),
             _buildTransactionItem("Transportasi", "24 Okt 2023", "- Rp 450.000", const Color(0xFFE3F2FD), Icons.directions_car, Colors.red),
-            _buildTransactionItem("Belanja", "22 Okt 2023", "- Rp 1.240.000", const Color(0xFFE8F5E9), Icons.shopping_bag, Colors.red),
-            _buildTransactionItem("Listrik & Air ", "22 Okt 2023", "- Rp 640.000", const Color(0xFFFFF176), Icons.electric_bolt, Colors.red),
+            _buildTransactionItem("Belanja", "22 Okt 2023", "- Rp 1.240.000", const Color(0xFFF3E5F5), Icons.shopping_bag, Colors.red),
+            _buildTransactionItem("Listrik & Air", "22 Okt 2023", "- Rp 640.000", const Color(0xFFFFF9C4), Icons.electric_bolt, Colors.red),
 
-            const SizedBox(height: 80), // Ruang agar tidak tertutup FAB
+            const SizedBox(height: 80),
           ],
         ),
-      ),
-
-      // 1c. Quick Add Button
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: const Color(0xFF008080),
-        elevation: 4,
-        child: const Icon(Icons.add, size: 28, color: Colors.white),
-      ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF008080),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        currentIndex: 0,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long_outlined), label: 'Laporan'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Anggaran'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
-        ],
       ),
     );
   }
 
-  // Widget Helper untuk Kartu Saldo
-  Widget _buildBalanceCard() {
+  Widget _buildBalanceCard(Color primaryColor) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -146,7 +111,7 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -162,10 +127,9 @@ class DashboardScreen extends StatelessWidget {
                 "Total Saldo",
                 style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
-              // Ikon dompet di pojok kanan atas kartu
               Icon(
                 Icons.account_balance_wallet_rounded,
-                color: const Color(0xFF008080).withValues(alpha: 0.2),
+                color: primaryColor.withValues(alpha: 0.2),
                 size: 24,
               ),
             ],
@@ -180,15 +144,14 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          // Bagian rincian akun dengan background kotak
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: _buildMiniWalletCard("Tunai", "5.2M")),
+              Expanded(child: _buildMiniWalletCard("Tunai", "5.2M", primaryColor)),
               const SizedBox(width: 8),
-              Expanded(child: _buildMiniWalletCard("Bank", "32.4M")),
+              Expanded(child: _buildMiniWalletCard("Bank", "32.4M", primaryColor)),
               const SizedBox(width: 8),
-              Expanded(child: _buildMiniWalletCard("E-Wallet", "5.0M")),
+              Expanded(child: _buildMiniWalletCard("E-Wallet", "5.0M", primaryColor)),
             ],
           )
         ],
@@ -196,11 +159,11 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniWalletCard(String name, String value) {
+  Widget _buildMiniWalletCard(String name, String value, Color primaryColor) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFD8EBEB), // Warna kotak akun yang lebih gelap
+        color: primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -208,7 +171,7 @@ class DashboardScreen extends StatelessWidget {
         children: [
           Text(
             name,
-            style: const TextStyle(color: Colors.grey, fontSize: 11),
+            style: const TextStyle(color: Colors.black54, fontSize: 11),
           ),
           const SizedBox(height: 2),
           Text(
@@ -224,7 +187,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // GANTI fungsi _buildStatCard LAMA dengan ini:
   Widget _buildSummaryCard({
     required String title,
     required String amount,
@@ -234,15 +196,21 @@ class DashboardScreen extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ]
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Garis indikator vertikal di samping kiri sesuai Figma [cite: 25]
               Container(
                 width: 4,
                 color: indicatorColor,
@@ -295,8 +263,15 @@ class DashboardScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white, // Harus putih agar pop-out
-        borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ]
       ),
       child: Row(
         children: [

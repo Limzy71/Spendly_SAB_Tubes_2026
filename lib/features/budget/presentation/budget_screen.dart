@@ -5,27 +5,25 @@ class BudgetScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color primaryGreen = Color(0xFF05A660);
+    const Color backgroundColor = Color(0xFFF8F9FA);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: backgroundColor,
         elevation: 0,
         title: Row(
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.account_balance_wallet, color: Colors.green, size: 16),
+            const CircleAvatar(
+              radius: 16,
+              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
             ),
             const SizedBox(width: 10),
             const Text(
               'Spendly',
               style: TextStyle(
-                color: Colors.black87,
+                color: primaryGreen,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -74,7 +72,7 @@ class BudgetScreen extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                  const Icon(Icons.warning_rounded, color: Colors.red),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Column(
@@ -104,90 +102,106 @@ class BudgetScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // --- Ringkasan Total Terpakai ---
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Total Terpakai', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                Text('Mei 2024', style: TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  'Rp 4.250.000',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 8),
-                // PERBAIKAN DI SINI: Menggunakan widget Padding untuk memberi jarak bawah
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '/ Rp 6.000.000',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: 0.71, // 71% terpakai
-                backgroundColor: Colors.grey[200],
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                minHeight: 8,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('71% Terpakai', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                Text('Sisa Rp 1.750.000', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              ],
+              child: Column(
+                children: [
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Terpakai', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text('Mei 2024', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        'Rp 4.250.000',
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '/ Rp 6.000.000',
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: 0.71,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: const AlwaysStoppedAnimation<Color>(primaryGreen),
+                      minHeight: 8,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('71% Terpakai', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryGreen)),
+                      Text('Sisa Rp 1.750.000', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 30),
 
             // --- List Kategori Anggaran ---
             const Text(
               'Kategori Anggaran',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
             _buildBudgetItem(
               icon: Icons.restaurant,
-              iconColor: Colors.orange,
+              iconColor: Colors.redAccent,
               title: 'Makanan',
-              spent: 'Rp 1.600.000',
-              limit: 'Rp 2.000.000',
+              spent: 'Rp 1.600k',
+              limit: 'Rp 2.000k',
               percentage: 0.80,
             ),
             _buildBudgetItem(
-              icon: Icons.directions_car,
-              iconColor: Colors.green,
+              icon: Icons.directions_car_outlined,
+              iconColor: primaryGreen,
               title: 'Transportasi',
-              spent: 'Rp 150.000',
-              limit: 'Rp 500.000',
+              spent: 'Rp 150k',
+              limit: 'Rp 500k',
               percentage: 0.30,
             ),
             _buildBudgetItem(
-              icon: Icons.movie,
-              iconColor: Colors.blue,
+              icon: Icons.movie_creation_outlined,
+              iconColor: primaryGreen,
               title: 'Hiburan',
-              spent: 'Rp 300.000',
-              limit: 'Rp 750.000',
+              spent: 'Rp 300k',
+              limit: 'Rp 750k',
               percentage: 0.40,
             ),
             _buildBudgetItem(
-              icon: Icons.shopping_bag,
+              icon: Icons.shopping_bag_outlined,
               iconColor: Colors.purple,
               title: 'Belanja',
-              spent: 'Rp 950.000',
-              limit: 'Rp 1.000.000',
+              spent: 'Rp 950k',
+              limit: 'Rp 1.000k',
               percentage: 0.95,
             ),
             const SizedBox(height: 20),
@@ -200,11 +214,11 @@ class BudgetScreen extends StatelessWidget {
                 icon: const Icon(Icons.add, color: Colors.white),
                 label: const Text(
                   'Tambah Anggaran Baru',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: primaryGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -212,14 +226,13 @@ class BudgetScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  // Widget Helper untuk merender setiap item Kategori Anggaran
   Widget _buildBudgetItem({
     required IconData icon,
     required Color iconColor,
@@ -228,33 +241,45 @@ class BudgetScreen extends StatelessWidget {
     required String limit,
     required double percentage,
   }) {
-    // Logika warna: Merah jika >= 75%, selain itu Hijau
+    // Logika warna: Merah jika >= 75%, selain itu Hijau utama Spendly
     final bool isWarning = percentage >= 0.75;
-    final Color progressColor = isWarning ? Colors.red : Colors.green;
+    final Color progressColor = isWarning ? Colors.red : const Color(0xFF05A660);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: iconColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: iconColor, size: 20),
+                child: Icon(icon, color: iconColor, size: 24),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
-                    Text('$spent / $limit', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                    Text('$spent / $limit', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -263,27 +288,27 @@ class BudgetScreen extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: progressColor,
-                  fontSize: 14,
+                  fontSize: 16,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: percentage,
               backgroundColor: Colors.grey[200],
               valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-              minHeight: 6,
+              minHeight: 8,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Terpakai: $spent', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-              Text('Batas: $limit', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+              Text('Terpakai: $spent', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              Text('Batas: $limit', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
             ],
           ),
         ],

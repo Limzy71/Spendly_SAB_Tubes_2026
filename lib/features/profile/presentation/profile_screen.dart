@@ -13,6 +13,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // REVISI 4: Mendefinisikan warna hijau gelap khas Spendly agar tidak silau
+    const Color primaryGreen = Color(0xFF05A660);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -20,15 +23,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         title: Row(
           children: [
-            // Placeholder untuk logo Spendly kecil
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.account_balance_wallet, color: Colors.green, size: 16),
+            // REVISI 1: Mengganti ikon dompet menjadi Avatar pengguna di App Bar
+            const CircleAvatar(
+              radius: 16,
+              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
             ),
             const SizedBox(width: 10),
             const Text(
@@ -57,10 +55,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: Column(
                 children: [
-                  const CircleAvatar(
-                    radius: 40,
-                    backgroundImage: NetworkImage(
-                        'https://i.pravatar.cc/150?img=11'), // Ganti dengan asset lokal jika ada
+                  // REVISI 2: Menambahkan ikon pensil (edit) pada Avatar
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const CircleAvatar(
+                          radius: 40,
+                          backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: primaryGreen,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(Icons.edit, color: Colors.white, size: 14),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -97,6 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: 'PIN Keamanan',
               value: _isPinEnabled,
               onChanged: (val) => setState(() => _isPinEnabled = val),
+              activeColor: primaryGreen, // Warna switch diperbarui
             ),
             _buildSwitchTile(
               icon: Icons.fingerprint,
@@ -104,44 +133,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Fingerprint / Face ID',
               value: _isBiometricEnabled,
               onChanged: (val) => setState(() => _isBiometricEnabled = val),
+              activeColor: primaryGreen, // Warna switch diperbarui
             ),
 
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
 
             // --- PENGATURAN APLIKASI ---
-            _buildSectionTitle('PENGATURAN APLIKASI'),
-            _buildListTile(
-              icon: Icons.notifications_outlined,
-              title: 'Pengaturan Notifikasi',
-              subtitleWidget: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // REVISI 3: Merombak UI Pengaturan Notifikasi agar persis desain Figma
+            _buildSectionTitle('PENGATURAN APLIKASI', color: primaryGreen),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
                 children: [
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Daily Reminders', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                      const Text('20:00', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
-                    ],
+                  const ListTile(
+                    leading: Icon(Icons.notifications_none_outlined, color: Colors.black87),
+                    title: Text('Pengaturan Notifikasi', style: TextStyle(fontSize: 15)),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Bill Reminders', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                      const Icon(Icons.check, color: Colors.green, size: 16),
-                    ],
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1FAF5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Daily Reminders', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                        Text('20:00', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1FAF5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Bill Reminders', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                        Icon(Icons.check_circle, color: primaryGreen, size: 20),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+                  ListTile(
+                    leading: const Icon(Icons.palette_outlined, color: Colors.black87),
+                    title: const Text('Tema Aplikasi', style: TextStyle(fontSize: 15)),
+                    subtitle: const Text('Terang (Light)', style: TextStyle(color: primaryGreen, fontSize: 12)),
+                    trailing: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                    onTap: () {},
                   ),
                 ],
               ),
-              onTap: () {},
-            ),
-            _buildListTile(
-              icon: Icons.palette_outlined,
-              title: 'Tema Aplikasi',
-              subtitle: 'Terang (Light)',
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () {},
             ),
 
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
@@ -155,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               trailing: ElevatedButton(
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: primaryGreen, // REVISI 4: Warna tombol Sync lebih gelap
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -163,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                   minimumSize: const Size(0, 32),
                 ),
-                child: const Text('Sync Now', style: TextStyle(fontSize: 12)),
+                child: const Text('Sync Now', style: TextStyle(fontSize: 12, color: Colors.white)),
               ),
             ),
             _buildListTile(
@@ -186,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildListTile(
               icon: Icons.info_outline,
               title: 'Tentang Spendly',
-              subtitle: 'v1.0.1 (Kebijakan Privasi, Layanan)',
+              subtitle: 'v1.0.0 (Kebijakan Privasi, Layanan)', // REVISI 5: Ubah versi ke 1.0.0
               trailing: const Icon(Icons.chevron_right, color: Colors.grey),
               onTap: () {},
             ),
@@ -230,6 +283,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // --- WIDGET HELPER ---
   Widget _buildSectionTitle(String title, {Color color = Colors.grey}) {
     return Padding(
       padding: const EdgeInsets.only(left: 20, bottom: 8, top: 8),
@@ -249,7 +303,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     required String title,
     String? subtitle,
-    Widget? subtitleWidget,
     Widget? trailing,
     VoidCallback? onTap,
   }) {
@@ -257,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
       leading: Icon(icon, color: Colors.grey[600]),
       title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      subtitle: subtitleWidget ?? (subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])) : null),
+      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])) : null,
       trailing: trailing,
       onTap: onTap,
       dense: true,
@@ -270,6 +323,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
+    required Color activeColor,
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
@@ -280,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         value: value,
         onChanged: onChanged,
         activeColor: Colors.white,
-        activeTrackColor: Colors.green,
+        activeTrackColor: activeColor,
       ),
       dense: true,
     );
