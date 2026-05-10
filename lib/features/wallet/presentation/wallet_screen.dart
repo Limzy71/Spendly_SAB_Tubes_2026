@@ -16,7 +16,6 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
