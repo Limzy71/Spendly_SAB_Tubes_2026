@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'custom_app_bar.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
 import '../../report/presentation/report_screen.dart';
 import '../../budget/presentation/budget_screen.dart';
@@ -26,6 +27,7 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const CustomAppBar(),
       body: _screens[_selectedIndex],
 
       bottomNavigationBar: BottomNavigationBar(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../transaction/presentation/add_transaction_screen.dart';
+import '../../../theme/app_colors.dart';
+import '../../../../widgets/transaction_item.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -10,49 +12,14 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  final Color primaryGreen = const Color(0xFF05A660);
-  final Color backgroundColor = const Color(0xFFF8F9FA);
-
-  final Color barGreen = const Color(0xFF05A660);
   final Color barRed = const Color(0xFFD93F3C);
-
   String selectedFilter = 'Harian';
   final List<String> filters = ['Harian', 'Mingguan', 'Bulanan', 'Tahunan'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-
-      // --- APP BAR ---
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        leadingWidth: 60,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-          child: CircleAvatar(
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
-          ),
-        ),
-        title: Text(
-          'Spendly',
-          style: TextStyle(
-            color: primaryGreen,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        actions: [
-          IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.notifications_none, color: Colors.black54)
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-
-      // TOMBOL TAMBAH MELAYANG (FAB)
+      backgroundColor: AppColors.backgroundColor,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -60,12 +27,10 @@ class _ReportScreenState extends State<ReportScreen> {
             MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
           );
         },
-        backgroundColor: primaryGreen,
+        backgroundColor: AppColors.primaryGreen,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: Colors.white, size: 32),
       ),
-
-      // --- KONTEN UTAMA ---
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
@@ -76,8 +41,6 @@ class _ReportScreenState extends State<ReportScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)
             ),
             const SizedBox(height: 16),
-
-            // FILTER WAKTU
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -103,7 +66,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         child: Text(
                           filter,
                           style: TextStyle(
-                            color: isSelected ? primaryGreen : Colors.grey.shade600,
+                            color: isSelected ? AppColors.primaryGreen : Colors.grey.shade600,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             fontSize: 13,
                           ),
@@ -115,8 +78,6 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // KARTU RINGKASAN PENGELUARAN
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -154,7 +115,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: LinearProgressIndicator(
                       value: 0.65,
                       backgroundColor: Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation<Color>(primaryGreen),
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
                       minHeight: 6,
                     ),
                   ),
@@ -164,8 +125,6 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // GRAFIK LINGKARAN KATEGORI & LEGENDA
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -180,7 +139,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   const SizedBox(height: 24),
                   _buildPieChart(),
                   const SizedBox(height: 24),
-                  _buildPieLegendItem(const Color(0xFF05A660), 'Makan & Minum', '40%'),
+                  _buildPieLegendItem(AppColors.primaryGreen, 'Makan & Minum', '40%'),
                   const SizedBox(height: 12),
                   _buildPieLegendItem(const Color(0xFF4F46E5), 'Belanja', '20%'),
                   const SizedBox(height: 12),
@@ -189,8 +148,6 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // GRAFIK BATANG PERBANDINGAN & 5 BULAN
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -210,7 +167,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       ),
                       Row(
                         children: [
-                          CircleAvatar(radius: 4, backgroundColor: barGreen),
+                          const CircleAvatar(radius: 4, backgroundColor: AppColors.primaryGreen),
                           const SizedBox(width: 4),
                           const Text('Masuk', style: TextStyle(fontSize: 11, color: Colors.black87)),
                           const SizedBox(width: 12),
@@ -227,23 +184,32 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // BAGIAN TRANSAKSI TERBESAR
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Transaksi Terbesar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 TextButton(
                     onPressed: () {},
-                    child: Text('Lihat Semua', style: TextStyle(color: primaryGreen, fontSize: 13))
+                    child: const Text('Lihat Semua', style: TextStyle(color: AppColors.primaryGreen, fontSize: 13))
                 ),
               ],
             ),
-
-            // LIST TRANSAKSI
-            _buildTopTransactionItem('Belanja Bulanan', '12 Mei 2024 • Supermarket', '- Rp 1.250.000', const Color(0xFFF3E5F5), Icons.shopping_bag, barRed),
-            _buildTopTransactionItem('Gaji Bulanan', '25 April 2024 • PT Solusi Digital', '+ Rp 15.000.000', const Color(0xFFF1FAF5), Icons.wallet, primaryGreen),
-
+            TransactionItem(
+              title: 'Belanja Bulanan',
+              subtitle: '12 Mei 2024 • Supermarket',
+              amount: '- Rp 1.250.000',
+              bgIconColor: const Color(0xFFF3E5F5),
+              icon: Icons.shopping_bag,
+              amountColor: barRed,
+            ),
+            TransactionItem(
+              title: 'Gaji Bulanan',
+              subtitle: '25 April 2024 • PT Solusi Digital',
+              amount: '+ Rp 15.000.000',
+              bgIconColor: const Color(0xFFF1FAF5),
+              icon: Icons.wallet,
+              amountColor: AppColors.primaryGreen,
+            ),
             const SizedBox(height: 80),
           ],
         ),
@@ -251,9 +217,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // KUMPULAN FUNGSI (WIDGET BUILDER)
-
-  // Fungsi untuk membuat Grafik Lingkaran (Pie Chart)
   Widget _buildPieChart() {
     return SizedBox(
       height: 180,
@@ -273,7 +236,7 @@ class _ReportScreenState extends State<ReportScreen> {
               centerSpaceRadius: 65,
               startDegreeOffset: 270,
               sections: [
-                PieChartSectionData(color: const Color(0xFF05A660), value: 40, title: '', radius: 15),
+                PieChartSectionData(color: AppColors.primaryGreen, value: 40, title: '', radius: 15),
                 PieChartSectionData(color: const Color(0xFF4F46E5), value: 20, title: '', radius: 15),
                 PieChartSectionData(color: const Color(0xFFFF8FA3), value: 15, title: '', radius: 15),
                 PieChartSectionData(color: Colors.grey.shade200, value: 25, title: '', radius: 15),
@@ -285,7 +248,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // Fungsi pembantu untuk membuat list item Legenda Kategori
   Widget _buildPieLegendItem(Color color, String title, String percentage) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -302,7 +264,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // Fungsi untuk membuat Grafik Batang (Bar Chart)
   Widget _buildBarChart() {
     return SizedBox(
       height: 200,
@@ -338,57 +299,13 @@ class _ReportScreenState extends State<ReportScreen> {
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
           barGroups: [
-            BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 12, color: barGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 8, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
-            BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 16, color: barGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 10, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
-            BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 14, color: barGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 6, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
-            BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 18, color: barGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 15, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
-            BarChartGroupData(x: 4, barRods: [BarChartRodData(toY: 15, color: barGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 11, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
+            BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 12, color: AppColors.primaryGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 8, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
+            BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 16, color: AppColors.primaryGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 10, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
+            BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 14, color: AppColors.primaryGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 6, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
+            BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 18, color: AppColors.primaryGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 15, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
+            BarChartGroupData(x: 4, barRods: [BarChartRodData(toY: 15, color: AppColors.primaryGreen, width: 8, borderRadius: BorderRadius.circular(2)), BarChartRodData(toY: 11, color: barRed, width: 8, borderRadius: BorderRadius.circular(2))]),
           ],
         ),
-      ),
-    );
-  }
-
-  // Fungsi untuk membuat Item Transaksi
-  Widget _buildTopTransactionItem(String title, String subtitle, String amount, Color bgIcon, IconData icon, Color amountCol) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: bgIcon,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Colors.black87),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-              ],
-            ),
-          ),
-          Text(
-              amount,
-              style: TextStyle(
-                  color: amountCol,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13
-              )
-          ),
-        ],
       ),
     );
   }

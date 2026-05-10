@@ -1,51 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../transaction/presentation/add_transaction_screen.dart';
+import '../../../theme/app_colors.dart';
+import '../../../../widgets/transaction_item.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryGreen = Color(0xFF05A660);
-    const Color backgroundColor = Color(0xFFF8F9FA);
-
-    // --- SIMULASI DATA KOSONG ---
-    // Ubah nilai ini menjadi 'true' jika ingin melihat daftar transaksi yang banyak
-    // Ubah menjadi 'false' untuk melihat tampilan "Empty State" (Belum ada data)
-    bool hasTransactions = false;
+    bool hasTransactions = true;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 0,
-        leadingWidth: 64,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 20.0, right: 10.0),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
-          ),
-        ),
-        title: const Text(
-          'Spendly',
-          style: TextStyle(
-            color: primaryGreen,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        actions: [
-          IconButton(
-            padding: const EdgeInsets.only(right: 16),
-            icon: const Icon(Icons.notifications_none_outlined, color: Colors.black87),
-            onPressed: () {},
-          ),
-        ],
-      ),
-
+      backgroundColor: AppColors.backgroundColor,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -53,31 +19,25 @@ class DashboardScreen extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
           );
         },
-        backgroundColor: primaryGreen,
+        backgroundColor: AppColors.primaryGreen,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, size: 30, color: Colors.white),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-
-            // 1. Total Saldo Card (Sengaja dibuat Rp 0 untuk simulasi akun baru)
-            _buildBalanceCard(primaryGreen, hasTransactions),
-
+            _buildBalanceCard(AppColors.primaryGreen, hasTransactions),
             const SizedBox(height: 20),
-
-            // 2. Ringkasan Pemasukan & Pengeluaran
             Row(
               children: [
                 Expanded(
                   child: _buildSummaryCard(
                     title: "Pemasukan",
                     amount: hasTransactions ? "Rp 12.5M" : "Rp 0",
-                    indicatorColor: primaryGreen,
+                    indicatorColor: AppColors.primaryGreen,
                     icon: Icons.trending_up,
                     iconBgColor: const Color(0xFFF1FAF5),
                   ),
@@ -94,10 +54,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 24),
-
-            // 3. Header Transaksi Terakhir
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -108,23 +65,39 @@ class DashboardScreen extends StatelessWidget {
                 if (hasTransactions)
                   TextButton(
                     onPressed: () {},
-                    child: const Text("Lihat Semua", style: TextStyle(color: primaryGreen, fontSize: 13)),
+                    child: const Text("Lihat Semua", style: TextStyle(color: AppColors.primaryGreen, fontSize: 13)),
                   ),
               ],
             ),
             const SizedBox(height: 12),
-
-            // 4. LOGIKA TAMPILAN: Menampilkan List Data ATAU Empty State
             if (hasTransactions) ...[
-              // Jika data ada, tampilkan ini
-              _buildTransactionItem("Gaji", "25 Okt 2023", "+ Rp 15.000.000", const Color(0xFFF1FAF5), Icons.wallet, primaryGreen),
-              _buildTransactionItem("Makan Siang", "24 Okt 2023", "- Rp 85.000", const Color(0xFFFFF3E0), Icons.restaurant, Colors.red),
-              _buildTransactionItem("Transportasi", "24 Okt 2023", "- Rp 450.000", const Color(0xFFE3F2FD), Icons.directions_car, Colors.red),
+              TransactionItem(
+                title: "Gaji",
+                subtitle: "25 Okt 2023",
+                amount: "+ Rp 15.000.000",
+                bgIconColor: const Color(0xFFF1FAF5),
+                icon: Icons.wallet,
+                amountColor: AppColors.primaryGreen,
+              ),
+              TransactionItem(
+                title: "Makan Siang",
+                subtitle: "24 Okt 2023",
+                amount: "- Rp 85.000",
+                bgIconColor: const Color(0xFFFFF3E0),
+                icon: Icons.restaurant,
+                amountColor: Colors.red,
+              ),
+              TransactionItem(
+                title: "Transportasi",
+                subtitle: "24 Okt 2023",
+                amount: "- Rp 450.000",
+                bgIconColor: const Color(0xFFE3F2FD),
+                icon: Icons.directions_car,
+                amountColor: Colors.red,
+              ),
             ] else ...[
-              // Jika data KOSONG, tampilkan Empty State ini
-              _buildEmptyState(primaryGreen),
+              _buildEmptyState(AppColors.primaryGreen),
             ],
-
             const SizedBox(height: 80),
           ],
         ),
@@ -132,9 +105,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- HELPER WIDGETS ---
-
-  // WIDGET BARU: Empty State Design
   Widget _buildEmptyState(Color primaryGreen) {
     return Container(
       width: double.infinity,
@@ -251,30 +221,6 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTransactionItem(String title, String date, String amount, Color bgIcon, IconData icon, Color amountCol) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        children: [
-          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: bgIcon, borderRadius: BorderRadius.circular(12)), child: Icon(icon, size: 24, color: Colors.black87)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text(date, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-          ),
-          Text(amount, style: TextStyle(color: amountCol, fontWeight: FontWeight.bold, fontSize: 14)),
-        ],
       ),
     );
   }
