@@ -35,7 +35,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       } else if (value == "000") {
         if (rawAmount != "0" && rawAmount.length < 12) rawAmount += "000";
       } else if (value == "." || value == "+" || value == "-" || value == "check") {
-        print("Tombol $value ditekan");
       } else {
         if (rawAmount == "0") {
           rawAmount = value;
@@ -49,7 +48,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -80,19 +79,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 10),
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 40),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1FAF5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  _buildTabItem("Pengeluaran", isExpense),
-                  _buildTabItem("Pemasukan", !isExpense),
-                ],
+              width: double.infinity,
+              color: Colors.white,
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 40),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1FAF5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    _buildTabItem("Pengeluaran", isExpense),
+                    _buildTabItem("Pemasukan", !isExpense),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 30),
@@ -127,7 +130,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text('Simpan Anggaran', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  child: const Text('Simpan Transaksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 ),
               ),
             ),
@@ -164,7 +167,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         crossAxisCount: 4,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 1.3,
+        childAspectRatio: 1.5,
         children: [
           _buildNumBtn("1"), _buildNumBtn("2"), _buildNumBtn("3"), _buildOpBtn(Icons.add, "+", const Color(0xFF6B7AF5)),
           _buildNumBtn("4"), _buildNumBtn("5"), _buildNumBtn("6"), _buildOpBtn(Icons.remove, "-", const Color(0xFF6B7AF5)),
@@ -179,7 +182,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return GestureDetector(
       onTap: () => _onNumpadTap(text),
       child: Container(
-        decoration: BoxDecoration(color: const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
         child: Center(child: Text(text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87))),
       ),
     );
@@ -236,10 +239,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isNew ? Colors.white : (isSelected ? color.withOpacity(0.2) : color.withOpacity(0.05)),
+                color: isNew ? Colors.white : (isSelected ? color.withOpacity(0.2) : Colors.white),
                 shape: BoxShape.circle,
                 border: isNew ? Border.all(color: Colors.grey.shade300, style: BorderStyle.solid) :
-                (isSelected ? Border.all(color: color, width: 2) : null),
+                (isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent)),
               ),
               child: Icon(icon, color: color, size: 28),
             ),
