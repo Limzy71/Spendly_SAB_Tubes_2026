@@ -38,18 +38,48 @@ class _MainNavigationState extends State<MainNavigation> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+
+        // Memaksa background mengikuti tema (Hitam saat gelap)
+        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+
+        // MEMAKSA warna ikon saat aktif menjadi Hijau Spendly
         selectedItemColor: const Color(0xFF05A660),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
+
+        // MEMAKSA warna ikon saat tidak aktif menjadi Abu-abu terang (agar tidak mati di hitam)
+        unselectedItemColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white54
+            : Colors.grey,
+
+        // Tambahkan ini untuk memastikan label juga ikut berubah warna
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: 'Laporan'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_outlined), activeIcon: Icon(Icons.account_balance), label: 'Anggaran'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), activeIcon: Icon(Icons.account_balance_wallet), label: 'Dompet'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profil'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Beranda'
+          ),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart_outlined),
+              activeIcon: Icon(Icons.bar_chart),
+              label: 'Laporan'
+          ),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_outlined),
+              activeIcon: Icon(Icons.account_balance),
+              label: 'Anggaran'
+          ),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              activeIcon: Icon(Icons.account_balance_wallet),
+              label: 'Dompet'
+          ),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Profil'
+          ),
         ],
       ),
     );

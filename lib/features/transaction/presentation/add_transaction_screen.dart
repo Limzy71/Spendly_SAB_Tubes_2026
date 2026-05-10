@@ -48,7 +48,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,

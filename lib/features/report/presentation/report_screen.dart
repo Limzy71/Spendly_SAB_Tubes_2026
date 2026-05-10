@@ -19,7 +19,6 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(

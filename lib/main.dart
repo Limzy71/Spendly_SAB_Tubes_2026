@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'features/profile/logic/theme_cubit.dart';
+import 'theme/app_theme.dart';
 import 'features/main_layout/presentation/main_navigation.dart';
 
 void main() {
@@ -11,25 +14,24 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Spendly',
-      debugShowCheckedModeBanner: false,
+    // 4. Bungkus dengan BlocProvider agar ThemeCubit aktif di seluruh aplikasi
+    return BlocProvider(
+      create: (context) => ThemeCubit(),
+      child: BlocBuilder<ThemeCubit, ThemeMode>(
+        builder: (context, themeMode) {
+          return MaterialApp(
+            title: 'Spendly',
+            debugShowCheckedModeBanner: false,
 
-      // Menerapkan Custom Font & Warna Utama ke seluruh aplikasi
-      theme: ThemeData(
-        primaryColor: const Color(0xFF05A660),
+            // 5. Gunakan tema dari file AppTheme yang sudah kita buat
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeMode, // Ini yang mengontrol kapan gelap/terang aktif
 
-        // Menerapkan font "Plus Jakarta Sans" ke seluruh teks
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(
-          Theme.of(context).textTheme,
-        ),
-
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF05A660)),
-        useMaterial3: true,
+            home: const MainNavigation(),
+          );
+        },
       ),
-
-      // Halaman pertama yang dimuat adalah MainNavigation (Bottom Bar)
-      home: const MainNavigation(),
     );
   }
 }

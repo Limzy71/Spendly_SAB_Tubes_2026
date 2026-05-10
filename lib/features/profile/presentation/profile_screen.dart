@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'widgets/update_profile_screen.dart';
 import '../../../theme/app_colors.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../logic/theme_cubit.dart';
+import 'dart:io';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -11,11 +15,12 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isPinEnabled = true;
   bool _isBiometricEnabled = false;
+  String? _profileImagePath; // Simpan path gambar di sini
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,33 +43,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ],
                         ),
-                        child: const CircleAvatar(
+                        child: CircleAvatar(
                           radius: 40,
-                          backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
+                          backgroundImage: _profileImagePath != null
+                              ? FileImage(File(_profileImagePath!)) as ImageProvider // Foto baru dari galeri/kamera
+                              : const NetworkImage('https://i.pravatar.cc/150?img=11'),
                         ),
                       ),
                       Positioned(
                         bottom: 0,
                         right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryGreen,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                        child: GestureDetector(
+                          onTap: () async {
+                            // Tangkap path gambar yang dikirim dari Bottom Sheet
+                            final String? newPath = await showModalBottomSheet<String>(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => const UpdateProfileScreen(),
+                            );
+
+                            // Jika ada gambar yang dipilih, update UI
+                            if (newPath != null) {
+                              setState(() {
+                                _profileImagePath = newPath;
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryGreen,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(Icons.edit, color: Colors.white, size: 14),
                           ),
-                          child: const Icon(Icons.edit, color: Colors.white, size: 14),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'Budi Santoso',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -151,9 +175,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.palette_outlined, color: Colors.black87),
                     title: const Text('Tema Aplikasi', style: TextStyle(fontSize: 15)),
-                    subtitle: const Text('Terang (Light)', style: TextStyle(color: AppColors.primaryGreen, fontSize: 12)),
+
+                    // Menampilkan status tema saat ini secara dinamis
+                    subtitle: BlocBuilder<ThemeCubit, ThemeMode>(
+                      builder: (context, themeMode) {
+                        return Text(
+                          themeMode == ThemeMode.dark ? 'Gelap (Dark)' : 'Terang (Light)',
+                          style: const TextStyle(color: AppColors.primaryGreen, fontSize: 12),
+                        );
+                      },
+                    ),
+
                     trailing: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-                    onTap: () {},
+                    onTap: () {
+                      // Logika: Ambil status saat ini, lalu balikkan (Toggle)
+                      final cubit = context.read<ThemeCubit>();
+                      final isDark = cubit.state == ThemeMode.dark;
+                      cubit.toggleTheme(!isDark);
+                    },
                   ),
                 ],
               ),
