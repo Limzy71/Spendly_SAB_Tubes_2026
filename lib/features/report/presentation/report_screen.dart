@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../transaction/presentation/add_transaction_screen.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/transaction_item.dart';
-import '../../budget/presentation/budget_screen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -19,8 +19,17 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
+          );
+        },
+        backgroundColor: AppColors.primaryGreen,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add, color: Colors.white, size: 32),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
@@ -31,8 +40,6 @@ class _ReportScreenState extends State<ReportScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)
             ),
             const SizedBox(height: 16),
-
-            // FILTER WAKTU
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -51,7 +58,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           color: isSelected ? Colors.white : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           boxShadow: isSelected
-                              ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)]
+                              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]
                               : [],
                         ),
                         alignment: Alignment.center,
@@ -70,50 +77,6 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // PINTASAN KE HALAMAN ANGGARAN (SUB-MENU)
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BudgetScreen()),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primaryGreen.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.account_balance_wallet, color: AppColors.primaryGreen),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Anggaran Bulanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          SizedBox(height: 4),
-                          Text('Pantau sisa limit pengeluaranmu', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: AppColors.primaryGreen),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -121,7 +84,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -161,13 +124,12 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,13 +147,12 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +183,6 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -249,7 +209,7 @@ class _ReportScreenState extends State<ReportScreen> {
               icon: Icons.wallet,
               amountColor: AppColors.primaryGreen,
             ),
-            const SizedBox(height: 100),
+            const SizedBox(height: 80),
           ],
         ),
       ),

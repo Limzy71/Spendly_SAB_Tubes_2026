@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'add_budget_screen.dart';
 import '../../../theme/app_colors.dart';
-import '../../../widgets/sub_app_bar.dart';
 
 class BudgetScreen extends StatelessWidget {
   const BudgetScreen({Key? key}) : super(key: key);
@@ -9,10 +8,6 @@ class BudgetScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-
-      appBar: const SubAppBar(title: 'Rincian Anggaran'),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -34,21 +29,20 @@ class BudgetScreen extends StatelessWidget {
                 color: Colors.grey[600],
               ),
             ),
-            const SizedBox(height: 24),
-
+            const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.red[50],
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.red.shade100),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_rounded, color: Colors.red),
-                  SizedBox(width: 12),
-                  Expanded(
+                  const Icon(Icons.warning_rounded, color: Colors.red),
+                  const SizedBox(width: 12),
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -66,7 +60,6 @@ class BudgetScreen extends StatelessWidget {
                           style: TextStyle(
                             color: Colors.red,
                             fontSize: 12,
-                            height: 1.4,
                           ),
                         ),
                       ],
@@ -76,9 +69,8 @@ class BudgetScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -99,7 +91,7 @@ class BudgetScreen extends StatelessWidget {
                       Text('Mei 2024', style: TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -108,8 +100,8 @@ class BudgetScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 4),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
                           '/ Rp 6.000.000',
                           style: TextStyle(fontSize: 14, color: Colors.grey),
@@ -117,7 +109,7 @@ class BudgetScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(
@@ -138,14 +130,12 @@ class BudgetScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-
+            const SizedBox(height: 30),
             const Text(
               'Kategori Anggaran',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-
             _buildBudgetItem(
               icon: Icons.restaurant,
               iconColor: Colors.redAccent,
@@ -170,8 +160,7 @@ class BudgetScreen extends StatelessWidget {
               limit: 'Rp 1.000k',
               percentage: 0.95,
             ),
-            const SizedBox(height: 32),
-
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -220,13 +209,6 @@ class BudgetScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          )
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

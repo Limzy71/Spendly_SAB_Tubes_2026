@@ -11,39 +11,49 @@ class DashboardScreen extends StatelessWidget {
     bool hasTransactions = true;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
+          );
+        },
+        backgroundColor: AppColors.primaryGreen,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add, size: 30, color: Colors.white),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-
-            const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
-            const Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
-            const SizedBox(height: 16),
-
-            _buildBalanceCard(AppColors.primaryGreen, hasTransactions),
+            // Mengirim context ke fungsi pembantu agar tidak error
+            _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
             const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
                   child: _buildSummaryCard(
+                    context,
                     title: "Pemasukan",
                     amount: hasTransactions ? "Rp 12.5M" : "Rp 0",
                     indicatorColor: AppColors.primaryGreen,
                     icon: Icons.trending_up,
-                    iconBgColor: const Color(0xFFF1FAF5),
+                    iconBgColor: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.green.withOpacity(0.1)
+                        : const Color(0xFFF1FAF5),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildSummaryCard(
+                    context,
                     title: "Pengeluaran",
                     amount: hasTransactions ? "Rp 4.2M" : "Rp 0",
                     indicatorColor: Colors.red,
                     icon: Icons.trending_down,
-                    iconBgColor: const Color(0xFFFFEBEE),
+                    iconBgColor: Colors.red.withOpacity(0.1),
                   ),
                 ),
               ],
@@ -52,9 +62,13 @@ class DashboardScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   "Transaksi Terakhir",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color // Warna dinamis
+                  ),
                 ),
                 if (hasTransactions)
                   TextButton(
@@ -65,11 +79,12 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (hasTransactions) ...[
+              // Widget TransactionItem harus dipastikan mendukung Dark Mode di dalamnya
               TransactionItem(
                 title: "Gaji",
                 subtitle: "25 Okt 2023",
                 amount: "+ Rp 15.000.000",
-                bgIconColor: const Color(0xFFF1FAF5),
+                bgIconColor: Colors.green.withOpacity(0.1),
                 icon: Icons.wallet,
                 amountColor: AppColors.primaryGreen,
               ),
@@ -77,7 +92,7 @@ class DashboardScreen extends StatelessWidget {
                 title: "Makan Siang",
                 subtitle: "24 Okt 2023",
                 amount: "- Rp 85.000",
-                bgIconColor: const Color(0xFFFFF3E0),
+                bgIconColor: Colors.orange.withOpacity(0.1),
                 icon: Icons.restaurant,
                 amountColor: Colors.red,
               ),
@@ -85,12 +100,12 @@ class DashboardScreen extends StatelessWidget {
                 title: "Transportasi",
                 subtitle: "24 Okt 2023",
                 amount: "- Rp 450.000",
-                bgIconColor: const Color(0xFFE3F2FD),
+                bgIconColor: Colors.blue.withOpacity(0.1),
                 icon: Icons.directions_car,
                 amountColor: Colors.red,
               ),
             ] else ...[
-              _buildEmptyState(AppColors.primaryGreen),
+              _buildEmptyState(context, AppColors.primaryGreen),
             ],
             const SizedBox(height: 80),
           ],
@@ -99,7 +114,8 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(Color primaryGreen) {
+  // Menambahkan 'BuildContext context' di argumen agar Theme.of(context) bisa jalan
+  Widget _buildEmptyState(BuildContext context, Color primaryGreen) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40),
@@ -109,15 +125,19 @@ class DashboardScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: primaryGreen.withOpacity(0.05),
+              color: Theme.of(context).cardColor,
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.receipt_long_outlined, size: 64, color: primaryGreen.withOpacity(0.5)),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             "Belum ada transaksi",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.bodyLarge?.color
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -130,15 +150,19 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBalanceCard(Color primaryColor, bool hasData) {
+  Widget _buildBalanceCard(BuildContext context, Color primaryColor, bool hasData) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor, // Otomatis Hitam/Putih
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4)
+          ),
         ],
       ),
       child: Column(
@@ -152,16 +176,23 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text(hasData ? "Rp 42.680.500" : "Rp 0", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text(
+              hasData ? "Rp 42.680.500" : "Rp 0",
+              style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color
+              )
+          ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: _buildMiniWalletCard("Tunai", hasData ? "5.2M" : "0")),
+              Expanded(child: _buildMiniWalletCard(context, "Tunai", hasData ? "5.2M" : "0")),
               const SizedBox(width: 8),
-              Expanded(child: _buildMiniWalletCard("Bank", hasData ? "32.4M" : "0")),
+              Expanded(child: _buildMiniWalletCard(context, "Bank", hasData ? "32.4M" : "0")),
               const SizedBox(width: 8),
-              Expanded(child: _buildMiniWalletCard("E-Wallet", hasData ? "5.0M" : "0")),
+              Expanded(child: _buildMiniWalletCard(context, "E-Wallet", hasData ? "5.0M" : "0")),
             ],
           )
         ],
@@ -169,24 +200,32 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniWalletCard(String name, String value) {
+  Widget _buildMiniWalletCard(BuildContext context, String name, String value) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-      decoration: BoxDecoration(color: const Color(0xFFE6F7ED), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.05)
+              : const Color(0xFFE6F7ED),
+          borderRadius: BorderRadius.circular(12)
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(name, style: const TextStyle(color: Colors.black54, fontSize: 11)),
+          Text(name, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54, fontSize: 11)),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard({required String title, required String amount, required Color indicatorColor, required IconData icon, required Color iconBgColor}) {
+  Widget _buildSummaryCard(BuildContext context, {required String title, required String amount, required Color indicatorColor, required IconData icon, required Color iconBgColor}) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12)
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: IntrinsicHeight(
