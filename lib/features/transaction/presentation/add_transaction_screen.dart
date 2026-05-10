@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({Key? key}) : super(key: key);
@@ -8,14 +9,10 @@ class AddTransactionScreen extends StatefulWidget {
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
-  final Color primaryGreen = const Color(0xFF05A660);
-
-  // --- STATE (Logika Interaktif) ---
   bool isExpense = true;
   String rawAmount = "150000";
   String selectedCategory = "Makan";
 
-  // Fungsi untuk memformat angka "150000" menjadi "150.000"
   String get formattedAmount {
     if (rawAmount.isEmpty) return "0";
     String result = "";
@@ -28,7 +25,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return result;
   }
 
-  // Fungsi ketika tombol angka/hapus dipencet
   void _onNumpadTap(String value) {
     setState(() {
       if (value == "backspace") {
@@ -54,7 +50,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -64,9 +59,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           padding: EdgeInsets.only(left: 16.0),
           child: Row(
             children: [
-              Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF05A660), size: 20),
+              Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryGreen, size: 20),
               SizedBox(width: 6),
-              Text('Spendly', style: TextStyle(color: Color(0xFF05A660), fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('Spendly', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
         ),
@@ -82,12 +77,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           )
         ],
       ),
-
       body: SingleChildScrollView(
         child: Column(
           children: [
             const SizedBox(height: 10),
-            // 1. TABS (Pengeluaran / Pemasukan)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 40),
               padding: const EdgeInsets.all(4),
@@ -102,35 +95,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 30),
-            // 2. NOMINAL DISPLAY (Interaktif)
             const Text('JUMLAH (IDR)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Rp', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryGreen)),
+                const Text('Rp', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
                 const SizedBox(width: 8),
                 Text(formattedAmount, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.black87)),
-                Container(width: 2, height: 40, color: primaryGreen),
+                Container(width: 2, height: 40, color: AppColors.primaryGreen),
               ],
             ),
-
             const SizedBox(height: 30),
-            // 3. NUMPAD (Keyboard Angka Interaktif)
             _buildNumpad(),
-
             const SizedBox(height: 30),
-            // 4. KATEGORI (Interaktif)
             _buildCategorySection(),
-
             const SizedBox(height: 30),
-            // 5. FORM DETAIL (Tanggal & Catatan)
             _buildDetailForm(),
-
             const SizedBox(height: 30),
-            // 6. TOMBOL SIMPAN
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: SizedBox(
@@ -140,7 +123,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
+                    backgroundColor: AppColors.primaryGreen,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
@@ -154,8 +137,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  // --- WIDGET HELPERS ---
-
   Widget _buildTabItem(String title, bool active) {
     return Expanded(
       child: GestureDetector(
@@ -168,7 +149,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             boxShadow: active ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : [],
           ),
           alignment: Alignment.center,
-          child: Text(title, style: TextStyle(color: active ? primaryGreen : Colors.grey, fontWeight: active ? FontWeight.bold : FontWeight.normal)),
+          child: Text(title, style: TextStyle(color: active ? AppColors.primaryGreen : Colors.grey, fontWeight: active ? FontWeight.bold : FontWeight.normal)),
         ),
       ),
     );
@@ -188,7 +169,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           _buildNumBtn("1"), _buildNumBtn("2"), _buildNumBtn("3"), _buildOpBtn(Icons.add, "+", const Color(0xFF6B7AF5)),
           _buildNumBtn("4"), _buildNumBtn("5"), _buildNumBtn("6"), _buildOpBtn(Icons.remove, "-", const Color(0xFF6B7AF5)),
           _buildNumBtn("7"), _buildNumBtn("8"), _buildNumBtn("9"), _buildOpBtn(Icons.backspace_outlined, "backspace", const Color(0xFF8F9DF8)),
-          _buildNumBtn("."), _buildNumBtn("0"), _buildNumBtn("000"), _buildOpBtn(Icons.check, "check", primaryGreen),
+          _buildNumBtn("."), _buildNumBtn("0"), _buildNumBtn("000"), _buildOpBtn(Icons.check, "check", AppColors.primaryGreen),
         ],
       ),
     );
@@ -232,7 +213,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               _buildCatItem(Icons.restaurant, "Makan", Colors.redAccent),
               _buildCatItem(Icons.directions_car, "Transport", Colors.blue),
               _buildCatItem(Icons.shopping_bag, "Belanja", Colors.purple),
-              _buildCatItem(Icons.money, "Gaji", primaryGreen),
+              _buildCatItem(Icons.money, "Gaji", AppColors.primaryGreen),
               _buildCatItem(Icons.add, "Baru", Colors.grey, isNew: true),
             ],
           ),
@@ -255,7 +236,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                // Efek visual jika kategori dipilih
                 color: isNew ? Colors.white : (isSelected ? color.withOpacity(0.2) : color.withOpacity(0.05)),
                 shape: BoxShape.circle,
                 border: isNew ? Border.all(color: Colors.grey.shade300, style: BorderStyle.solid) :
@@ -282,11 +262,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: () {},
-            icon: Icon(Icons.camera_alt_outlined, color: primaryGreen),
-            label: Text('Lampirkan Foto Struk', style: TextStyle(color: primaryGreen)),
+            icon: const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen),
+            label: const Text('Lampirkan Foto Struk', style: TextStyle(color: AppColors.primaryGreen)),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
-              side: BorderSide(color: primaryGreen),
+              side: const BorderSide(color: AppColors.primaryGreen),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           )
@@ -300,7 +280,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Icon(icon, color: primaryGreen),
+          Icon(icon, color: AppColors.primaryGreen),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({Key? key}) : super(key: key);
@@ -8,9 +9,6 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  final Color primaryGreen = const Color(0xFF05A660);
-  final Color backgroundColor = const Color(0xFFF8F9FA);
-
   String? selectedFromAccount;
   String? selectedToAccount;
   final List<String> accountOptions = ['Uang Tunai', 'BCA', 'GoPay', 'OVO'];
@@ -18,52 +16,21 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-      // --- APP BAR ---
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        title: Row(
-          children: [
-            const CircleAvatar(
-              radius: 16,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Spendly',
-              style: TextStyle(
-                color: primaryGreen,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black54),
-            onPressed: () {},
-          ),
-        ],
-      ),
-
-      // --- KONTEN UTAMA ---
+      backgroundColor: AppColors.backgroundColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. KARTU TOTAL SALDO (Warna Hijau Solid)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: primaryGreen,
+                color: AppColors.primaryGreen,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: primaryGreen.withValues(alpha: 0.3),
+                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -105,36 +72,29 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // 2. DAFTAR DOMPET
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Daftar Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 TextButton.icon(
                   onPressed: () {},
-                  icon: Icon(Icons.add_circle_outline, color: primaryGreen, size: 18),
-                  label: Text('Tambah', style: TextStyle(color: primaryGreen)),
+                  icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryGreen, size: 18),
+                  label: const Text('Tambah', style: TextStyle(color: AppColors.primaryGreen)),
                   style: TextButton.styleFrom(padding: EdgeInsets.zero),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-
-            // Item-item dompet
-            _buildWalletItem(icon: Icons.money, iconColor: primaryGreen, title: 'Uang Tunai', subtitle: 'Fisik', amount: 'Rp 1.250.000'),
+            _buildWalletItem(icon: Icons.money, iconColor: AppColors.primaryGreen, title: 'Uang Tunai', subtitle: 'Fisik', amount: 'Rp 1.250.000'),
             _buildWalletItem(icon: Icons.account_balance, iconColor: Colors.indigo, title: 'BCA', subtitle: 'Bank Transfer', amount: 'Rp 35.600.000'),
             _buildWalletItem(icon: Icons.account_balance_wallet, iconColor: Colors.blue, title: 'GoPay', subtitle: 'E-Wallet', amount: 'Rp 4.500.000'),
             _buildWalletItem(icon: Icons.account_balance_wallet, iconColor: Colors.purple, title: 'OVO', subtitle: 'E-Wallet', amount: 'Rp 1.500.000'),
-
             const SizedBox(height: 24),
             const Divider(thickness: 1, color: Color(0xFFEEEEEE)),
             const SizedBox(height: 24),
-
-            // 3. TRANSFER ANTAR AKUN
             Row(
               children: [
-                Icon(Icons.swap_horiz, color: primaryGreen),
+                const Icon(Icons.swap_horiz, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Column(
@@ -148,20 +108,18 @@ class _WalletScreenState extends State<WalletScreen> {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Info Box
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1FAF5),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: primaryGreen.withValues(alpha: 0.2)),
+                border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  Icon(Icons.info_outline, color: primaryGreen, size: 20),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  Icon(Icons.info_outline, color: AppColors.primaryGreen, size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
                     child: Text(
                       'Ini adalah transfer internal, tidak akan dicatat sebagai pengeluaran.',
                       style: TextStyle(fontSize: 12, color: Colors.black87),
@@ -171,8 +129,6 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Form Transfer
             _buildFormLabel('Dari Akun'),
             _buildDropdown(
               value: selectedFromAccount,
@@ -180,7 +136,6 @@ class _WalletScreenState extends State<WalletScreen> {
               onChanged: (val) => setState(() => selectedFromAccount = val),
             ),
             const SizedBox(height: 16),
-
             _buildFormLabel('Ke Akun'),
             _buildDropdown(
               value: selectedToAccount,
@@ -188,12 +143,10 @@ class _WalletScreenState extends State<WalletScreen> {
               onChanged: (val) => setState(() => selectedToAccount = val),
             ),
             const SizedBox(height: 16),
-
             _buildFormLabel('Nominal'),
             TextFormField(
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                // Menggunakan prefixIcon agar 'Rp' selalu tampil permanen
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(left: 16.0, right: 8.0),
                   child: Text(
@@ -202,16 +155,15 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                 ),
                 prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                hintText: '0', // Teks placeholder "0"
+                hintText: '0',
                 hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryGreen)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
               ),
             ),
             const SizedBox(height: 16),
-
             _buildFormLabel('Catatan'),
             TextFormField(
               maxLines: 3,
@@ -221,12 +173,10 @@ class _WalletScreenState extends State<WalletScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryGreen)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
               ),
             ),
             const SizedBox(height: 24),
-
-            // Tombol Konfirmasi
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -237,7 +187,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryGreen,
+                  backgroundColor: AppColors.primaryGreen,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -246,7 +196,6 @@ class _WalletScreenState extends State<WalletScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 40),
           ],
         ),
@@ -254,9 +203,6 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // --- WIDGET HELPER ---
-
-  // Helper untuk List Dompet
   Widget _buildWalletItem({
     required IconData icon,
     required Color iconColor,
@@ -302,7 +248,6 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // Helper untuk Label Form
   Widget _buildFormLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
@@ -310,7 +255,6 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // Helper untuk Dropdown Transfer
   Widget _buildDropdown({required String? value, required String hint, required ValueChanged<String?> onChanged}) {
     return DropdownButtonFormField<String>(
       value: value,
@@ -320,7 +264,7 @@ class _WalletScreenState extends State<WalletScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryGreen)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
       ),
       items: accountOptions.map((String account) {
         return DropdownMenuItem<String>(
