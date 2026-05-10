@@ -12,23 +12,17 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
-          );
-        },
-        backgroundColor: AppColors.primaryGreen,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, size: 30, color: Colors.white),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
+
+            const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+            const Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
+            const SizedBox(height: 16),
+
             _buildBalanceCard(AppColors.primaryGreen, hasTransactions),
             const SizedBox(height: 20),
             Row(

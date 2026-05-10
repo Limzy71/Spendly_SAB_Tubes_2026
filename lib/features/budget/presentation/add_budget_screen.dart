@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import '../../../widgets/sub_app_bar.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   const AddBudgetScreen({Key? key}) : super(key: key);
@@ -24,33 +25,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leadingWidth: 110,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 16.0),
-          child: Row(
-            children: [
-              Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryGreen, size: 20),
-              SizedBox(width: 6),
-              Text('Spendly', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
-            ],
-          ),
-        ),
-        centerTitle: true,
-        title: const Text(
-            'Tambah Anggaran Baru',
-            style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.normal)
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.black87),
-            onPressed: () => Navigator.pop(context),
-          )
-        ],
-      ),
+
+      appBar: const SubAppBar(title: 'Tambah Anggaran Baru'),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
