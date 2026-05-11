@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:async'; // Untuk Timer Kursor
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 
@@ -25,27 +24,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final TextEditingController _noteController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
-  bool _showCursor = true;
-  Timer? _cursorTimer;
+  final FocusNode _amountFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('id', null);
-
-    // Timer kursor berkedip tiap 500ms
-    _cursorTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      setState(() {
-        _showCursor = !_showCursor;
-      });
-    });
   }
 
   @override
   void dispose() {
-    _cursorTimer?.cancel(); // Bersihkan timer saat keluar
     _amountController.dispose();
     _noteController.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
@@ -82,78 +73,78 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Adaptasi warna berdasarkan tema (dark/light)
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color cardColor = Theme.of(context).cardColor;
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Ikuti tema
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const SubAppBar(title: 'Tambah Transaksi'),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Bagian Input Nominal
-            Container(
-              width: double.infinity,
-              color: cardColor,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1FAF5),
-                      borderRadius: BorderRadius.circular(12),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                FocusScope.of(context).requestFocus(_amountFocusNode);
+              },
+              child: Container(
+                width: double.infinity,
+                color: cardColor,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1FAF5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
+                          _buildTabItem("Pemasukan", !isExpense, isDark, cardColor),
+                        ],
+                      ),
                     ),
-                    child: Row(
+                    const SizedBox(height: 25),
+                    const Text('NOMINAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                    const SizedBox(height: 10),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
-                        _buildTabItem("Pemasukan", !isExpense, isDark, cardColor),
+                        const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                        const SizedBox(width: 10),
+                        IntrinsicWidth(
+                          child: TextField(
+                            controller: _amountController,
+                            focusNode: _amountFocusNode, // Pasang FocusNode di sini
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
+                            cursorColor: AppColors.primaryGreen,
+                            decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: "0",
+                                hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
+                            ),
+                            onChanged: (value) {
+                              if (value.isNotEmpty) {
+                                String clean = value.replaceAll('.', '');
+                                String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                                _amountController.value = TextEditingValue(
+                                  text: formatted,
+                                  selection: TextSelection.collapsed(offset: formatted.length),
+                                );
+                              }
+                            },
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 25),
-                  const Text('NOMINAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                  const SizedBox(height: 10),
-
-                  // Row Nominal + Kursor
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                      const SizedBox(width: 10),
-                      IntrinsicWidth(
-                        child: TextField(
-                          controller: _amountController,
-                          keyboardType: TextInputType.number,
-                          style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
-                          decoration: InputDecoration(
-                              border: InputBorder.none,
-                              hintText: "0",
-                              hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
-                          ),
-                          onChanged: (value) {
-                            if (value.isNotEmpty) {
-                              String clean = value.replaceAll('.', '');
-                              String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
-                              _amountController.value = TextEditingValue(
-                                text: formatted,
-                                selection: TextSelection.collapsed(offset: formatted.length),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                      // Kursor Berkedip (Sesuai permintaan)
-                      Text(
-                        _showCursor ? "|" : " ",
-                        style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w300, color: AppColors.primaryGreen),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -179,7 +170,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Pilih Akun & Tanggal
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
@@ -226,7 +216,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Catatan & Foto
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
@@ -275,7 +264,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             const SizedBox(height: 30),
 
-            // Tombol Simpan
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
