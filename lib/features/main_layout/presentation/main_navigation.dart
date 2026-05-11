@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'custom_app_bar.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
 import '../../report/presentation/report_screen.dart';
-import '../../budget/presentation/budget_screen.dart';
 import '../../wallet/presentation/wallet_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
+import '../../transaction/presentation/add_transaction_screen.dart';
+import '../../../theme/app_colors.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -16,69 +17,101 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
+  // Halaman Anggaran dihapus dari sini (nanti diakses via Report)
   final List<Widget> _screens = [
     const DashboardScreen(),
     const ReportScreen(),
-    const BudgetScreen(),
     const WalletScreen(),
     const ProfileScreen(),
   ];
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Deteksi tema untuk menyesuaikan warna background dan icon
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    Color bgColor = Theme.of(context).bottomNavigationBarTheme.backgroundColor ?? (isDark ? Colors.black : Colors.white);
+    Color unselectedColor = isDark ? Colors.white54 : Colors.grey;
+
     return Scaffold(
       appBar: const CustomAppBar(),
       body: _screens[_selectedIndex],
 
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
+      // FAB di tengah untuk Tambah Transaksi
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
+          );
         },
-        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.primaryGreen,
+        shape: const CircleBorder(),
+        elevation: 4,
+        child: const Icon(Icons.add, size: 32, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-        // Memaksa background mengikuti tema (Hitam saat gelap)
-        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-
-        // MEMAKSA warna ikon saat aktif menjadi Hijau Spendly
-        selectedItemColor: const Color(0xFF05A660),
-
-        // MEMAKSA warna ikon saat tidak aktif menjadi Abu-abu terang (agar tidak mati di hitam)
-        unselectedItemColor: Theme.of(context).brightness == Brightness.dark
-            ? Colors.white54
-            : Colors.grey,
-
-        // Tambahkan ini untuk memastikan label juga ikut berubah warna
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
-
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Beranda'
+      // BottomAppBar melengkung untuk tempat FAB
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8.0,
+        color: bgColor,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Menu Kiri
+              Row(
+                children: [
+                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Beranda', unselectedColor),
+                  _buildNavItem(1, Icons.bar_chart_outlined, Icons.bar_chart, 'Laporan', unselectedColor),
+                ],
+              ),
+              // Menu Kanan
+              Row(
+                children: [
+                  _buildNavItem(2, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Dompet', unselectedColor),
+                  _buildNavItem(3, Icons.person_outline, Icons.person, 'Profil', unselectedColor),
+                ],
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart),
-              label: 'Laporan'
+        ),
+      ),
+    );
+  }
+
+  // Widget builder untuk item menu bawah
+  Widget _buildNavItem(int index, IconData iconOutlined, IconData iconFilled, String label, Color unselectedColor) {
+    bool isSelected = _selectedIndex == index;
+    return MaterialButton(
+      minWidth: 65,
+      padding: EdgeInsets.zero,
+      onPressed: () => _onItemTapped(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isSelected ? iconFilled : iconOutlined,
+            color: isSelected ? AppColors.primaryGreen : unselectedColor,
           ),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_outlined),
-              activeIcon: Icon(Icons.account_balance),
-              label: 'Anggaran'
-          ),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              activeIcon: Icon(Icons.account_balance_wallet),
-              label: 'Dompet'
-          ),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profil'
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected ? AppColors.primaryGreen : unselectedColor,
+            ),
           ),
         ],
       ),
