@@ -1,26 +1,32 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
-import 'register_screen.dart';
+import 'login_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   // GlobalKey untuk validasi form
   final _formKey = GlobalKey<FormState>();
 
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+
   bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -57,14 +63,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
                   Text(
-                    'Selamat Datang Kembali',
+                    'Buat Akun Baru',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
                   ),
                   const SizedBox(height: 8),
-                  const Text('Masuk untuk melanjutkan pencatatan', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const Text('Kelola keuanganmu lebih rapi', style: TextStyle(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 40),
 
-                  // Input Email
+                  // Nama Lengkap
+                  _buildTextField(
+                    controller: _nameController,
+                    hintText: 'Nama Lengkap',
+                    icon: Icons.person_outline,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Email
                   _buildTextField(
                     controller: _emailController,
                     hintText: 'Alamat Email',
@@ -74,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Input Password
+                  // Kata Sandi
                   _buildTextField(
                     controller: _passwordController,
                     hintText: 'Kata Sandi',
@@ -84,26 +99,31 @@ class _LoginScreenState extends State<LoginScreen> {
                     onVisibilityToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                     isDark: isDark,
                   ),
+                  const SizedBox(height: 16),
 
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {},
-                      child: const Text('Lupa Kata Sandi?', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                    ),
+                  // Konfirmasi Kata Sandi
+                  _buildTextField(
+                    controller: _confirmPasswordController,
+                    hintText: 'Konfirmasi Kata Sandi',
+                    icon: Icons.lock_outline,
+                    isPassword: true,
+                    isVisible: _isConfirmPasswordVisible,
+                    onVisibilityToggle: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                    isDark: isDark,
+                    isConfirm: true, // Tambahan untuk cek kecocokan
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 40),
 
-                  // Tombol Masuk
+                  // Tombol Daftar
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Validasi sebelum login
+                        // Jalankan validasi
                         if (_formKey.currentState!.validate()) {
-                          // TODO: Proses Login
+                          // TODO: Proses Pendaftaran
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Memproses Masuk...')),
+                            const SnackBar(content: Text('Pendaftaran Berhasil!')),
                           );
                         }
                       },
@@ -113,23 +133,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
-                      child: const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: const Text('Daftar Sekarang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                   const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Belum punya akun? ', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                      const Text('Sudah punya akun? ', style: TextStyle(color: Colors.grey, fontSize: 14)),
                       GestureDetector(
                         onTap: () {
                           Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
                           );
                         },
                         child: const Text(
-                          'Daftar',
+                          'Masuk',
                           style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),
@@ -154,6 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
     VoidCallback? onVisibilityToggle,
     TextInputType keyboardType = TextInputType.text,
     required bool isDark,
+    bool isConfirm = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -168,6 +189,8 @@ class _LoginScreenState extends State<LoginScreen> {
           if (!emailValid) return 'Format email tidak valid';
         }
         if (isPassword && value.length < 8) return 'Minimal 8 karakter';
+        // Cek kecocokan konfirmasi password
+        if (isConfirm && value != _passwordController.text) return 'Kata sandi tidak cocok';
         return null;
       },
       decoration: InputDecoration(
