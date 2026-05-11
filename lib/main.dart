@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'features/profile/logic/theme_cubit.dart';
 import 'theme/app_theme.dart';
 import 'features/main_layout/presentation/main_navigation.dart';
+import 'features/auth/presentation/register_screen.dart';
+import 'features/auth/presentation/passcode_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -25,7 +27,9 @@ class MyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
 
-            home: const MainNavigation(),
+            // home: const MainNavigation(),
+            home: const RegisterScreen(),
+            // home: const PasscodeScreen(),
           );
         },
       ),
