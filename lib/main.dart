@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
             // 5. Gunakan tema dari file AppTheme yang sudah kita buat
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: themeMode, // Ini yang mengontrol kapan gelap/terang aktif
+            themeMode: themeMode,
 
             home: const MainNavigation(),
           );

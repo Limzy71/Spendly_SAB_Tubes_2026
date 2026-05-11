@@ -11,24 +11,18 @@ class DashboardScreen extends StatelessWidget {
     bool hasTransactions = true;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
-          );
-        },
-        backgroundColor: AppColors.primaryGreen,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, size: 30, color: Colors.white),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            // Mengirim context ke fungsi pembantu agar tidak error
+
+            const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+            // nanti di isi dengan nick user dari database
+            const Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
+            const SizedBox(height: 16),
+
             _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
             const SizedBox(height: 20),
             Row(
@@ -107,7 +101,7 @@ class DashboardScreen extends StatelessWidget {
             ] else ...[
               _buildEmptyState(context, AppColors.primaryGreen),
             ],
-            const SizedBox(height: 80),
+            const SizedBox(height: 100),
           ],
         ),
       ),

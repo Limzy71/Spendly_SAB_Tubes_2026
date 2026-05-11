@@ -195,7 +195,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 40),
+            // Penambahan SizedBox agar tidak tertutup FAB
+            const SizedBox(height: 100),
           ],
         ),
       ),

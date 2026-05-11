@@ -15,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isPinEnabled = true;
   bool _isBiometricEnabled = false;
-  String? _profileImagePath; // Simpan path gambar di sini
+  String? _profileImagePath;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircleAvatar(
                           radius: 40,
                           backgroundImage: _profileImagePath != null
-                              ? FileImage(File(_profileImagePath!)) as ImageProvider // Foto baru dari galeri/kamera
+                              ? FileImage(File(_profileImagePath!)) as ImageProvider
                               : const NetworkImage('https://i.pravatar.cc/150?img=11'),
                         ),
                       ),
@@ -55,14 +55,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         right: 0,
                         child: GestureDetector(
                           onTap: () async {
-                            // Tangkap path gambar yang dikirim dari Bottom Sheet
                             final String? newPath = await showModalBottomSheet<String>(
                               context: context,
                               backgroundColor: Colors.transparent,
                               builder: (context) => const UpdateProfileScreen(),
                             );
 
-                            // Jika ada gambar yang dipilih, update UI
                             if (newPath != null) {
                               setState(() {
                                 _profileImagePath = newPath;
@@ -92,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  const Text(
                     'budi.santoso@email.com',
                     style: TextStyle(
                       fontSize: 14,
@@ -147,11 +145,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: const Color(0xFFF1FAF5),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Daily Reminders', style: TextStyle(fontSize: 14, color: Colors.black87)),
-                        const Text('20:00', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('Daily Reminders', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                        Text('20:00', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
                       ],
                     ),
                   ),
@@ -175,8 +173,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.palette_outlined, color: Colors.black87),
                     title: const Text('Tema Aplikasi', style: TextStyle(fontSize: 15)),
-
-                    // Menampilkan status tema saat ini secara dinamis
                     subtitle: BlocBuilder<ThemeCubit, ThemeMode>(
                       builder: (context, themeMode) {
                         return Text(
@@ -185,10 +181,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         );
                       },
                     ),
-
                     trailing: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                     onTap: () {
-                      // Logika: Ambil status saat ini, lalu balikkan (Toggle)
                       final cubit = context.read<ThemeCubit>();
                       final isDark = cubit.state == ThemeMode.dark;
                       cubit.toggleTheme(!isDark);
@@ -265,7 +259,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 40),
+            // Penambahan SizedBox agar tidak tertutup FAB
+            const SizedBox(height: 100),
           ],
         ),
       ),
