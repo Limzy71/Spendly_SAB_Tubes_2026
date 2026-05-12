@@ -146,11 +146,16 @@ class _WalletScreenState extends State<WalletScreen> {
             TextFormField(
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.only(left: 16.0, right: 8.0),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 16.0, right: 8.0),
                   child: Text(
                       'Rp',
-                      style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16)
+                      style: TextStyle(
+                        // Menyesuaikan warna teks berdasarkan tema aktif
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16
+                      )
                   ),
                 ),
                 prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
@@ -210,13 +215,20 @@ class _WalletScreenState extends State<WalletScreen> {
     required String subtitle,
     required String amount,
   }) {
+
+    // Mengecek apakah sedang dalam mode gelap
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // Background card berubah jadi abu-abu gelap jika dark mode
+        color: isDarkMode ? Colors.grey.shade900 : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
       ),
       child: Row(
         children: [
@@ -233,7 +245,14 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
@@ -241,7 +260,11 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           Text(
             amount,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
           ),
         ],
       ),
@@ -251,7 +274,14 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildFormLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-      child: Text(text, style: const TextStyle(color: Colors.black54, fontSize: 13)),
+        child: Text(
+            text,
+            style: TextStyle(
+              // Mengikuti warna teks standar tema (hitam di light, putih di dark)
+                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                fontSize: 13
+            )
+        ),
     );
   }
 

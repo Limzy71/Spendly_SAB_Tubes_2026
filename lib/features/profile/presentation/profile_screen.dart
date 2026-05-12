@@ -132,7 +132,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onTap: () async {
                             final String? newPath = await showModalBottomSheet<String>(
                               context: context,
-                              backgroundColor: Colors.transparent,
+                              // PERBAIKAN 1: Background Modal adaptif
+                              backgroundColor: Theme.of(context).cardColor,
+                              // PERBAIKAN 2: Membuat sudut tumpul tetap terlihat bagus
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                              ),
                               builder: (context) => const UpdateProfileScreen(),
                             );
                             if (newPath != null) {

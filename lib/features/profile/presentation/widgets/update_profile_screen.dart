@@ -18,10 +18,14 @@ class UpdateProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mengambil warna teks utama dari tema (hitam di terang, putih di gelap)
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        // PERBAIKAN: Menggunakan cardColor agar adaptif terhadap Dark Mode
+        color:  Theme.of(context).cardColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -33,13 +37,19 @@ class UpdateProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ListTile(
-            leading: const Icon(Icons.camera_alt, color: Color(0xFF00A368)), // Warna hijau Spendly
-            title: const Text("Ambil dari Kamera"),
+            leading: const Icon(Icons.camera_alt, color: Color(0xFF00A368)),
+            title: Text(
+              "Ambil dari Kamera",
+              style: TextStyle(color: textColor), // PERBAIKAN: Warna teks adaptif
+            ),
             onTap: () => _pickImage(context, ImageSource.camera),
           ),
           ListTile(
             leading: const Icon(Icons.photo_library, color: Color(0xFF00A368)),
-            title: const Text("Pilih dari Galeri"),
+            title: Text(
+              "Pilih dari Galeri",
+              style: TextStyle(color: textColor), // PERBAIKAN: Warna teks adaptif
+            ),
             onTap: () => _pickImage(context, ImageSource.gallery),
           ),
           const SizedBox(height: 10),
