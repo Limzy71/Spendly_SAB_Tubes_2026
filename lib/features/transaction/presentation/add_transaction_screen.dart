@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
@@ -14,16 +15,19 @@ class AddTransactionScreen extends StatefulWidget {
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
+  final supabase = Supabase.instance.client;
+
   bool isExpense = true;
-  String selectedCategory = "Makan";
+  // Kategori default disesuaikan
+  String selectedCategory = "Makanan";
   String selectedAccount = "Uang Tunai";
   DateTime selectedDate = DateTime.now();
   File? _imageFile;
+  bool _isLoading = false;
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-
   final FocusNode _amountFocusNode = FocusNode();
 
   @override
@@ -40,13 +44,47 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.camera);
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
+      setState(() => _imageFile = File(pickedFile.path));
     }
+  }
+
+  void _showImagePickerBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (BuildContext bc) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 15),
+                child: Center(child: Text('Pilih Sumber Gambar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen),
+                title: const Text('Ambil dari Kamera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image_outlined, color: AppColors.primaryGreen),
+                title: const Text('Pilih dari Galeri'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -57,17 +95,47 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       lastDate: DateTime(2101),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen),
-          ),
+          data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)),
           child: child!,
         );
       },
     );
     if (picked != null && picked != selectedDate) {
-      setState(() {
-        selectedDate = picked;
+      setState(() => selectedDate = picked);
+    }
+  }
+
+  Future<void> _saveTransaction() async {
+    if (_amountController.text.isEmpty || _amountController.text == '0') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nominal wajib diisi')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final cleanAmount = _amountController.text.replaceAll('.', '');
+      final amount = int.parse(cleanAmount);
+
+      await supabase.from('transactions').insert({
+        'amount': amount,
+        'is_expense': isExpense,
+        'category': selectedCategory,
+        'wallet_id': 1,
+        'transaction_date': selectedDate.toIso8601String().split('T')[0],
+        'note': _noteController.text.isEmpty ? null : _noteController.text,
       });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Berhasil Disimpan!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -76,6 +144,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color cardColor = Theme.of(context).cardColor;
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    Color dividerColor = isDark ? Colors.white24 : Colors.grey.shade300;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -86,12 +155,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           children: [
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () {
-                FocusScope.of(context).requestFocus(_amountFocusNode);
-              },
+              onTap: () => FocusScope.of(context).requestFocus(_amountFocusNode),
               child: Container(
                 width: double.infinity,
-                color: cardColor,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                ),
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
@@ -111,7 +181,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     const SizedBox(height: 25),
                     const Text('NOMINAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
                     const SizedBox(height: 10),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -120,7 +189,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         IntrinsicWidth(
                           child: TextField(
                             controller: _amountController,
-                            focusNode: _amountFocusNode, // Pasang FocusNode di sini
+                            focusNode: _amountFocusNode,
                             keyboardType: TextInputType.number,
                             style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
                             cursorColor: AppColors.primaryGreen,
@@ -160,8 +229,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  _buildCatItem(Icons.restaurant, "Makan", Colors.redAccent, isDark, cardColor),
-                  _buildCatItem(Icons.directions_car, "Transport", Colors.blue, isDark, cardColor),
+                  // Penyeragaman Kategori di Sini
+                  _buildCatItem(Icons.restaurant, "Makanan", Colors.redAccent, isDark, cardColor),
+                  _buildCatItem(Icons.directions_car, "Transportasi", Colors.blue, isDark, cardColor),
                   _buildCatItem(Icons.shopping_bag, "Belanja", Colors.purple, isDark, cardColor),
                   _buildCatItem(Icons.money, "Gaji", AppColors.primaryGreen, isDark, cardColor),
                   _buildCatItem(Icons.add, "Baru", Colors.grey, isDark, cardColor, isNew: true),
@@ -174,7 +244,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                ),
                 child: Column(
                   children: [
                     Row(
@@ -197,7 +271,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ),
                       ],
                     ),
-                    Divider(height: 30, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    Divider(height: 30, color: dividerColor, thickness: 1),
                     InkWell(
                       onTap: () => _selectDate(context),
                       child: Row(
@@ -220,7 +294,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -233,11 +311,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         hintText: "Beli apa hari ini?",
                         hintStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white30 : Colors.grey),
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                       ),
                     ),
-                    Divider(height: 20, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    Divider(height: 20, color: dividerColor, thickness: 1),
                     InkWell(
-                      onTap: _pickImage,
+                      onTap: _showImagePickerBottomSheet,
                       child: Column(
                         children: [
                           if (_imageFile != null)
@@ -269,13 +349,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _isLoading ? null : _saveTransaction,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text('Simpan Transaksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: _isLoading
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan Transaksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ),

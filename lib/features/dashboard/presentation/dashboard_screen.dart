@@ -1,113 +1,194 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/transaction_item.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final supabase = Supabase.instance.client;
+
+  bool _isLoading = true;
+  int _totalIncome = 0;
+  int _totalExpense = 0;
+  int _totalBalance = 0;
+  List<Map<String, dynamic>> _recentTransactions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    initializeDateFormatting('id', null);
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await supabase
+          .from('transactions')
+          .select()
+          .order('transaction_date', ascending: false)
+          .order('created_at', ascending: false);
+
+      int tempIncome = 0;
+      int tempExpense = 0;
+
+      for (var transaction in response) {
+        int amount = transaction['amount'] as int;
+        bool isExpense = transaction['is_expense'] as bool;
+
+        if (isExpense) {
+          tempExpense += amount;
+        } else {
+          tempIncome += amount;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _totalIncome = tempIncome;
+          _totalExpense = tempExpense;
+          _totalBalance = tempIncome - tempExpense;
+          _recentTransactions = response.take(5).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengambil data: $e')));
+      }
+    }
+  }
+
+  String _formatCurrency(int amount) {
+    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('dd MMM yyyy', 'id').format(date);
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    bool hasTransactions = true;
+    bool hasTransactions = _recentTransactions.isNotEmpty;
 
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
+      body: RefreshIndicator(
+        onRefresh: _fetchDashboardData,
+        color: AppColors.primaryGreen,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+            : SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
 
-            const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
-            // nanti di isi dengan nick user dari database
-            const Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
-            const SizedBox(height: 16),
+              const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+              const Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
+              const SizedBox(height: 16),
 
-            _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryCard(
-                    context,
-                    title: "Pemasukan",
-                    amount: hasTransactions ? "Rp 12.5M" : "Rp 0",
-                    indicatorColor: AppColors.primaryGreen,
-                    icon: Icons.trending_up,
-                    iconBgColor: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.green.withOpacity(0.1)
-                        : const Color(0xFFF1FAF5),
+              _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      context,
+                      title: "Pemasukan",
+                      amount: _formatCurrency(_totalIncome),
+                      indicatorColor: AppColors.primaryGreen,
+                      icon: Icons.trending_up,
+                      iconBgColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.green.withOpacity(0.1)
+                          : const Color(0xFFF1FAF5),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildSummaryCard(
-                    context,
-                    title: "Pengeluaran",
-                    amount: hasTransactions ? "Rp 4.2M" : "Rp 0",
-                    indicatorColor: Colors.red,
-                    icon: Icons.trending_down,
-                    iconBgColor: Colors.red.withOpacity(0.1),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      context,
+                      title: "Pengeluaran",
+                      amount: _formatCurrency(_totalExpense),
+                      indicatorColor: Colors.red,
+                      icon: Icons.trending_down,
+                      iconBgColor: Colors.red.withOpacity(0.1),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Transaksi Terakhir",
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).textTheme.bodyLarge?.color // Warna dinamis
-                  ),
-                ),
-                if (hasTransactions)
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text("Lihat Semua", style: TextStyle(color: AppColors.primaryGreen, fontSize: 13)),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (hasTransactions) ...[
-              // Widget TransactionItem harus dipastikan mendukung Dark Mode di dalamnya
-              TransactionItem(
-                title: "Gaji",
-                subtitle: "25 Okt 2023",
-                amount: "+ Rp 15.000.000",
-                bgIconColor: Colors.green.withOpacity(0.1),
-                icon: Icons.wallet,
-                amountColor: AppColors.primaryGreen,
+                ],
               ),
-              TransactionItem(
-                title: "Makan Siang",
-                subtitle: "24 Okt 2023",
-                amount: "- Rp 85.000",
-                bgIconColor: Colors.orange.withOpacity(0.1),
-                icon: Icons.restaurant,
-                amountColor: Colors.red,
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Transaksi Terakhir",
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color
+                    ),
+                  ),
+                  if (hasTransactions)
+                    TextButton(
+                      onPressed: () {},
+                      child: const Text("Lihat Semua", style: TextStyle(color: AppColors.primaryGreen, fontSize: 13)),
+                    ),
+                ],
               ),
-              TransactionItem(
-                title: "Transportasi",
-                subtitle: "24 Okt 2023",
-                amount: "- Rp 450.000",
-                bgIconColor: Colors.blue.withOpacity(0.1),
-                icon: Icons.directions_car,
-                amountColor: Colors.red,
-              ),
-            ] else ...[
-              _buildEmptyState(context, AppColors.primaryGreen),
+              const SizedBox(height: 12),
+
+              if (hasTransactions)
+                ..._recentTransactions.map((tx) {
+                  bool isExpense = tx['is_expense'] as bool;
+                  return TransactionItem(
+                    title: tx['category'] ?? "Lainnya",
+                    subtitle: _formatDate(tx['transaction_date'] ?? ""),
+                    amount: "${isExpense ? '-' : '+'} ${_formatCurrency(tx['amount'] ?? 0)}",
+                    bgIconColor: isExpense ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                    icon: _getIconForCategory(tx['category']),
+                    amountColor: isExpense ? Colors.red : AppColors.primaryGreen,
+                  );
+                }).toList()
+              else
+                _buildEmptyState(context, AppColors.primaryGreen),
+
+              const SizedBox(height: 100),
             ],
-            const SizedBox(height: 100),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // Menambahkan 'BuildContext context' di argumen agar Theme.of(context) bisa jalan
+  IconData _getIconForCategory(String? category) {
+    if (category == null) return Icons.receipt;
+
+    switch (category.toLowerCase()) {
+      case 'makan': return Icons.restaurant;
+      case 'transport': return Icons.directions_car;
+      case 'belanja': return Icons.shopping_bag;
+      case 'gaji': return Icons.wallet;
+      default: return Icons.receipt_long;
+    }
+  }
+
   Widget _buildEmptyState(BuildContext context, Color primaryGreen) {
     return Container(
       width: double.infinity,
@@ -148,7 +229,7 @@ class DashboardScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor, // Otomatis Hitam/Putih
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -170,11 +251,14 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-              hasData ? "Rp 42.680.500" : "Rp 0",
+              _formatCurrency(_totalBalance),
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge?.color
+                  // Logika Warna Merah jika saldo minus
+                  color: _totalBalance < 0
+                      ? Colors.red
+                      : Theme.of(context).textTheme.bodyLarge?.color
               )
           ),
           const SizedBox(height: 20),
@@ -239,7 +323,11 @@ class DashboardScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text(amount, style: TextStyle(color: indicatorColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(amount, style: TextStyle(color: indicatorColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
                     ],
                   ),
                 ),
