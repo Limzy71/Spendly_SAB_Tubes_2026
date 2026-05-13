@@ -27,8 +27,8 @@ class MyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
 
-            // home: const MainNavigation(),
-            home: const RegisterScreen(),
+            home: const MainNavigation(),
+            // home: const RegisterScreen(),
             // home: const PasscodeScreen(),
           );
         },
