@@ -20,11 +20,15 @@ class TransactionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Deteksi apakah sedang dark mode
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // PERBAIKAN: Gunakan cardColor agar otomatis berubah saat dark mode
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -42,16 +46,31 @@ class TransactionItem extends StatelessWidget {
               color: bgIconColor,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: Colors.black87),
+            // PERBAIKAN: Gunakan warna icon yang adaptif (misal: primaryGreen atau onSurface)
+            child: Icon(icon, color: isDark ? Colors.white : Colors.black87),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                // PERBAIKAN: Gunakan warna bodySmall (biasanya abu-abu) untuk Subtitle
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),

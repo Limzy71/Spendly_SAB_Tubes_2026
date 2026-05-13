@@ -105,9 +105,20 @@ class _ReportScreenState extends State<ReportScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Anggaran Bulanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
+                          Text(
+                              'Anggaran Bulanan',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: textColor // Pastikan menggunakan variabel textColor yang didefinisikan di awal build
+                              )
+                          ),
                           const SizedBox(height: 4),
-                          const Text('Pantau sisa limit pengeluaranmu', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          // Subtitle biarkan abu-abu agar ada hierarki visual
+                          const Text(
+                              'Pantau sisa limit pengeluaranmu',
+                              style: TextStyle(color: Colors.grey, fontSize: 12)
+                          ),
                         ],
                       ),
                     ),
@@ -241,6 +252,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
               ],
             ),
+            // PERBAIKAN PADA TRANSACTION ITEM:
             TransactionItem(
               title: 'Belanja Bulanan',
               subtitle: '12 Mei 2024 • Supermarket',
@@ -248,6 +260,8 @@ class _ReportScreenState extends State<ReportScreen> {
               bgIconColor: Colors.purple.withOpacity(0.1),
               icon: Icons.shopping_bag,
               amountColor: barRed,
+              // Pastikan widget TransactionItem menerima parameter warna judul jika ada,
+              // atau biarkan widget tersebut menggunakan tema internal.
             ),
             TransactionItem(
               title: 'Gaji Bulanan',
