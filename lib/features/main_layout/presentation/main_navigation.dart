@@ -17,14 +17,6 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  // Halaman Anggaran dihapus dari sini (nanti diakses via Report)
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const ReportScreen(),
-    const WalletScreen(),
-    const ProfileScreen(),
-  ];
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -33,22 +25,27 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    // Deteksi tema untuk menyesuaikan warna background dan icon
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color bgColor = Theme.of(context).bottomNavigationBarTheme.backgroundColor ?? (isDark ? Colors.black : Colors.white);
     Color unselectedColor = isDark ? Colors.white54 : Colors.grey;
 
+    final List<Widget> screens = [
+      DashboardScreen(key: UniqueKey()),
+      const ReportScreen(),
+      const WalletScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
       appBar: const CustomAppBar(),
-      body: _screens[_selectedIndex],
-
-      // FAB di tengah untuk Tambah Transaksi
+      body: screens[_selectedIndex],
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
           );
+          setState(() {});
         },
         backgroundColor: AppColors.primaryGreen,
         shape: const CircleBorder(),
@@ -56,32 +53,21 @@ class _MainNavigationState extends State<MainNavigation> {
         child: const Icon(Icons.add, size: 32, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
-      // BottomAppBar melengkung untuk tempat FAB
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,
         color: bgColor,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: EdgeInsets.zero,
         child: SizedBox(
-          height: 60,
+          height: 65,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Menu Kiri
-              Row(
-                children: [
-                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Beranda', unselectedColor),
-                  _buildNavItem(1, Icons.bar_chart_outlined, Icons.bar_chart, 'Laporan', unselectedColor),
-                ],
-              ),
-              // Menu Kanan
-              Row(
-                children: [
-                  _buildNavItem(2, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Dompet', unselectedColor),
-                  _buildNavItem(3, Icons.person_outline, Icons.person, 'Profil', unselectedColor),
-                ],
-              ),
+              _buildNavItem(0, Icons.home_outlined, Icons.home, 'Beranda', unselectedColor),
+              _buildNavItem(1, Icons.bar_chart_outlined, Icons.bar_chart, 'Laporan', unselectedColor),
+              const SizedBox(width: 56),
+              _buildNavItem(2, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Dompet', unselectedColor),
+              _buildNavItem(3, Icons.person_outline, Icons.person, 'Profil', unselectedColor),
             ],
           ),
         ),
@@ -89,31 +75,36 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  // Widget builder untuk item menu bawah
   Widget _buildNavItem(int index, IconData iconOutlined, IconData iconFilled, String label, Color unselectedColor) {
     bool isSelected = _selectedIndex == index;
-    return MaterialButton(
-      minWidth: 65,
-      padding: EdgeInsets.zero,
-      onPressed: () => _onItemTapped(index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isSelected ? iconFilled : iconOutlined,
-            color: isSelected ? AppColors.primaryGreen : unselectedColor,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    return Expanded(
+      child: MaterialButton(
+        padding: EdgeInsets.zero,
+        onPressed: () => _onItemTapped(index),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isSelected ? iconFilled : iconOutlined,
               color: isSelected ? AppColors.primaryGreen : unselectedColor,
+              size: 26,
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? AppColors.primaryGreen : unselectedColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

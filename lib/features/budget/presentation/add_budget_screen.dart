@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../theme/app_colors.dart';
-import '../../../widgets/sub_app_bar.dart';
+import '../../../../widgets/sub_app_bar.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   const AddBudgetScreen({Key? key}) : super(key: key);
@@ -10,10 +11,14 @@ class AddBudgetScreen extends StatefulWidget {
 }
 
 class _AddBudgetScreenState extends State<AddBudgetScreen> {
+  final supabase = Supabase.instance.client;
+
   String? selectedCategory;
   bool isAlertEnabled = true;
+  bool _isLoading = false;
   final TextEditingController _limitController = TextEditingController(text: "2.000.000");
 
+  // Nama kategori diseragamkan dengan halaman Transaksi
   final List<Map<String, dynamic>> categories = [
     {'name': 'Makanan', 'icon': Icons.restaurant, 'color': Colors.orange},
     {'name': 'Transportasi', 'icon': Icons.directions_car, 'color': Colors.green},
@@ -21,13 +26,49 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     {'name': 'Belanja', 'icon': Icons.shopping_bag, 'color': Colors.purple},
   ];
 
+  Future<void> _saveBudget() async {
+    if (selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Silakan pilih kategori terlebih dahulu')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final cleanLimit = _limitController.text.replaceAll('.', '');
+      final limitAmount = int.parse(cleanLimit);
+
+      final now = DateTime.now();
+      final periodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
+
+      await supabase.from('budgets').insert({
+        'category': selectedCategory,
+        'limit_amount': limitAmount,
+        'period_month': periodMonth,
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anggaran berhasil dibuat!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    Color cardColor = Theme.of(context).cardColor;
+    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const SubAppBar(title: 'Tambah Anggaran Baru'),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -39,8 +80,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Row(
                 children: [
@@ -49,11 +91,12 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _limitController,
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        hintText: '0',
+                      decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: '0',
+                          hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
                       ),
                       onChanged: (value) {
                         String digits = value.replaceAll(RegExp(r'\D'), '');
@@ -64,9 +107,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         String formatted = '';
                         int count = 0;
                         for (int i = digits.length - 1; i >= 0; i--) {
-                          if (count != 0 && count % 3 == 0) {
-                            formatted = '.$formatted';
-                          }
+                          if (count != 0 && count % 3 == 0) formatted = '.$formatted';
                           formatted = digits[i] + formatted;
                           count++;
                         }
@@ -87,8 +128,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Column(
                 children: categories.map((cat) {
@@ -103,7 +145,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       ),
                       child: Icon(cat['icon'], color: cat['color'] == Colors.green ? AppColors.primaryGreen : cat['color']),
                     ),
-                    title: Text(cat['name'], style: const TextStyle(fontWeight: FontWeight.w500)),
+                    title: Text(cat['name'], style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
                     trailing: isSelected
                         ? const Icon(Icons.check_circle, color: AppColors.primaryGreen)
                         : const Icon(Icons.circle_outlined, color: Colors.grey),
@@ -115,19 +157,20 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Row(
                 children: [
                   const Icon(Icons.notifications_active_outlined, color: AppColors.primaryGreen),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Aktifkan Peringatan', style: TextStyle(fontWeight: FontWeight.bold)),
-                        Text('Beri tahu jika sudah mencapai 80%', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('Aktifkan Peringatan', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                        const Text('Beri tahu jika sudah mencapai 80%', style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
@@ -143,17 +186,16 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: _isLoading ? null : _saveBudget,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryGreen,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
-                child: const Text('Buat Anggaran',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                child: _isLoading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Buat Anggaran', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
           ],
