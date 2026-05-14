@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 import '../../../theme/app_colors.dart';
+import 'add_wallet_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({Key? key}) : super(key: key);
@@ -9,235 +12,380 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  String? selectedFromAccount;
-  String? selectedToAccount;
-  final List<String> accountOptions = ['Uang Tunai', 'BCA', 'GoPay', 'OVO'];
+  final supabase = Supabase.instance.client;
+
+  bool _isLoading = true;
+  int _totalBalance = 0;
+  List<Map<String, dynamic>> _wallets = [];
+
+  int? selectedFromAccountId;
+  int? selectedToAccountId;
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  bool _isTransferring = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchWalletData();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchWalletData() async {
+    setState(() => _isLoading = true);
+    try {
+      final walletResponse = await supabase.from('wallets').select().order('id');
+      final txResponse = await supabase.from('transactions').select();
+
+      int grandTotal = 0;
+      List<Map<String, dynamic>> processedWallets = [];
+
+      for (var w in walletResponse) {
+        int wId = w['id'] as int;
+        String wName = w['name'].toString();
+        int currentBal = w['balance'] as int;
+        String? iconName = w['icon_name']?.toString();
+
+        for (var tx in txResponse) {
+          if (tx['wallet_id'] == wId) {
+            if (tx['is_expense'] == true) {
+              currentBal -= tx['amount'] as int;
+            } else {
+              currentBal += tx['amount'] as int;
+            }
+          }
+        }
+
+        grandTotal += currentBal;
+        processedWallets.add({
+          'id': wId,
+          'name': wName,
+          'balance': currentBal,
+          'subtitle': _getSubtitleForWallet(wName),
+          'icon': _getIconFromDbString(iconName, wName),
+          'color': _getColorForWallet(wName),
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _wallets = processedWallets;
+          _totalBalance = grandTotal;
+          selectedFromAccountId = null;
+          selectedToAccountId = null;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengambil data: $e')));
+      }
+    }
+  }
+
+  Future<void> _processTransfer() async {
+    if (selectedFromAccountId == null || selectedToAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih dompet asal dan tujuan!')));
+      return;
+    }
+    if (_amountController.text.isEmpty || _amountController.text == '0') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nominal wajib diisi!')));
+      return;
+    }
+
+    setState(() => _isTransferring = true);
+
+    try {
+      final cleanAmount = _amountController.text.replaceAll('.', '');
+      final amount = int.parse(cleanAmount);
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final note = _noteController.text.isNotEmpty ? _noteController.text : 'Transfer Internal';
+
+      await supabase.from('transactions').insert({
+        'amount': amount,
+        'is_expense': true,
+        'category': 'Transfer',
+        'wallet_id': selectedFromAccountId,
+        'transaction_date': today,
+        'note': note,
+      });
+
+      await supabase.from('transactions').insert({
+        'amount': amount,
+        'is_expense': false,
+        'category': 'Transfer',
+        'wallet_id': selectedToAccountId,
+        'transaction_date': today,
+        'note': note,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer Berhasil!')));
+        _amountController.clear();
+        _noteController.clear();
+        _fetchWalletData();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Transfer gagal: $e')));
+    } finally {
+      if (mounted) setState(() => _isTransferring = false);
+    }
+  }
+
+  String _formatCurrency(int amount) {
+    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+  }
+
+  IconData _getIconFromDbString(String? iconName, String walletName) {
+    switch (iconName) {
+      case 'money': return Icons.money;
+      case 'bank': return Icons.account_balance;
+      case 'wallet': return Icons.account_balance_wallet;
+      case 'card': return Icons.credit_card;
+      case 'savings': return Icons.savings;
+      default:
+        String lower = walletName.toLowerCase();
+        if (lower.contains('tunai')) return Icons.money;
+        if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana')) return Icons.account_balance_wallet;
+        return Icons.account_balance;
+    }
+  }
+
+  Color _getColorForWallet(String name) {
+    String lower = name.toLowerCase();
+    if (lower.contains('tunai')) return AppColors.primaryGreen;
+    if (lower.contains('bca') || lower.contains('mandiri') || lower.contains('bri')) return Colors.indigo;
+    if (lower.contains('gopay')) return Colors.blue;
+    if (lower.contains('ovo')) return Colors.purple;
+    if (lower.contains('dana')) return Colors.orange;
+    return Colors.teal;
+  }
+
+  String _getSubtitleForWallet(String name) {
+    String lower = name.toLowerCase();
+    if (lower.contains('tunai')) return 'Fisik';
+    if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana')) return 'E-Wallet';
+    return 'Bank / Lainnya';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300;
+
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+      body: RefreshIndicator(
+        onRefresh: _fetchWalletData,
+        color: AppColors.primaryGreen,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+            : SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: AppColors.primaryGreen.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Total Saldo', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    const SizedBox(height: 8),
+                    Text(_formatCurrency(_totalBalance), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.arrow_upward, color: Colors.white, size: 14),
+                          SizedBox(width: 4),
+                          Text('Dinikmati', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Daftar Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddWalletScreen()),
+                      );
+                      if (result == true) {
+                        _fetchWalletData();
+                      }
+                    },
+                    icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryGreen, size: 18),
+                    label: const Text('Tambah', style: TextStyle(color: AppColors.primaryGreen)),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 8),
+
+              if (_wallets.isEmpty)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: Text("Belum ada dompet terdaftar.")))
+              else
+                ..._wallets.map((wallet) => _buildWalletItem(
+                  icon: wallet['icon'],
+                  iconColor: wallet['color'],
+                  title: wallet['name'],
+                  subtitle: wallet['subtitle'],
+                  amount: _formatCurrency(wallet['balance']),
+                  isDarkMode: isDarkMode,
+                )).toList(),
+
+              const SizedBox(height: 24),
+              Divider(thickness: 1, color: isDarkMode ? Colors.white12 : const Color(0xFFEEEEEE)),
+              const SizedBox(height: 24),
+
+              // --- PERUBAHAN TEKS: Akun -> Dompet ---
+              Row(
                 children: [
-                  const Text(
-                    'Total Saldo',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Rp 42.850.000',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                  const Icon(Icons.swap_horiz, color: AppColors.primaryGreen),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.arrow_upward, color: Colors.white, size: 14),
-                        SizedBox(width: 4),
-                        Text('2.4%', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text('Transfer Antar Dompet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                        const Text('Pindahkan saldo antar dompet Anda.', style: TextStyle(color: Colors.grey, fontSize: 12)),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Daftar Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryGreen, size: 18),
-                  label: const Text('Tambah', style: TextStyle(color: AppColors.primaryGreen)),
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.teal.withOpacity(0.1) : const Color(0xFFF1FAF5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.primaryGreen.withOpacity(0.2)),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _buildWalletItem(icon: Icons.money, iconColor: AppColors.primaryGreen, title: 'Uang Tunai', subtitle: 'Fisik', amount: 'Rp 1.250.000'),
-            _buildWalletItem(icon: Icons.account_balance, iconColor: Colors.indigo, title: 'BCA', subtitle: 'Bank Transfer', amount: 'Rp 35.600.000'),
-            _buildWalletItem(icon: Icons.account_balance_wallet, iconColor: Colors.blue, title: 'GoPay', subtitle: 'E-Wallet', amount: 'Rp 4.500.000'),
-            _buildWalletItem(icon: Icons.account_balance_wallet, iconColor: Colors.purple, title: 'OVO', subtitle: 'E-Wallet', amount: 'Rp 1.500.000'),
-            const SizedBox(height: 24),
-            const Divider(thickness: 1, color: Color(0xFFEEEEEE)),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Icon(Icons.swap_horiz, color: AppColors.primaryGreen),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Transfer Antar Akun', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('Pindahkan saldo antar dompet Anda.', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1FAF5),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.primaryGreen, size: 20),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Ini adalah transfer internal, tidak akan dicatat sebagai pengeluaran.',
-                      style: TextStyle(fontSize: 12, color: Colors.black87),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildFormLabel('Dari Akun'),
-            _buildDropdown(
-              value: selectedFromAccount,
-              hint: 'Pilih Akun Asal',
-              onChanged: (val) => setState(() => selectedFromAccount = val),
-            ),
-            const SizedBox(height: 16),
-            _buildFormLabel('Ke Akun'),
-            _buildDropdown(
-              value: selectedToAccount,
-              hint: 'Pilih Akun Tujuan',
-              onChanged: (val) => setState(() => selectedToAccount = val),
-            ),
-            const SizedBox(height: 16),
-            _buildFormLabel('Nominal'),
-            TextFormField(
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                prefixIcon: Padding(
-                  padding: const EdgeInsets.only(left: 16.0, right: 8.0),
-                  child: Text(
-                      'Rp',
-                      style: TextStyle(
-                        // Menyesuaikan warna teks berdasarkan tema aktif
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16
-                      )
-                  ),
-                ),
-                prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                hintText: '0',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildFormLabel('Catatan'),
-            TextFormField(
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Tambah keterangan (opsional)...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.send, color: Colors.white, size: 18),
-                label: const Text(
-                  'Konfirmasi Transfer',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppColors.primaryGreen, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('Transfer internal ini akan dicatat dalam riwayat transaksi Anda untuk pelacakan.', style: TextStyle(fontSize: 12, color: isDarkMode ? Colors.white70 : Colors.black87))),
+                  ],
                 ),
               ),
-            ),
-            // Penambahan SizedBox agar tidak tertutup FAB
-            const SizedBox(height: 100),
-          ],
+              const SizedBox(height: 20),
+
+              _buildFormLabel('Dari Dompet'),
+              _buildDropdown(
+                  value: selectedFromAccountId,
+                  hint: 'Pilih Dompet Asal',
+                  borderColor: borderColor,
+                  // Filter: Jangan tampilkan dompet yang sedang dipilih di "Ke Dompet"
+                  items: _wallets.where((w) => w['id'] != selectedToAccountId).toList(),
+                  onChanged: (val) => setState(() => selectedFromAccountId = val)
+              ),
+              const SizedBox(height: 16),
+
+              _buildFormLabel('Ke Dompet'),
+              _buildDropdown(
+                  value: selectedToAccountId,
+                  hint: 'Pilih Dompet Tujuan',
+                  borderColor: borderColor,
+                  // Filter: Jangan tampilkan dompet yang sedang dipilih di "Dari Dompet"
+                  items: _wallets.where((w) => w['id'] != selectedFromAccountId).toList(),
+                  onChanged: (val) => setState(() => selectedToAccountId = val)
+              ),
+              const SizedBox(height: 16),
+
+              _buildFormLabel('Nominal'),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                decoration: InputDecoration(
+                  prefixIcon: Padding(padding: const EdgeInsets.only(left: 16.0, right: 8.0), child: Text('Rp', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, fontSize: 16))),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                  hintText: '0',
+                  hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
+                ),
+                onChanged: (value) {
+                  if (value.isNotEmpty) {
+                    String clean = value.replaceAll('.', '');
+                    String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                    _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _buildFormLabel('Catatan'),
+              TextFormField(
+                controller: _noteController,
+                maxLines: 2,
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                decoration: InputDecoration(
+                  hintText: 'Tambah keterangan (opsional)...',
+                  hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isTransferring ? null : _processTransfer,
+                  icon: _isTransferring ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send, color: Colors.white, size: 18),
+                  label: Text(_isTransferring ? 'Memproses...' : 'Konfirmasi Transfer', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                ),
+              ),
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildWalletItem({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required String amount,
-  }) {
-
-    // Mengecek apakah sedang dalam mode gelap
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
+  Widget _buildWalletItem({required IconData icon, required Color iconColor, required String title, required String subtitle, required String amount, required bool isDarkMode}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        // Background card berubah jadi abu-abu gelap jika dark mode
-        color: isDarkMode ? Colors.grey.shade900 : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
-        ),
-      ),
+      decoration: BoxDecoration(color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200)),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: iconColor, size: 24),
           ),
           const SizedBox(width: 16),
@@ -245,27 +393,13 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
+                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
                 const SizedBox(height: 2),
                 Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
-          Text(
-            amount,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-          ),
+          Text(amount, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
         ],
       ),
     );
@@ -274,32 +408,33 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildFormLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-        child: Text(
-            text,
-            style: TextStyle(
-              // Mengikuti warna teks standar tema (hitam di light, putih di dark)
-                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                fontSize: 13
-            )
-        ),
+      child: Text(text, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7), fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 
-  Widget _buildDropdown({required String? value, required String hint, required ValueChanged<String?> onChanged}) {
-    return DropdownButtonFormField<String>(
+  // --- LOGIKA BARU PADA DROPDOWN UNTUK MENERIMA LIST DINAMIS ---
+  Widget _buildDropdown({
+    required int? value,
+    required String hint,
+    required Color borderColor,
+    required List<Map<String, dynamic>> items, // Menerima data yang sudah difilter
+    required ValueChanged<int?> onChanged
+  }) {
+    return DropdownButtonFormField<int>(
       value: value,
-      hint: Text(hint, style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+      hint: Text(hint, style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+      dropdownColor: Theme.of(context).cardColor,
       decoration: InputDecoration(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
       ),
-      items: accountOptions.map((String account) {
-        return DropdownMenuItem<String>(
-          value: account,
-          child: Text(account),
+      items: items.map((wallet) {
+        return DropdownMenuItem<int>(
+          value: wallet['id'],
+          child: Text(wallet['name'], style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
         );
       }).toList(),
       onChanged: onChanged,

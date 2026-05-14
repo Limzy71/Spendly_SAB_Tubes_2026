@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 
 class SubAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -8,32 +7,22 @@ class SubAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AppBar(
-      backgroundColor: Colors.white,
+      // Latar belakang disamakan dengan warna Scaffold (layar utama)
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
-      automaticallyImplyLeading: false,
-      leadingWidth: 110,
-      leading: const Padding(
-        padding: EdgeInsets.only(left: 16.0),
-        child: Row(
-          children: [
-            Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryGreen, size: 20),
-            SizedBox(width: 6),
-            Text('Spendly', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
-          ],
+      centerTitle: true,
+      iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
         ),
       ),
-      centerTitle: true,
-      title: Text(
-          title,
-          style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.normal)
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        )
-      ],
     );
   }
 
