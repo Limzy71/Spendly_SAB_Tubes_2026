@@ -6,6 +6,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AppBar(
       backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       elevation: 0,
@@ -28,7 +30,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           padding: const EdgeInsets.only(right: 16),
-          icon: const Icon(Icons.notifications_none_outlined, color: Colors.black87),
+          icon: Icon(
+              Icons.notifications_none_outlined,
+              color: isDark ? Colors.white : Colors.black87
+          ),
           onPressed: () {},
         ),
       ],

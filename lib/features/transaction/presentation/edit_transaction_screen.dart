@@ -5,23 +5,27 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../../../theme/app_colors.dart';
-import '../../../../widgets/sub_app_bar.dart';
 
-class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({Key? key}) : super(key: key);
+class EditTransactionScreen extends StatefulWidget {
+  final Map<String, dynamic> transaction;
+
+  const EditTransactionScreen({Key? key, required this.transaction}) : super(key: key);
 
   @override
-  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
+  State<EditTransactionScreen> createState() => _EditTransactionScreenState();
 }
 
-class _AddTransactionScreenState extends State<AddTransactionScreen> {
+class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final supabase = Supabase.instance.client;
 
-  bool isExpense = true;
-  String selectedCategory = "Makanan";
+  late bool isExpense;
+  late String selectedCategory;
   String selectedAccount = "Uang Tunai";
-  DateTime selectedDate = DateTime.now();
-  File? _imageFile;
+  late DateTime selectedDate;
+
+  File? _imageFile; // Untuk gambar baru jika diedit
+  String? _existingImageUrl; // Untuk gambar lama dari database
+
   bool _isLoading = false;
 
   final TextEditingController _amountController = TextEditingController();
@@ -33,15 +37,28 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     {'name': 'Makanan', 'icon': Icons.restaurant, 'color': Colors.redAccent},
     {'name': 'Transportasi', 'icon': Icons.directions_car, 'color': Colors.blue},
     {'name': 'Belanja', 'icon': Icons.shopping_bag, 'color': Colors.purple},
-    {'name': 'Tagihan', 'icon': Icons.receipt_long, 'color': Colors.orange},
     {'name': 'Gaji', 'icon': Icons.money, 'color': AppColors.primaryGreen},
-    {'name': 'Baru', 'icon': Icons.add, 'color': Colors.grey},
+    {'name': 'Lainnya', 'icon': Icons.category, 'color': Colors.teal},
   ];
 
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('id', null);
+
+    isExpense = widget.transaction['is_expense'] ?? true;
+    selectedCategory = widget.transaction['category'] ?? "Makanan";
+    selectedDate = DateTime.parse(widget.transaction['transaction_date']);
+    _noteController.text = widget.transaction['note'] ?? '';
+    _existingImageUrl = widget.transaction['image_path']; // Ambil URL gambar lama
+
+    int amount = widget.transaction['amount'] ?? 0;
+    _amountController.text = NumberFormat.decimalPattern('id').format(amount);
+
+    // Jika kategori dari DB tidak ada di daftar default, tambahkan sementara ke UI
+    if (!categories.any((c) => c['name'] == selectedCategory)) {
+      categories.insert(0, {'name': selectedCategory, 'icon': Icons.category, 'color': Colors.orange});
+    }
   }
 
   @override
@@ -55,7 +72,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Future<void> _pickImage(ImageSource source) async {
     final XFile? pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
-      setState(() => _imageFile = File(pickedFile.path));
+      setState(() {
+        _imageFile = File(pickedFile.path);
+        _existingImageUrl = null;
+      });
     }
   }
 
@@ -67,27 +87,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         return SafeArea(
           child: Wrap(
             children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 15),
-                child: Center(child: Text('Pilih Sumber Gambar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen),
-                title: const Text('Ambil dari Kamera'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.image_outlined, color: AppColors.primaryGreen),
-                title: const Text('Pilih dari Galeri'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-              const SizedBox(height: 10),
+              const Padding(padding: EdgeInsets.symmetric(vertical: 15), child: Center(child: Text('Pilih Sumber Gambar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)))),
+              ListTile(leading: const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen), title: const Text('Ambil dari Kamera'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); }),
+              ListTile(leading: const Icon(Icons.image_outlined, color: AppColors.primaryGreen), title: const Text('Pilih dari Galeri'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); }),
             ],
           ),
         );
@@ -95,105 +97,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  void _showAddCategoryDialog() {
-    TextEditingController catController = TextEditingController();
-    IconData selectedIcon = Icons.star;
-
-    final List<IconData> availableIcons = [
-      Icons.star, Icons.local_cafe, Icons.flight, Icons.home,
-      Icons.local_hospital, Icons.school, Icons.pets, Icons.sports_esports,
-      Icons.checkroom, Icons.laptop_mac, Icons.movie, Icons.train
-    ];
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                title: const Text('Kategori Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        controller: catController,
-                        decoration: const InputDecoration(
-                          hintText: 'Contoh: Nongkrong',
-                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: availableIcons.map((icon) {
-                          bool isSelected = selectedIcon == icon;
-                          return GestureDetector(
-                            onTap: () => setStateDialog(() => selectedIcon = icon),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primaryGreen.withOpacity(0.2) : Colors.transparent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300, width: isSelected ? 2 : 1),
-                              ),
-                              child: Icon(icon, color: isSelected ? AppColors.primaryGreen : Colors.grey),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryGreen,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
-                    ),
-                    onPressed: () {
-                      if (catController.text.isNotEmpty) {
-                        setState(() {
-                          categories.insert(categories.length - 1, {
-                            'name': catController.text,
-                            'icon': selectedIcon,
-                            'color': Colors.teal,
-                          });
-                          selectedCategory = catController.text;
-                        });
-                        Navigator.pop(ctx);
-                      }
-                    },
-                    child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              );
-            }
-        );
-      },
-    );
-  }
-
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)), child: child!);
-      },
-    );
+    final DateTime? picked = await showDatePicker(context: context, initialDate: selectedDate, firstDate: DateTime(2020), lastDate: DateTime(2101), builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)), child: child!));
     if (picked != null && picked != selectedDate) setState(() => selectedDate = picked);
   }
 
-  Future<void> _saveTransaction() async {
+  Future<void> _updateTransaction() async {
     if (_amountController.text.isEmpty || _amountController.text == '0') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nominal wajib diisi')));
       return;
@@ -205,34 +114,71 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final cleanAmount = _amountController.text.replaceAll('.', '');
       final amount = int.parse(cleanAmount);
 
-      String? imageUrl;
+      String? finalImageUrl = _existingImageUrl;
 
       if (_imageFile != null) {
         final fileExt = _imageFile!.path.split('.').last;
         final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
         await supabase.storage.from('receipts').upload(fileName, _imageFile!);
-        imageUrl = supabase.storage.from('receipts').getPublicUrl(fileName);
+        finalImageUrl = supabase.storage.from('receipts').getPublicUrl(fileName);
       }
 
-      await supabase.from('transactions').insert({
+      await supabase.from('transactions').update({
         'amount': amount,
         'is_expense': isExpense,
         'category': selectedCategory,
-        'wallet_id': 1,
         'transaction_date': selectedDate.toIso8601String().split('T')[0],
         'note': _noteController.text.isEmpty ? null : _noteController.text,
-        'image_path': imageUrl,
-      });
+        'image_path': finalImageUrl,
+      }).eq('id', widget.transaction['id']);
 
       if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Berhasil Disimpan!')));
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Berhasil Diperbarui!')));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memperbarui: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _deleteTransaction() async {
+    setState(() => _isLoading = true);
+    try {
+      // Hapus data dari Database (gambar di Storage tidak otomatis terhapus untuk riwayat)
+      await supabase.from('transactions').delete().eq('id', widget.transaction['id']);
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Dihapus')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menghapus: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // --- POP-UP KONFIRMASI HAPUS ---
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Transaksi?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Data pengeluaran/pemasukan ini akan dihapus secara permanen.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteTransaction();
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -242,14 +188,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
     Color dividerColor = isDark ? Colors.white24 : Colors.grey.shade300;
 
-    // --- RUMUS MATEMATIKA RESPONSIVE ---
-    // Lebar layar - padding kiri/kanan (40) - 4x jarak antar ikon (32) dibagi 5 ikon
-    double screenWidth = MediaQuery.of(context).size.width;
-    double itemWidth = (screenWidth - 40 - 32) / 5;
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const SubAppBar(title: 'Tambah Transaksi'),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: textColor),
+        title: Text('Edit Transaksi', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: _isLoading ? null : _confirmDelete,
+          )
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,22 +259,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             const SizedBox(height: 20),
 
-            const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Text('KATEGORI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))
-            ),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('KATEGORI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
             const SizedBox(height: 12),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Wrap(
-                spacing: 8.0,
-                runSpacing: 16.0,
-                alignment: WrapAlignment.start,
-                children: categories.map((cat) {
-                  bool isNew = cat['name'] == 'Baru';
-                  return _buildCatItem(cat['icon'], cat['name'], cat['color'], isDark, cardColor, itemWidth, isNew: isNew);
-                }).toList(),
+            SizedBox(
+              height: 95,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  return _buildCatItem(cat['icon'], cat['name'], cat['color'], isDark, cardColor);
+                },
               ),
             ),
             const SizedBox(height: 20),
@@ -390,7 +339,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       onTap: _showImagePickerBottomSheet,
                       child: Column(
                         children: [
-                          if (_imageFile != null)
+                          if (_existingImageUrl != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 15),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(_existingImageUrl!, height: 200, width: double.infinity, fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)));
+                                  },
+                                ),
+                              ),
+                            )
+                          else if (_imageFile != null)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 15),
                               child: ClipRRect(
@@ -398,11 +360,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                 child: Image.file(_imageFile!, height: 200, width: double.infinity, fit: BoxFit.cover),
                               ),
                             ),
+
                           Row(
                             children: [
                               const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen),
                               const SizedBox(width: 15),
-                              Text(_imageFile == null ? "Lampirkan Foto Struk" : "Ubah Foto Struk", style: const TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w500)),
+                              Text((_imageFile == null && _existingImageUrl == null) ? "Lampirkan Foto Struk" : "Ubah Foto Struk", style: const TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w500)),
                             ],
                           ),
                         ],
@@ -419,9 +382,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveTransaction,
+                  onPressed: _isLoading ? null : _updateTransaction,
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                  child: _isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Simpan Transaksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: _isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ),
@@ -446,38 +409,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildCatItem(IconData icon, String label, Color color, bool isDark, Color cardColor, double itemWidth, {bool isNew = false}) {
+  Widget _buildCatItem(IconData icon, String label, Color color, bool isDark, Color cardColor) {
     bool isSelected = selectedCategory == label;
     return GestureDetector(
-      onTap: () {
-        if (isNew) {
-          _showAddCategoryDialog();
-        } else {
-          setState(() => selectedCategory = label);
-        }
-      },
-      child: SizedBox(
-        width: itemWidth, // <-- Menggunakan lebar yang dihitung otomatis
+      onTap: () => setState(() => selectedCategory = label),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(11), // Sedikit diperkecil agar aman di layar kecil
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isNew ? cardColor : (isSelected ? color.withOpacity(0.2) : cardColor),
+                color: isSelected ? color.withOpacity(0.2) : cardColor,
                 shape: BoxShape.circle,
-                border: isNew ? Border.all(color: Colors.grey.shade500) : (isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent)),
-                boxShadow: (isDark || isSelected) ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
+                border: isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent),
               ),
-              child: Icon(icon, color: color, size: 26),
+              child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: isSelected ? (isDark ? Colors.white : Colors.black87) : Colors.grey),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(label, style: TextStyle(fontSize: 12, color: isSelected ? (isDark ? Colors.white : Colors.black87) : Colors.grey)),
           ],
         ),
       ),

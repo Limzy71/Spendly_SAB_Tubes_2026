@@ -16,9 +16,13 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  Key _dashboardKey = UniqueKey();
 
   void _onItemTapped(int index) {
     setState(() {
+      if (index == 0 && _selectedIndex != 0) {
+        _dashboardKey = UniqueKey();
+      }
       _selectedIndex = index;
     });
   }
@@ -29,23 +33,29 @@ class _MainNavigationState extends State<MainNavigation> {
     Color bgColor = Theme.of(context).bottomNavigationBarTheme.backgroundColor ?? (isDark ? Colors.black : Colors.white);
     Color unselectedColor = isDark ? Colors.white54 : Colors.grey;
 
-    final List<Widget> screens = [
-      DashboardScreen(key: UniqueKey()),
-      const ReportScreen(),
-      const WalletScreen(),
-      const ProfileScreen(),
-    ];
-
     return Scaffold(
+      // LOGIKA BARU: Mencegah FAB / Tombol bawah ikut terdorong saat keyboard muncul
+      resizeToAvoidBottomInset: false,
+
       appBar: const CustomAppBar(),
-      body: screens[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          DashboardScreen(key: _dashboardKey),
+          const ReportScreen(),
+          const WalletScreen(),
+          const ProfileScreen(),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
           );
-          setState(() {});
+          setState(() {
+            _dashboardKey = UniqueKey();
+          });
         },
         backgroundColor: AppColors.primaryGreen,
         shape: const CircleBorder(),
