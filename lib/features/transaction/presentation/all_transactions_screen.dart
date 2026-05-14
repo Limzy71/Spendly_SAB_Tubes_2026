@@ -7,7 +7,6 @@ import '../../../../widgets/sub_app_bar.dart';
 import 'edit_transaction_screen.dart';
 
 class AllTransactionsScreen extends StatefulWidget {
-  // Tambahan parameter untuk filter: 'all', 'income', atau 'expense'
   final String filterType;
 
   const AllTransactionsScreen({Key? key, this.filterType = 'all'}) : super(key: key);
@@ -56,12 +55,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         int walletId = tx['wallet_id'] as int;
         String category = tx['category']?.toString() ?? '';
 
-        // --- LOGIKA FILTER BERDASARKAN KOTAK YANG DIKLIK ---
         if (widget.filterType == 'income' && (isExpense || category.toLowerCase() == 'transfer')) continue;
         if (widget.filterType == 'expense' && (!isExpense || category.toLowerCase() == 'transfer')) continue;
 
         if (category.toLowerCase() == 'transfer') {
-          // Jika mode 'all', gabungkan transfer. Jika filter spesifik, transfer otomatis terlewat oleh logika di atas
           final partner = txResponse.firstWhere(
                 (t) => t['category']?.toString().toLowerCase() == 'transfer' &&
                 t['amount'] == amount &&
@@ -108,7 +105,6 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     catch (e) { return dateString; }
   }
 
-  // Menentukan judul Appbar berdasarkan filter
   String _getAppBarTitle() {
     if (widget.filterType == 'income') return 'Riwayat Pemasukan';
     if (widget.filterType == 'expense') return 'Riwayat Pengeluaran';
@@ -131,6 +127,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           "Belum ada riwayat transaksi."
       ))
           : ListView.builder(
+        physics: const ClampingScrollPhysics(),
         padding: const EdgeInsets.all(16),
         itemCount: _transactions.length,
         itemBuilder: (context, index) {

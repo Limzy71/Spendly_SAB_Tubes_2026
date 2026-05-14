@@ -242,8 +242,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
     Color dividerColor = isDark ? Colors.white24 : Colors.grey.shade300;
 
-    // --- RUMUS MATEMATIKA RESPONSIVE ---
-    // Lebar layar - padding kiri/kanan (40) - 4x jarak antar ikon (32) dibagi 5 ikon
     double screenWidth = MediaQuery.of(context).size.width;
     double itemWidth = (screenWidth - 40 - 32) / 5;
 
@@ -251,6 +249,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const SubAppBar(title: 'Tambah Transaksi'),
       body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -457,11 +456,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         }
       },
       child: SizedBox(
-        width: itemWidth, // <-- Menggunakan lebar yang dihitung otomatis
+        width: itemWidth,
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(11), // Sedikit diperkecil agar aman di layar kecil
+              padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
                 color: isNew ? cardColor : (isSelected ? color.withOpacity(0.2) : cardColor),
                 shape: BoxShape.circle,
