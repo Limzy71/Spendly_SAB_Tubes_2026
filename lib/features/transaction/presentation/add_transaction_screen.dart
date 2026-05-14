@@ -19,10 +19,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   bool isExpense = true;
   String selectedCategory = "Makanan";
-  String selectedAccount = "Uang Tunai";
+  int? selectedWalletId;
   DateTime selectedDate = DateTime.now();
   File? _imageFile;
   bool _isLoading = false;
+
+  List<Map<String, dynamic>> _wallets = [];
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
@@ -42,6 +44,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void initState() {
     super.initState();
     initializeDateFormatting('id', null);
+    _fetchWallets();
   }
 
   @override
@@ -50,6 +53,49 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     _noteController.dispose();
     _amountFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchWallets() async {
+    try {
+      final walletResponse = await supabase.from('wallets').select().order('id');
+      final txResponse = await supabase.from('transactions').select();
+
+      List<Map<String, dynamic>> processedWallets = [];
+
+      for (var w in walletResponse) {
+        int wId = w['id'] as int;
+        String wName = w['name'].toString();
+        int currentBal = w['balance'] as int;
+
+        for (var tx in txResponse) {
+          if (tx['wallet_id'] == wId) {
+            if (tx['is_expense'] == true) {
+              currentBal -= tx['amount'] as int;
+            } else {
+              currentBal += tx['amount'] as int;
+            }
+          }
+        }
+
+        processedWallets.add({
+          'id': wId,
+          'name': wName,
+          'balance': currentBal,
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _wallets = processedWallets;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
+  }
+
+  String _formatCurrency(int amount) {
+    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -193,9 +239,60 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (picked != null && picked != selectedDate) setState(() => selectedDate = picked);
   }
 
+  void _showWalletSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Pilih Dompet Asal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              if (_wallets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Text('Belum ada dompet', style: TextStyle(color: Colors.grey)),
+                )
+              else
+                ..._wallets.map((wallet) {
+                  return InkWell(
+                    onTap: () {
+                      setState(() => selectedWalletId = wallet['id']);
+                      Navigator.pop(ctx);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                          Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _saveTransaction() async {
     if (_amountController.text.isEmpty || _amountController.text == '0') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nominal wajib diisi')));
+      return;
+    }
+
+    if (selectedWalletId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih dompet terlebih dahulu')));
       return;
     }
 
@@ -218,7 +315,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         'amount': amount,
         'is_expense': isExpense,
         'category': selectedCategory,
-        'wallet_id': 1,
+        'wallet_id': selectedWalletId,
         'transaction_date': selectedDate.toIso8601String().split('T')[0],
         'note': _noteController.text.isEmpty ? null : _noteController.text,
         'image_path': imageUrl,
@@ -332,35 +429,48 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primaryGreen),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedAccount,
-                              isExpanded: true,
-                              dropdownColor: cardColor,
-                              iconEnabledColor: textColor,
-                              items: ["Uang Tunai", "BCA", "GoPay", "OVO"].map((String val) => DropdownMenuItem<String>(value: val, child: Text(val, style: TextStyle(fontSize: 14, color: textColor)))).toList(),
-                              onChanged: (val) => setState(() => selectedAccount = val!),
+                    InkWell(
+                      onTap: _wallets.isEmpty ? null : _showWalletSelector,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primaryGreen),
+                            const SizedBox(width: 15),
+                            Expanded(
+                              child: _wallets.isEmpty
+                                  ? const Text("Memuat dompet...", style: TextStyle(color: Colors.grey, fontSize: 14))
+                                  : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    selectedWalletId == null
+                                        ? "Pilih Dompet"
+                                        : _wallets.firstWhere((w) => w['id'] == selectedWalletId)['name'],
+                                    style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
+                                  ),
+                                  const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                     Divider(height: 30, color: dividerColor, thickness: 1),
                     InkWell(
                       onTap: () => _selectDate(context),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_outlined, color: AppColors.primaryGreen),
-                          const SizedBox(width: 15),
-                          Text(DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate), style: TextStyle(fontSize: 14, color: textColor)),
-                          const Spacer(),
-                          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today_outlined, color: AppColors.primaryGreen),
+                            const SizedBox(width: 15),
+                            Text(DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate), style: TextStyle(fontSize: 14, color: textColor)),
+                            const Spacer(),
+                            const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                          ],
+                        ),
                       ),
                     ),
                   ],
