@@ -18,10 +18,8 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
   final TextEditingController _balanceController = TextEditingController();
   bool _isLoading = false;
 
-  // Variabel untuk menyimpan ikon yang dipilih
   String selectedIconName = 'wallet';
 
-  // Daftar pilihan ikon dompet
   final List<Map<String, dynamic>> availableIcons = [
     {'id': 'money', 'icon': Icons.money, 'label': 'Tunai'},
     {'id': 'bank', 'icon': Icons.account_balance, 'label': 'Bank'},
@@ -46,14 +44,12 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Mengubah format nominal ke angka murni
       int initialBalance = 0;
       if (_balanceController.text.isNotEmpty) {
         final cleanAmount = _balanceController.text.replaceAll('.', '');
         initialBalance = int.parse(cleanAmount);
       }
 
-      // Simpan ke tabel wallets
       await supabase.from('wallets').insert({
         'name': _nameController.text.trim(),
         'balance': initialBalance,
@@ -61,7 +57,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       });
 
       if (mounted) {
-        Navigator.pop(context, true); // Mengirim "true" tanda sukses
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dompet berhasil ditambahkan!')));
       }
     } catch (e) {
@@ -81,11 +77,11 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const SubAppBar(title: 'Tambah Dompet Baru'),
       body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- NAMA DOMPET ---
             const Text('NAMA DOMPET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
             const SizedBox(height: 12),
             Container(
@@ -99,7 +95,6 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             ),
             const SizedBox(height: 24),
 
-            // --- SALDO AWAL ---
             const Text('SALDO SAAT INI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
             const SizedBox(height: 12),
             Container(
@@ -129,7 +124,6 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             ),
             const SizedBox(height: 24),
 
-            // --- PILIH IKON ---
             const Text('PILIH IKON', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
             const SizedBox(height: 12),
             Wrap(
@@ -160,7 +154,6 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             ),
             const SizedBox(height: 40),
 
-            // --- TOMBOL SIMPAN ---
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

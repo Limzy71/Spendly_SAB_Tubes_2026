@@ -18,6 +18,13 @@ void main() async {
   runApp(const MyApp());
 }
 
+class NoOverscrollBehavior extends ScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -30,14 +37,11 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Spendly',
             debugShowCheckedModeBanner: false,
-
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
-
+            scrollBehavior: NoOverscrollBehavior(),
             home: const MainNavigation(),
-            // home: const RegisterScreen(),
-            // home: const PasscodeScreen(),
           );
         },
       ),

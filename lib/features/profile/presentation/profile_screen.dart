@@ -101,6 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -132,9 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onTap: () async {
                             final String? newPath = await showModalBottomSheet<String>(
                               context: context,
-                              // PERBAIKAN 1: Background Modal adaptif
                               backgroundColor: Theme.of(context).cardColor,
-                              // PERBAIKAN 2: Membuat sudut tumpul tetap terlihat bagus
                               shape: const RoundedRectangleBorder(
                                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                               ),
@@ -181,8 +180,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 children: [
                   ListTile(leading: Icon(Icons.notifications_none_outlined, color: textColor), title: Text('Pengaturan Notifikasi', style: TextStyle(fontSize: 15, color: textColor))),
-
-                  // FITUR: Pengingat Harian
                   InkWell(
                     onTap: () => _selectTime(context),
                     child: Container(
@@ -201,8 +198,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-
-                  // FITUR: Pengingat Tagihan
                   InkWell(
                     onTap: () {
                       setState(() {

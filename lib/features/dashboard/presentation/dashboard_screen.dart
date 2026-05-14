@@ -56,13 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       int tempIncome = 0;
       int tempExpense = 0;
 
-      List<Map<String, dynamic>> displayTx = [];
-      Set<int> processedIds = {};
-
       for (var tx in txResponse) {
-        int id = tx['id'] as int;
-        if (processedIds.contains(id)) continue;
-
         int amount = tx['amount'] as int;
         bool isExpense = tx['is_expense'] as bool;
         int walletId = tx['wallet_id'] as int;
@@ -81,6 +75,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tempIncome += amount;
           }
         }
+      }
+
+      List<Map<String, dynamic>> displayTx = [];
+      Set<int> processedIds = {};
+
+      for (var tx in txResponse) {
+        int id = tx['id'] as int;
+        if (processedIds.contains(id)) continue;
+
+        int amount = tx['amount'] as int;
+        bool isExpense = tx['is_expense'] as bool;
+        int walletId = tx['wallet_id'] as int;
+        String category = tx['category']?.toString() ?? '';
 
         if (category.toLowerCase() == 'transfer') {
           final partner = txResponse.firstWhere(
@@ -167,69 +174,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: RefreshIndicator(
         onRefresh: _fetchDashboardData,
         color: AppColors.primaryGreen,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
-            : SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
-              Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
-              const SizedBox(height: 16),
-              _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
-              const SizedBox(height: 20),
-
-              // --- PERUBAHAN DI SINI: Kotak Pemasukan & Pengeluaran sekarang bisa diklik ---
-              Row(
-                children: [
-                  Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () async {
-                          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'income')));
-                          _fetchDashboardData();
-                        },
-                        child: _buildSummaryCard(context, title: "Pemasukan", amount: _formatCurrency(_totalIncome), indicatorColor: AppColors.primaryGreen, icon: Icons.trending_up, iconBgColor: isDark ? Colors.green.withOpacity(0.1) : const Color(0xFFF1FAF5)),
-                      )
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () async {
-                          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'expense')));
-                          _fetchDashboardData();
-                        },
-                        child: _buildSummaryCard(context, title: "Pengeluaran", amount: _formatCurrency(_totalExpense), indicatorColor: Colors.red, icon: Icons.trending_down, iconBgColor: Colors.red.withOpacity(0.1)),
-                      )
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("Transaksi Terakhir", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
-                  if (hasTransactions)
-                    TextButton(
-                        onPressed: () async {
-                          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen()));
-                          _fetchDashboardData();
-                        },
-                        child: const Text("Lihat Semua", style: TextStyle(color: AppColors.primaryGreen, fontSize: 13))
+        child: NotificationListener<OverscrollIndicatorNotification>(
+          onNotification: (OverscrollIndicatorNotification overscroll) {
+            overscroll.disallowIndicator();
+            return true;
+          },
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+              : SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
+                const SizedBox(height: 16),
+                _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'income')));
+                            _fetchDashboardData();
+                          },
+                          child: _buildSummaryCard(context, title: "Pemasukan", amount: _formatCurrency(_totalIncome), indicatorColor: AppColors.primaryGreen, icon: Icons.trending_up, iconBgColor: isDark ? Colors.green.withOpacity(0.1) : const Color(0xFFF1FAF5)),
+                        )
                     ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (hasTransactions)
-                ..._recentTransactions.map((tx) => _buildTransactionItem(tx, textColor, isDark)).toList()
-              else
-                _buildEmptyState(context, AppColors.primaryGreen),
-              const SizedBox(height: 100),
-            ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'expense')));
+                            _fetchDashboardData();
+                          },
+                          child: _buildSummaryCard(context, title: "Pengeluaran", amount: _formatCurrency(_totalExpense), indicatorColor: Colors.red, icon: Icons.trending_down, iconBgColor: Colors.red.withOpacity(0.1)),
+                        )
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Transaksi Terakhir", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+                    if (hasTransactions)
+                      TextButton(
+                          onPressed: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen()));
+                            _fetchDashboardData();
+                          },
+                          child: const Text("Lihat Semua", style: TextStyle(color: AppColors.primaryGreen, fontSize: 13))
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (hasTransactions)
+                  ..._recentTransactions.map((tx) => _buildTransactionItem(tx, textColor, isDark)).toList()
+                else
+                  _buildEmptyState(context, AppColors.primaryGreen),
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
         ),
       ),

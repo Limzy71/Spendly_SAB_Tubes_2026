@@ -187,7 +187,7 @@ class _WalletScreenState extends State<WalletScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
             : SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(),
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,7 +262,6 @@ class _WalletScreenState extends State<WalletScreen> {
               Divider(thickness: 1, color: isDarkMode ? Colors.white12 : const Color(0xFFEEEEEE)),
               const SizedBox(height: 24),
 
-              // --- PERUBAHAN TEKS: Akun -> Dompet ---
               Row(
                 children: [
                   const Icon(Icons.swap_horiz, color: AppColors.primaryGreen),
@@ -301,7 +300,6 @@ class _WalletScreenState extends State<WalletScreen> {
                   value: selectedFromAccountId,
                   hint: 'Pilih Dompet Asal',
                   borderColor: borderColor,
-                  // Filter: Jangan tampilkan dompet yang sedang dipilih di "Ke Dompet"
                   items: _wallets.where((w) => w['id'] != selectedToAccountId).toList(),
                   onChanged: (val) => setState(() => selectedFromAccountId = val)
               ),
@@ -312,7 +310,6 @@ class _WalletScreenState extends State<WalletScreen> {
                   value: selectedToAccountId,
                   hint: 'Pilih Dompet Tujuan',
                   borderColor: borderColor,
-                  // Filter: Jangan tampilkan dompet yang sedang dipilih di "Dari Dompet"
                   items: _wallets.where((w) => w['id'] != selectedFromAccountId).toList(),
                   onChanged: (val) => setState(() => selectedToAccountId = val)
               ),
@@ -412,12 +409,11 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // --- LOGIKA BARU PADA DROPDOWN UNTUK MENERIMA LIST DINAMIS ---
   Widget _buildDropdown({
     required int? value,
     required String hint,
     required Color borderColor,
-    required List<Map<String, dynamic>> items, // Menerima data yang sudah difilter
+    required List<Map<String, dynamic>> items,
     required ValueChanged<int?> onChanged
   }) {
     return DropdownButtonFormField<int>(

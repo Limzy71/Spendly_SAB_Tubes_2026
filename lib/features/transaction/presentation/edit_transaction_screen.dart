@@ -23,8 +23,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   String selectedAccount = "Uang Tunai";
   late DateTime selectedDate;
 
-  File? _imageFile; // Untuk gambar baru jika diedit
-  String? _existingImageUrl; // Untuk gambar lama dari database
+  File? _imageFile;
+  String? _existingImageUrl;
 
   bool _isLoading = false;
 
@@ -50,12 +50,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     selectedCategory = widget.transaction['category'] ?? "Makanan";
     selectedDate = DateTime.parse(widget.transaction['transaction_date']);
     _noteController.text = widget.transaction['note'] ?? '';
-    _existingImageUrl = widget.transaction['image_path']; // Ambil URL gambar lama
+    _existingImageUrl = widget.transaction['image_path'];
 
     int amount = widget.transaction['amount'] ?? 0;
     _amountController.text = NumberFormat.decimalPattern('id').format(amount);
 
-    // Jika kategori dari DB tidak ada di daftar default, tambahkan sementara ke UI
     if (!categories.any((c) => c['name'] == selectedCategory)) {
       categories.insert(0, {'name': selectedCategory, 'icon': Icons.category, 'color': Colors.orange});
     }
@@ -146,7 +145,6 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   Future<void> _deleteTransaction() async {
     setState(() => _isLoading = true);
     try {
-      // Hapus data dari Database (gambar di Storage tidak otomatis terhapus untuk riwayat)
       await supabase.from('transactions').delete().eq('id', widget.transaction['id']);
       if (mounted) {
         Navigator.pop(context, true);
@@ -159,7 +157,6 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     }
   }
 
-  // --- POP-UP KONFIRMASI HAPUS ---
   void _confirmDelete() {
     showDialog(
       context: context,
@@ -204,6 +201,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         ],
       ),
       body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
