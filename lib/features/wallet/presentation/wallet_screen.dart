@@ -77,8 +77,8 @@ class _WalletScreenState extends State<WalletScreen> {
         setState(() {
           _wallets = processedWallets;
           _totalBalance = grandTotal;
-          selectedFromAccountId = null;
-          selectedToAccountId = null;
+          if (!_wallets.any((w) => w['id'] == selectedFromAccountId)) selectedFromAccountId = null;
+          if (!_wallets.any((w) => w['id'] == selectedToAccountId)) selectedToAccountId = null;
           _isLoading = false;
         });
       }
@@ -139,6 +139,144 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  Future<void> _deleteWallet(int id, String name) async {
+    if (_wallets.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak bisa menghapus satu-satunya dompet!')));
+      return;
+    }
+
+    bool confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Dompet?'),
+        content: Text('Anda yakin ingin menghapus dompet "$name"?\n\nCatatan: Jika ada transaksi yang terkait dengan dompet ini, mungkin akan terjadi error pada riwayat Anda.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      setState(() => _isLoading = true);
+      try {
+        await supabase.from('wallets').delete().eq('id', id);
+        _fetchWalletData();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dompet berhasil dihapus.')));
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menghapus dompet (Pastikan dompet kosong dari transaksi): $e')));
+        }
+      }
+    }
+  }
+
+  void _showEditWalletOptions(Map<String, dynamic> wallet) {
+    TextEditingController editNameController = TextEditingController(text: wallet['name']);
+    TextEditingController editBalanceController = TextEditingController(
+        text: NumberFormat.decimalPattern('id').format(wallet['balance'])
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 24, right: 24, top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Edit Dompet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _deleteWallet(wallet['id'], wallet['name']);
+                    },
+                  )
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              const Text('NAMA DOMPET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+              TextField(
+                controller: editNameController,
+                decoration: const InputDecoration(
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              const Text('SALDO SAAT INI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: editBalanceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  prefixText: 'Rp ',
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                ),
+                onChanged: (value) {
+                  if (value.isNotEmpty) {
+                    String clean = value.replaceAll('.', '');
+                    String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                    editBalanceController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                  }
+                },
+              ),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    setState(() => _isLoading = true);
+                    try {
+                      int newBalance = int.parse(editBalanceController.text.replaceAll('.', ''));
+
+                      int totalTxEffect = wallet['balance'] - (await supabase.from('wallets').select('balance').eq('id', wallet['id']).single())['balance'] as int;
+                      int newBaseBalance = newBalance - totalTxEffect;
+
+                      await supabase.from('wallets').update({
+                        'name': editNameController.text.trim(),
+                        'balance': newBaseBalance,
+                      }).eq('id', wallet['id']);
+
+                      _fetchWalletData();
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dompet berhasil diperbarui!')));
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memperbarui: $e')));
+                      }
+                    }
+                  },
+                  child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _formatCurrency(int amount) {
     return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
@@ -150,10 +288,15 @@ class _WalletScreenState extends State<WalletScreen> {
       case 'wallet': return Icons.account_balance_wallet;
       case 'card': return Icons.credit_card;
       case 'savings': return Icons.savings;
+      case 'crypto': return Icons.currency_bitcoin;
+      case 'business': return Icons.storefront;
+      case 'investment': return Icons.trending_up;
+      case 'safe': return Icons.lock_outline;
+      case 'online': return Icons.payments_outlined;
       default:
         String lower = walletName.toLowerCase();
         if (lower.contains('tunai')) return Icons.money;
-        if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana')) return Icons.account_balance_wallet;
+        if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana') || lower.contains('shopee')) return Icons.account_balance_wallet;
         return Icons.account_balance;
     }
   }
@@ -164,14 +307,15 @@ class _WalletScreenState extends State<WalletScreen> {
     if (lower.contains('bca') || lower.contains('mandiri') || lower.contains('bri')) return Colors.indigo;
     if (lower.contains('gopay')) return Colors.blue;
     if (lower.contains('ovo')) return Colors.purple;
-    if (lower.contains('dana')) return Colors.orange;
+    if (lower.contains('dana') || lower.contains('shopee')) return Colors.orange;
+    if (lower.contains('kripto') || lower.contains('crypto')) return Colors.amber.shade600;
     return Colors.teal;
   }
 
   String _getSubtitleForWallet(String name) {
     String lower = name.toLowerCase();
     if (lower.contains('tunai')) return 'Fisik';
-    if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana')) return 'E-Wallet';
+    if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana') || lower.contains('shopee')) return 'E-Wallet';
     return 'Bank / Lainnya';
   }
 
@@ -250,11 +394,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: Text("Belum ada dompet terdaftar.")))
               else
                 ..._wallets.map((wallet) => _buildWalletItem(
-                  icon: wallet['icon'],
-                  iconColor: wallet['color'],
-                  title: wallet['name'],
-                  subtitle: wallet['subtitle'],
-                  amount: _formatCurrency(wallet['balance']),
+                  wallet: wallet,
                   isDarkMode: isDarkMode,
                 )).toList(),
 
@@ -373,31 +513,35 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _buildWalletItem({required IconData icon, required Color iconColor, required String title, required String subtitle, required String amount, required bool isDarkMode}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200)),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: iconColor, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
+  Widget _buildWalletItem({required Map<String, dynamic> wallet, required bool isDarkMode}) {
+    return InkWell(
+      onTap: () => _showEditWalletOptions(wallet),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200)),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: wallet['color'].withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(wallet['icon'], color: wallet['color'], size: 24),
             ),
-          ),
-          Text(amount, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(wallet['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                  const SizedBox(height: 2),
+                  Text(wallet['subtitle'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+            ),
+            Text(_formatCurrency(wallet['balance']), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
+          ],
+        ),
       ),
     );
   }
