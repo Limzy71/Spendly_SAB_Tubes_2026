@@ -30,14 +30,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Mengambil data Anggaran (Budgets)
-      final budgetResponse = await supabase.from('budgets').select();
+      final DateTime now = DateTime.now();
+      // Format tanggal awal dan akhir bulan yang presisi (YYYY-MM-DD)
+      final String currentPeriodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
+      final String firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+      final String lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+
+      // 1. FIX QUERY: Hanya ambil data Anggaran untuk periode bulan berjalan ini saja
+      final budgetResponse = await supabase
+          .from('budgets')
+          .select()
+          .eq('period_month', currentPeriodMonth);
 
       // 2. Mengambil data Pengeluaran (Transactions) di bulan ini
-      final DateTime now = DateTime.now();
-      final String firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
-      final String lastDayOfMonth = DateTime(now.year, now.month + 1, 0).toIso8601String();
-
       final transactionResponse = await supabase
           .from('transactions')
           .select()
@@ -47,30 +52,53 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       int tempTotalLimit = 0;
       int tempTotalSpent = 0;
-      List<Map<String, dynamic>> processedBudgets = [];
 
-      // 3. Menggabungkan data Anggaran dengan Pengeluaran per kategori
+      // Map sementara untuk melakukan akumulasi lokal jika ada kategori yang kembar di DB
+      Map<String, Map<String, dynamic>> accumulatedBudgets = {};
+
+      // 3. Gabungkan dan akumulasikan data Anggaran
       for (var budget in budgetResponse) {
         String category = budget['category'] as String;
         int limit = budget['limit_amount'] as int;
-        tempTotalLimit += limit;
 
-        // Hitung pengeluaran khusus untuk kategori ini
+        if (accumulatedBudgets.containsKey(category)) {
+          // Jika kategori sudah ada di map (duplikat di DB), tambahkan limitnya
+          accumulatedBudgets[category]!['limit'] += limit;
+        } else {
+          // Jika belum ada, buat record baru di map
+          accumulatedBudgets[category] = {
+            'category': category,
+            'limit': limit,
+            'spent': 0,
+          };
+        }
+      }
+
+      // 4. Hitung pengeluaran khusus untuk masing-masing kategori yang sudah bersih/terkelompok
+      accumulatedBudgets.forEach((category, data) {
         int spent = 0;
         for (var tx in transactionResponse) {
-          if (tx['category'] == category) {
+          if (tx['category']?.toString().toLowerCase() == category.toLowerCase()) {
             spent += tx['amount'] as int;
           }
         }
-        tempTotalSpent += spent;
 
-        processedBudgets.add({
-          'category': category,
+        data['spent'] = spent;
+        tempTotalLimit += data['limit'] as int;
+        tempTotalSpent += spent;
+      });
+
+      // 5. Ubah kembali Map menjadi List untuk konsumsi UI Widget
+      List<Map<String, dynamic>> processedBudgets = accumulatedBudgets.values.map((data) {
+        int limit = data['limit'] as int;
+        int spent = data['spent'] as int;
+        return {
+          'category': data['category'],
           'limit': limit,
           'spent': spent,
           'percentage': limit == 0 ? 0.0 : (spent / limit),
-        });
-      }
+        };
+      }).toList();
 
       if (mounted) {
         setState(() {
