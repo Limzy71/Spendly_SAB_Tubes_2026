@@ -41,15 +41,44 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final now = DateTime.now();
       final periodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
 
-      await supabase.from('budgets').insert({
-        'category': selectedCategory,
-        'limit_amount': limitAmount,
-        'period_month': periodMonth,
-      });
+      // ====================================================================
+      // PERBAIKAN BUG 406: Menggunakan .select() biasa alih-alih .maybeSingle()
+      // ====================================================================
+      final List<dynamic> existingBudgets = await supabase
+          .from('budgets')
+          .select()
+          .eq('category', selectedCategory!)
+          .eq('period_month', periodMonth);
+
+      // Ambil data pertama jika list tidak kosong menggunakan firstOrNull
+      final Map<String, dynamic>? existingBudget =
+      existingBudgets.isEmpty ? null : existingBudgets.first;
+
+      if (existingBudget != null) {
+        // JIKA ADA: Akumulasikan limit lama dengan input limit baru
+        final int oldLimit = existingBudget['limit_amount'] as int;
+        final int finalLimit = oldLimit + limitAmount;
+
+        // Update baris data tersebut berdasarkan ID-nya
+        await supabase
+            .from('budgets')
+            .update({'limit_amount': finalLimit})
+            .eq('id', existingBudget['id']);
+
+      } else {
+        // JIKA BELUM ADA: Insert data baru seperti biasa
+        await supabase.from('budgets').insert({
+          'category': selectedCategory,
+          'limit_amount': limitAmount,
+          'period_month': periodMonth,
+        });
+      }
+      // ====================================================================
 
       if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anggaran berhasil dibuat!')));
+        // Tambahkan parameter true di Navigator.pop
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anggaran berhasil diperbarui!')));
       }
     } catch (e) {
       if (mounted) {

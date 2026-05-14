@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'change_password_screen.dart';
 import 'widgets/update_profile_screen.dart';
 import '../../../theme/app_colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -165,7 +166,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 30),
             _buildSectionTitle('PENGATURAN AKUN'),
-            _buildListTile(icon: Icons.lock_outline, title: 'Ubah Kata Sandi', trailing: const Icon(Icons.chevron_right, color: Colors.grey), onTap: () {}),
+            _buildListTile(
+              icon: Icons.lock_outline,
+              title: 'Ubah PIN',
+              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ChangePasswordScreen()),
+                );
+              },
+            ),
             _buildSwitchTile(icon: Icons.pin_outlined, title: 'PIN Keamanan', value: _isPinEnabled, onChanged: (val) => setState(() => _isPinEnabled = val), activeColor: AppColors.primaryGreen),
             _buildSwitchTile(icon: Icons.fingerprint, title: 'Autentikasi Biometrik', subtitle: 'Sidik Jari / Pemindai Wajah', value: _isBiometricEnabled, onChanged: (val) => setState(() => _isBiometricEnabled = val), activeColor: AppColors.primaryGreen),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),

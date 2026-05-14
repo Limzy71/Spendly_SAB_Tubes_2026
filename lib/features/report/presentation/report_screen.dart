@@ -86,10 +86,58 @@ class _ReportScreenState extends State<ReportScreen> {
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      builder: (context, child) {
+      // FOKUS PERBAIKAN: Optimalisasi tema adaptif untuk visibilitas total di Dark Mode
+      builder: (BuildContext context, Widget? child) {
+        final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen),
+            // Mengatur skema warna utama picker
+            colorScheme: isDark
+                ? const ColorScheme.dark(
+              primary: AppColors.primaryGreen,   // Warna rentang & tanggal terpilih
+              onPrimary: Colors.white,          // Warna teks di atas warna primary
+              surface: Color(0xFF1E1E1E),       // Background container kalender (tidak hitam pekat absolut)
+              onSurface: Colors.white,          // Warna angka tanggal, inisial hari, & nama bulan
+              secondary: AppColors.primaryGreen,
+              onSecondary: Colors.white,
+            )
+                : const ColorScheme.light(
+              primary: AppColors.primaryGreen,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black87,
+            ),
+
+            // Perbaikan elemen Header (Judul, Start-End Date, Icon Close, & Icon Pensil)
+            appBarTheme: AppBarTheme(
+              backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
+              elevation: 0,
+              iconTheme: const IconThemeData(
+                color: Colors.white, // Menjamin icon Close ('X') muncul putih terang
+              ),
+              actionsIconTheme: const IconThemeData(
+                color: Colors.white, // Menjamin icon aksi seperti Pensil muncul putih terang
+              ),
+              titleTextStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            // Memastikan icon edit/pensil bawaan material mengikuti kontras yang tepat
+            iconTheme: const IconThemeData(
+              color: Colors.white,
+            ),
+
+            // Memastikan tombol teks seperti 'Save' terlihat kontras dan jelas
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white, // Memaksa teks 'Save' tetap putih di mode gelap
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
           child: child!,
         );
