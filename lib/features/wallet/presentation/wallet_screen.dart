@@ -130,6 +130,8 @@ class _WalletScreenState extends State<WalletScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer Berhasil!')));
         _amountController.clear();
         _noteController.clear();
+        selectedFromAccountId = null;
+        selectedToAccountId = null;
         _fetchWalletData();
       }
     } catch (e) {
@@ -277,6 +279,58 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  void _showWalletSelector({required bool isFromAccount}) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Text(isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              if (_wallets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Text('Belum ada dompet', style: TextStyle(color: Colors.grey)),
+                )
+              else
+                ..._wallets.where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId).map((wallet) {
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isFromAccount) {
+                          selectedFromAccountId = wallet['id'];
+                        } else {
+                          selectedToAccountId = wallet['id'];
+                        }
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                          Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _formatCurrency(int amount) {
     return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
@@ -323,6 +377,8 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300;
+    Color cardColor = Theme.of(context).cardColor;
+    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -436,22 +492,54 @@ class _WalletScreenState extends State<WalletScreen> {
               const SizedBox(height: 20),
 
               _buildFormLabel('Dari Dompet'),
-              _buildDropdown(
-                  value: selectedFromAccountId,
-                  hint: 'Pilih Dompet Asal',
-                  borderColor: borderColor,
-                  items: _wallets.where((w) => w['id'] != selectedToAccountId).toList(),
-                  onChanged: (val) => setState(() => selectedFromAccountId = val)
+              InkWell(
+                onTap: () => _showWalletSelector(isFromAccount: true),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        selectedFromAccountId == null
+                            ? "Pilih Dompet Asal"
+                            : _wallets.firstWhere((w) => w['id'] == selectedFromAccountId, orElse: () => {'name': 'Pilih Dompet Asal'})['name'],
+                        style: TextStyle(fontSize: 14, color: selectedFromAccountId == null ? Colors.grey.shade500 : textColor),
+                      ),
+                      const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
               _buildFormLabel('Ke Dompet'),
-              _buildDropdown(
-                  value: selectedToAccountId,
-                  hint: 'Pilih Dompet Tujuan',
-                  borderColor: borderColor,
-                  items: _wallets.where((w) => w['id'] != selectedFromAccountId).toList(),
-                  onChanged: (val) => setState(() => selectedToAccountId = val)
+              InkWell(
+                onTap: () => _showWalletSelector(isFromAccount: false),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        selectedToAccountId == null
+                            ? "Pilih Dompet Tujuan"
+                            : _wallets.firstWhere((w) => w['id'] == selectedToAccountId, orElse: () => {'name': 'Pilih Dompet Tujuan'})['name'],
+                        style: TextStyle(fontSize: 14, color: selectedToAccountId == null ? Colors.grey.shade500 : textColor),
+                      ),
+                      const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -550,34 +638,6 @@ class _WalletScreenState extends State<WalletScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
       child: Text(text, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7), fontSize: 13, fontWeight: FontWeight.w600)),
-    );
-  }
-
-  Widget _buildDropdown({
-    required int? value,
-    required String hint,
-    required Color borderColor,
-    required List<Map<String, dynamic>> items,
-    required ValueChanged<int?> onChanged
-  }) {
-    return DropdownButtonFormField<int>(
-      value: value,
-      hint: Text(hint, style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
-      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-      dropdownColor: Theme.of(context).cardColor,
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
-      ),
-      items: items.map((wallet) {
-        return DropdownMenuItem<int>(
-          value: wallet['id'],
-          child: Text(wallet['name'], style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
-        );
-      }).toList(),
-      onChanged: onChanged,
     );
   }
 }

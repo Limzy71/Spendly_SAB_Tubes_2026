@@ -31,12 +31,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final ImagePicker _picker = ImagePicker();
   final FocusNode _amountFocusNode = FocusNode();
 
-  List<Map<String, dynamic>> categories = [
+  List<Map<String, dynamic>> expenseCategories = [
     {'name': 'Makanan', 'icon': Icons.restaurant, 'color': Colors.redAccent},
     {'name': 'Transportasi', 'icon': Icons.directions_car, 'color': Colors.blue},
     {'name': 'Belanja', 'icon': Icons.shopping_bag, 'color': Colors.purple},
     {'name': 'Tagihan', 'icon': Icons.receipt_long, 'color': Colors.orange},
+    {'name': 'Lainnya', 'icon': Icons.category, 'color': Colors.teal},
+    {'name': 'Baru', 'icon': Icons.add, 'color': Colors.grey},
+  ];
+
+  List<Map<String, dynamic>> incomeCategories = [
     {'name': 'Gaji', 'icon': Icons.money, 'color': AppColors.primaryGreen},
+    {'name': 'Bonus', 'icon': Icons.card_giftcard, 'color': Colors.amber.shade600},
+    {'name': 'Investasi', 'icon': Icons.trending_up, 'color': Colors.blueAccent},
+    {'name': 'Dana', 'icon': Icons.account_balance_wallet, 'color': Colors.indigo},
+    {'name': 'Lainnya', 'icon': Icons.category, 'color': Colors.teal},
     {'name': 'Baru', 'icon': Icons.add, 'color': Colors.grey},
   ];
 
@@ -148,7 +157,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final List<IconData> availableIcons = [
       Icons.star, Icons.local_cafe, Icons.flight, Icons.home,
       Icons.local_hospital, Icons.school, Icons.pets, Icons.sports_esports,
-      Icons.checkroom, Icons.laptop_mac, Icons.movie, Icons.train
+      Icons.checkroom, Icons.laptop_mac, Icons.movie, Icons.train,
+      Icons.business, Icons.monetization_on, Icons.savings
     ];
 
     showDialog(
@@ -167,7 +177,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       TextField(
                         controller: catController,
                         decoration: const InputDecoration(
-                          hintText: 'Contoh: Nongkrong',
+                          hintText: 'Contoh: Hadiah',
                           focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
                         ),
                       ),
@@ -206,11 +216,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     onPressed: () {
                       if (catController.text.isNotEmpty) {
                         setState(() {
-                          categories.insert(categories.length - 1, {
+                          var newCategory = {
                             'name': catController.text,
                             'icon': selectedIcon,
-                            'color': Colors.teal,
-                          });
+                            'color': AppColors.primaryGreen,
+                          };
+                          if (isExpense) {
+                            expenseCategories.insert(expenseCategories.length - 1, newCategory);
+                          } else {
+                            incomeCategories.insert(incomeCategories.length - 1, newCategory);
+                          }
                           selectedCategory = catController.text;
                         });
                         Navigator.pop(ctx);
@@ -251,7 +266,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             children: [
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Pilih Dompet Asal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text('Pilih Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               if (_wallets.isEmpty)
                 const Padding(
@@ -342,6 +357,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     double screenWidth = MediaQuery.of(context).size.width;
     double itemWidth = (screenWidth - 40 - 32) / 5;
 
+    List<Map<String, dynamic>> currentCategories = isExpense ? expenseCategories : incomeCategories;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const SubAppBar(title: 'Tambah Transaksi'),
@@ -414,7 +431,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 spacing: 8.0,
                 runSpacing: 16.0,
                 alignment: WrapAlignment.start,
-                children: categories.map((cat) {
+                children: currentCategories.map((cat) {
                   bool isNew = cat['name'] == 'Baru';
                   return _buildCatItem(cat['icon'], cat['name'], cat['color'], isDark, cardColor, itemWidth, isNew: isNew);
                 }).toList(),
@@ -544,7 +561,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildTabItem(String title, bool active, bool isDark, Color cardColor) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => isExpense = (title == "Pengeluaran")),
+        onTap: () {
+          bool targetIsExpense = (title == "Pengeluaran");
+          if (isExpense != targetIsExpense) {
+            setState(() {
+              isExpense = targetIsExpense;
+              selectedCategory = isExpense ? expenseCategories[0]['name'] : incomeCategories[0]['name'];
+            });
+          }
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(color: active ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: active ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : []),
