@@ -18,12 +18,14 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
   Key _dashboardKey = UniqueKey();
+  Key _reportKey = UniqueKey();
+  Key _walletKey = UniqueKey();
 
   void _onItemTapped(int index) {
     setState(() {
-      if (index == 0 && _selectedIndex != 0) {
-        _dashboardKey = UniqueKey();
-      }
+      if (index == 0 && _selectedIndex != 0) _dashboardKey = UniqueKey();
+      if (index == 1 && _selectedIndex != 1) _reportKey = UniqueKey();
+      if (index == 2 && _selectedIndex != 2) _walletKey = UniqueKey();
       _selectedIndex = index;
     });
   }
@@ -41,8 +43,8 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _selectedIndex,
         children: [
           DashboardScreen(key: _dashboardKey),
-          const ReportScreen(),
-          const WalletScreen(),
+          ReportScreen(key: _reportKey),
+          WalletScreen(key: _walletKey),
           const ProfileScreen(),
         ],
       ),
@@ -54,6 +56,8 @@ class _MainNavigationState extends State<MainNavigation> {
           );
           setState(() {
             _dashboardKey = UniqueKey();
+            _reportKey = UniqueKey();
+            _walletKey = UniqueKey();
           });
         },
         backgroundColor: AppColors.primaryGreen,
@@ -74,7 +78,7 @@ class _MainNavigationState extends State<MainNavigation> {
             children: [
               _buildNavItem(0, FontAwesomeIcons.house, 'Beranda', unselectedColor),
               _buildNavItem(1, FontAwesomeIcons.chartSimple, 'Laporan', unselectedColor),
-              const SizedBox(width: 56), // Spasi untuk Floating Action Button
+              const SizedBox(width: 56),
               _buildNavItem(2, FontAwesomeIcons.wallet, 'Dompet', unselectedColor),
               _buildNavItem(3, FontAwesomeIcons.user, 'Profil', unselectedColor),
             ],
@@ -84,7 +88,6 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  // Mengubah parameter icon menjadi tipe dinamis (dynamic) untuk menampung FontAwesome
   Widget _buildNavItem(int index, dynamic icon, String label, Color unselectedColor) {
     bool isSelected = _selectedIndex == index;
     return Expanded(
