@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
-// import '../../../../widgets/sub_app_bar.dart'; // Di-comment karena kita pakai AppBar bawaan untuk memunculkan ikon hapus
 
 class EditBudgetScreen extends StatefulWidget {
   final String category;
   final int currentLimit;
-  final IconData icon;
+  final dynamic icon; // PERBAIKAN: Diubah ke dynamic untuk menerima FaIconData
   final Color iconColor;
 
   const EditBudgetScreen({
@@ -30,10 +30,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   @override
   void initState() {
     super.initState();
-    // Inisialisasi teks kategori lama
     _categoryController = TextEditingController(text: widget.category);
-
-    // Memformat angka limit mentah menjadi format bertitik (misal: 2000000 -> 2.000.000) saat halaman dibuka
     String formattedInitial = _formatNumber(widget.currentLimit.toString());
     _limitController = TextEditingController(text: formattedInitial);
   }
@@ -45,7 +42,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     super.dispose();
   }
 
-  // Fungsi helper memformat angka saat diketik
   String _formatNumber(String s) {
     String formatted = '';
     int count = 0;
@@ -61,8 +57,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // PERBAIKAN 1: Filter regex super ketat, HANYA mengambil angka (0-9).
-      // Kebal terhadap spasi, titik, koma, huruf, dll.
       final cleanLimit = _limitController.text.replaceAll(RegExp(r'[^0-9]'), '');
       final newLimitAmount = int.parse(cleanLimit);
 
@@ -71,33 +65,28 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       final now = DateTime.now();
       final periodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
 
-      // PERBAIKAN 2: Menggunakan .ilike() (Case-Insensitive) untuk pencarian kategori
       await supabase
           .from('budgets')
           .update({
         'limit_amount': newLimitAmount,
         'category': newCategoryName
       })
-          .ilike('category', widget.category.trim()) // Mengabaikan huruf besar/kecil dan spasi
+          .ilike('category', widget.category.trim())
           .eq('period_month', periodMonth);
 
-      // ===================================================================
-      // 2. TAMBAHAN BARU: Update juga nama kategori di tabel transactions!
-      // ===================================================================
       if (widget.category.trim().toLowerCase() != newCategoryName.toLowerCase()) {
         await supabase
             .from('transactions')
             .update({'category': newCategoryName})
             .ilike('category', widget.category.trim());
       }
-      // ===================================================================
 
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Anggaran berhasil diperbarui!'),
-            backgroundColor: Colors.green, // Warna aman untuk indikasi sukses
+            backgroundColor: Colors.green,
           ),
         );
       }
@@ -113,7 +102,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   }
 
   Future<void> _deleteBudget() async {
-    // 1. Munculkan Dialog Konfirmasi
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -138,7 +126,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     try {
       final periodMonth = DateTime(DateTime.now().year, DateTime.now().month, 1).toIso8601String().split('T')[0];
 
-      // 2. Proses Hapus di Supabase
       await supabase
           .from('budgets')
           .delete()
@@ -180,7 +167,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.red, size: 20),
             onPressed: _deleteBudget,
           ),
         ],
@@ -195,13 +182,13 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withOpacity(0.1),
+                color: AppColors.primaryGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primaryGreen.withOpacity(0.3)),
+                border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(widget.icon, color: widget.iconColor),
+                  FaIcon(widget.icon, color: widget.iconColor, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
@@ -209,7 +196,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        enabledBorder: InputBorder.none,  // Menghilangkan garis saat tidak fokus
+                        enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         errorBorder: InputBorder.none,
                         disabledBorder: InputBorder.none,
@@ -230,7 +217,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Row(
                 children: [

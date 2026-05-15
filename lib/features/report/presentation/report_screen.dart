@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/transaction_item.dart';
 import '../../budget/presentation/budget_screen.dart';
@@ -86,19 +87,17 @@ class _ReportScreenState extends State<ReportScreen> {
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      // FOKUS PERBAIKAN: Optimalisasi tema adaptif untuk visibilitas total di Dark Mode
       builder: (BuildContext context, Widget? child) {
         final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
         return Theme(
           data: Theme.of(context).copyWith(
-            // Mengatur skema warna utama picker
             colorScheme: isDark
                 ? const ColorScheme.dark(
-              primary: AppColors.primaryGreen,   // Warna rentang & tanggal terpilih
-              onPrimary: Colors.white,          // Warna teks di atas warna primary
-              surface: Color(0xFF1E1E1E),       // Background container kalender (tidak hitam pekat absolut)
-              onSurface: Colors.white,          // Warna angka tanggal, inisial hari, & nama bulan
+              primary: AppColors.primaryGreen,
+              onPrimary: Colors.white,
+              surface: Color(0xFF1E1E1E),
+              onSurface: Colors.white,
               secondary: AppColors.primaryGreen,
               onSecondary: Colors.white,
             )
@@ -108,16 +107,14 @@ class _ReportScreenState extends State<ReportScreen> {
               surface: Colors.white,
               onSurface: Colors.black87,
             ),
-
-            // Perbaikan elemen Header (Judul, Start-End Date, Icon Close, & Icon Pensil)
             appBarTheme: AppBarTheme(
               backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
               elevation: 0,
               iconTheme: const IconThemeData(
-                color: Colors.white, // Menjamin icon Close ('X') muncul putih terang
+                color: Colors.white,
               ),
               actionsIconTheme: const IconThemeData(
-                color: Colors.white, // Menjamin icon aksi seperti Pensil muncul putih terang
+                color: Colors.white,
               ),
               titleTextStyle: const TextStyle(
                 color: Colors.white,
@@ -125,16 +122,12 @@ class _ReportScreenState extends State<ReportScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
-            // Memastikan icon edit/pensil bawaan material mengikuti kontras yang tepat
             iconTheme: const IconThemeData(
               color: Colors.white,
             ),
-
-            // Memastikan tombol teks seperti 'Save' terlihat kontras dan jelas
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white, // Memaksa teks 'Save' tetap putih di mode gelap
+                foregroundColor: Colors.white,
                 textStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -267,7 +260,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
                       child: Row(
                         children: filters.map((filter) {
                           bool isSelected = selectedFilter == filter;
@@ -279,7 +272,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(color: isSelected ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : []),
+                                decoration: BoxDecoration(color: isSelected ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : []),
                                 alignment: Alignment.center,
                                 child: Text(filter, style: TextStyle(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade600, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 12)),
                               ),
@@ -296,11 +289,11 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: selectedFilter == 'Kustom' ? AppColors.primaryGreen : (isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1FAF5)),
+                        color: selectedFilter == 'Kustom' ? AppColors.primaryGreen : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5)),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
-                          Icons.calendar_month,
+                      child: FaIcon(
+                          FontAwesomeIcons.calendarDays,
                           color: selectedFilter == 'Kustom' ? Colors.white : AppColors.primaryGreen,
                           size: 20
                       ),
@@ -314,10 +307,10 @@ class _ReportScreenState extends State<ReportScreen> {
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BudgetScreen())),
                 child: Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: AppColors.primaryGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.primaryGreen.withOpacity(0.3))),
+                  decoration: BoxDecoration(color: AppColors.primaryGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3))),
                   child: Row(
                     children: [
-                      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: cardColor, shape: BoxShape.circle), child: const Icon(Icons.account_balance_wallet, color: AppColors.primaryGreen)),
+                      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: cardColor, shape: BoxShape.circle), child: const FaIcon(FontAwesomeIcons.wallet, size: 20, color: AppColors.primaryGreen)),
                       const SizedBox(width: 16),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Anggaran Bulanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)), const SizedBox(height: 4), const Text('Pantau sisa limit pengeluaranmu', style: TextStyle(color: Colors.grey, fontSize: 12))])),
                       const Icon(Icons.chevron_right, color: AppColors.primaryGreen),
@@ -329,7 +322,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -343,7 +336,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 10)]),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03), blurRadius: 10)]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -372,7 +365,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 10)]),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03), blurRadius: 10)]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -417,8 +410,8 @@ class _ReportScreenState extends State<ReportScreen> {
                     title: tx['category'] ?? 'Lainnya',
                     subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
                     amount: '- ${_formatCurrency(tx['amount'])}',
-                    bgIconColor: Colors.red.withOpacity(0.1),
-                    icon: Icons.shopping_bag,
+                    bgIconColor: Colors.red.withValues(alpha: 0.1),
+                    icon: FontAwesomeIcons.bagShopping,
                     amountColor: barRed,
                   );
                 }),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 
@@ -23,23 +24,23 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
   List<String> _existingWallets = [];
 
   List<Map<String, dynamic>> walletTemplates = [
-    {'name': 'Uang Tunai', 'icon': Icons.money, 'icon_id': 'money', 'color': AppColors.primaryGreen},
-    {'name': 'BCA', 'icon': Icons.account_balance, 'icon_id': 'bank', 'color': Colors.indigo},
-    {'name': 'Mandiri', 'icon': Icons.account_balance, 'icon_id': 'bank', 'color': Colors.blue.shade800},
-    {'name': 'GoPay', 'icon': Icons.account_balance_wallet, 'icon_id': 'wallet', 'color': Colors.blue},
-    {'name': 'DANA', 'icon': Icons.account_balance_wallet, 'icon_id': 'wallet', 'color': Colors.orange},
-    {'name': 'OVO', 'icon': Icons.account_balance_wallet, 'icon_id': 'wallet', 'color': Colors.purple},
-    {'name': 'Baru', 'icon': Icons.add, 'icon_id': 'add', 'color': Colors.grey},
+    {'name': 'Uang Tunai', 'icon': FontAwesomeIcons.moneyBillWave, 'icon_id': 'money', 'color': AppColors.primaryGreen},
+    {'name': 'BCA', 'icon': FontAwesomeIcons.buildingColumns, 'icon_id': 'bank', 'color': Colors.indigo},
+    {'name': 'Mandiri', 'icon': FontAwesomeIcons.buildingColumns, 'icon_id': 'bank', 'color': Colors.blue.shade800},
+    {'name': 'GoPay', 'icon': FontAwesomeIcons.wallet, 'icon_id': 'wallet', 'color': Colors.blue},
+    {'name': 'DANA', 'icon': FontAwesomeIcons.wallet, 'icon_id': 'wallet', 'color': Colors.orange},
+    {'name': 'OVO', 'icon': FontAwesomeIcons.wallet, 'icon_id': 'wallet', 'color': Colors.purple},
+    {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'icon_id': 'add', 'color': Colors.grey},
   ];
 
   final List<Map<String, dynamic>> dialogIcons = [
-    {'id': 'money', 'icon': Icons.money, 'color': AppColors.primaryGreen},
-    {'id': 'bank', 'icon': Icons.account_balance, 'color': Colors.indigo},
-    {'id': 'wallet', 'icon': Icons.account_balance_wallet, 'color': Colors.orange},
-    {'id': 'card', 'icon': Icons.credit_card, 'color': Colors.purple},
-    {'id': 'savings', 'icon': Icons.savings, 'color': Colors.teal},
-    {'id': 'crypto', 'icon': Icons.currency_bitcoin, 'color': Colors.amber.shade600},
-    {'id': 'business', 'icon': Icons.storefront, 'color': Colors.blue},
+    {'id': 'money', 'icon': FontAwesomeIcons.moneyBillWave, 'color': AppColors.primaryGreen},
+    {'id': 'bank', 'icon': FontAwesomeIcons.buildingColumns, 'color': Colors.indigo},
+    {'id': 'wallet', 'icon': FontAwesomeIcons.wallet, 'color': Colors.orange},
+    {'id': 'card', 'icon': FontAwesomeIcons.creditCard, 'color': Colors.purple},
+    {'id': 'savings', 'icon': FontAwesomeIcons.piggyBank, 'color': Colors.teal},
+    {'id': 'crypto', 'icon': FontAwesomeIcons.bitcoin, 'color': Colors.amber.shade600},
+    {'id': 'business', 'icon': FontAwesomeIcons.store, 'color': Colors.blue},
   ];
 
   @override
@@ -68,7 +69,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
   void _showAddWalletDialog() {
     TextEditingController nameController = TextEditingController();
     String tempIconId = dialogIcons[0]['id'];
-    IconData tempIcon = dialogIcons[0]['icon'];
+    dynamic tempIcon = dialogIcons[0]['icon'];
     Color tempColor = dialogIcons[0]['color'];
 
     showDialog(
@@ -108,11 +109,11 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isSelected ? item['color'].withOpacity(0.2) : Colors.transparent,
+                              color: isSelected ? item['color'].withValues(alpha: 0.2) : Colors.transparent,
                               shape: BoxShape.circle,
                               border: Border.all(color: isSelected ? item['color'] : Colors.grey.shade300, width: isSelected ? 2 : 1),
                             ),
-                            child: Icon(item['icon'], color: isSelected ? item['color'] : Colors.grey),
+                            child: FaIcon(item['icon'], color: isSelected ? item['color'] : Colors.grey, size: 20),
                           ),
                         );
                       }).toList(),
@@ -221,7 +222,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+              decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -268,7 +269,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     );
   }
 
-  Widget _buildWalletItem(IconData icon, String label, Color color, String iconId, bool isDark, Color cardColor, double itemWidth, {bool isNew = false}) {
+  Widget _buildWalletItem(dynamic icon, String label, Color color, String iconId, bool isDark, Color cardColor, double itemWidth, {bool isNew = false}) {
     bool isSelected = selectedWalletName == label;
     return GestureDetector(
       onTap: () {
@@ -288,12 +289,12 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isNew ? cardColor : (isSelected ? color.withOpacity(0.2) : cardColor),
+                color: isNew ? cardColor : (isSelected ? color.withValues(alpha: 0.2) : cardColor),
                 shape: BoxShape.circle,
                 border: isNew ? Border.all(color: Colors.grey.shade500) : (isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent)),
-                boxShadow: (isDark || isSelected) ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
+                boxShadow: (isDark || isSelected) ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
               ),
-              child: Icon(icon, color: color, size: 26),
+              child: FaIcon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 8),
             Text(

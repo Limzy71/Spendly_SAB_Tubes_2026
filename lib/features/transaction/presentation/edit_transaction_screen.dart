@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:io';
 import '../../../theme/app_colors.dart';
 
@@ -20,34 +21,47 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   late bool isExpense;
   late String selectedCategory;
-  String selectedAccount = "Uang Tunai";
+  int? selectedWalletId;
   late DateTime selectedDate;
 
   File? _imageFile;
   String? _existingImageUrl;
-
   bool _isLoading = false;
+
+  List<Map<String, dynamic>> _wallets = [];
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final FocusNode _amountFocusNode = FocusNode();
 
-  List<Map<String, dynamic>> categories = [
-    {'name': 'Makanan', 'icon': Icons.restaurant, 'color': Colors.redAccent},
-    {'name': 'Transportasi', 'icon': Icons.directions_car, 'color': Colors.blue},
-    {'name': 'Belanja', 'icon': Icons.shopping_bag, 'color': Colors.purple},
-    {'name': 'Gaji', 'icon': Icons.money, 'color': AppColors.primaryGreen},
-    {'name': 'Lainnya', 'icon': Icons.category, 'color': Colors.teal},
+  List<Map<String, dynamic>> expenseCategories = [
+    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.redAccent},
+    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': Colors.blue},
+    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple},
+    {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': Colors.orange},
+    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': Colors.teal},
+    {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
+  ];
+
+  List<Map<String, dynamic>> incomeCategories = [
+    {'name': 'Gaji', 'icon': FontAwesomeIcons.moneyBillWave, 'color': AppColors.primaryGreen},
+    {'name': 'Bonus', 'icon': FontAwesomeIcons.gift, 'color': Colors.amber.shade600},
+    {'name': 'Investasi', 'icon': FontAwesomeIcons.arrowTrendUp, 'color': Colors.blueAccent},
+    {'name': 'Dana', 'icon': FontAwesomeIcons.wallet, 'color': Colors.indigo},
+    {'name': 'Lainnya', 'icon': FontAwesomeIcons.boxArchive, 'color': Colors.teal},
+    {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('id', null);
+    _fetchWallets();
 
     isExpense = widget.transaction['is_expense'] ?? true;
-    selectedCategory = widget.transaction['category'] ?? "Makanan";
+    selectedCategory = widget.transaction['category'] ?? "Lainnya";
+    selectedWalletId = widget.transaction['wallet_id'];
     selectedDate = DateTime.parse(widget.transaction['transaction_date']);
     _noteController.text = widget.transaction['note'] ?? '';
     _existingImageUrl = widget.transaction['image_path'];
@@ -55,8 +69,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     int amount = widget.transaction['amount'] ?? 0;
     _amountController.text = NumberFormat.decimalPattern('id').format(amount);
 
-    if (!categories.any((c) => c['name'] == selectedCategory)) {
-      categories.insert(0, {'name': selectedCategory, 'icon': Icons.category, 'color': Colors.orange});
+    List<Map<String, dynamic>> targetList = isExpense ? expenseCategories : incomeCategories;
+    if (!targetList.any((c) => c['name'] == selectedCategory)) {
+      targetList.insert(0, {'name': selectedCategory, 'icon': FontAwesomeIcons.boxArchive, 'color': Colors.orange});
     }
   }
 
@@ -66,6 +81,49 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     _noteController.dispose();
     _amountFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchWallets() async {
+    try {
+      final walletResponse = await supabase.from('wallets').select().order('id');
+      final txResponse = await supabase.from('transactions').select();
+
+      List<Map<String, dynamic>> processedWallets = [];
+
+      for (var w in walletResponse) {
+        int wId = w['id'] as int;
+        String wName = w['name'].toString();
+        int currentBal = w['balance'] as int;
+
+        for (var tx in txResponse) {
+          if (tx['wallet_id'] == wId) {
+            if (tx['is_expense'] == true) {
+              currentBal -= tx['amount'] as int;
+            } else {
+              currentBal += tx['amount'] as int;
+            }
+          }
+        }
+
+        processedWallets.add({
+          'id': wId,
+          'name': wName,
+          'balance': currentBal,
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _wallets = processedWallets;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
+  }
+
+  String _formatCurrency(int amount) {
+    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -87,8 +145,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           child: Wrap(
             children: [
               const Padding(padding: EdgeInsets.symmetric(vertical: 15), child: Center(child: Text('Pilih Sumber Gambar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)))),
-              ListTile(leading: const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen), title: const Text('Ambil dari Kamera'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); }),
-              ListTile(leading: const Icon(Icons.image_outlined, color: AppColors.primaryGreen), title: const Text('Pilih dari Galeri'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); }),
+              ListTile(leading: const FaIcon(FontAwesomeIcons.camera, color: AppColors.primaryGreen, size: 20), title: const Text('Ambil dari Kamera'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); }),
+              ListTile(leading: const FaIcon(FontAwesomeIcons.image, color: AppColors.primaryGreen, size: 20), title: const Text('Pilih dari Galeri'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); }),
             ],
           ),
         );
@@ -96,14 +154,162 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     );
   }
 
+  void _showAddCategoryDialog() {
+    TextEditingController catController = TextEditingController();
+    dynamic selectedIcon = FontAwesomeIcons.star;
+
+    final List<dynamic> availableIcons = [
+      FontAwesomeIcons.star, FontAwesomeIcons.mugHot, FontAwesomeIcons.plane, FontAwesomeIcons.house,
+      FontAwesomeIcons.hospital, FontAwesomeIcons.graduationCap, FontAwesomeIcons.paw, FontAwesomeIcons.gamepad,
+      FontAwesomeIcons.shirt, FontAwesomeIcons.laptop, FontAwesomeIcons.film, FontAwesomeIcons.train,
+      FontAwesomeIcons.building, FontAwesomeIcons.coins, FontAwesomeIcons.piggyBank
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: const Text('Kategori Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: catController,
+                        decoration: const InputDecoration(
+                          hintText: 'Contoh: Hadiah',
+                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: availableIcons.map((icon) {
+                          bool isSelected = selectedIcon == icon;
+                          return GestureDetector(
+                            onTap: () => setStateDialog(() => selectedIcon = icon),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.2) : Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                              ),
+                              child: FaIcon(icon, color: isSelected ? AppColors.primaryGreen : Colors.grey, size: 20),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+                    ),
+                    onPressed: () {
+                      if (catController.text.isNotEmpty) {
+                        setState(() {
+                          var newCategory = {
+                            'name': catController.text,
+                            'icon': selectedIcon,
+                            'color': AppColors.primaryGreen,
+                          };
+                          if (isExpense) {
+                            expenseCategories.insert(expenseCategories.length - 1, newCategory);
+                          } else {
+                            incomeCategories.insert(incomeCategories.length - 1, newCategory);
+                          }
+                          selectedCategory = catController.text;
+                        });
+                        Navigator.pop(ctx);
+                      }
+                    },
+                    child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              );
+            }
+        );
+      },
+    );
+  }
+
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(context: context, initialDate: selectedDate, firstDate: DateTime(2020), lastDate: DateTime(2101), builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)), child: child!));
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2101),
+      builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)), child: child!),
+    );
     if (picked != null && picked != selectedDate) setState(() => selectedDate = picked);
+  }
+
+  void _showWalletSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Pilih Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              if (_wallets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Text('Belum ada dompet', style: TextStyle(color: Colors.grey)),
+                )
+              else
+                ..._wallets.map((wallet) {
+                  return InkWell(
+                    onTap: () {
+                      setState(() => selectedWalletId = wallet['id']);
+                      Navigator.pop(ctx);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                          Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _updateTransaction() async {
     if (_amountController.text.isEmpty || _amountController.text == '0') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nominal wajib diisi')));
+      return;
+    }
+
+    if (selectedWalletId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih dompet terlebih dahulu')));
       return;
     }
 
@@ -126,6 +332,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         'amount': amount,
         'is_expense': isExpense,
         'category': selectedCategory,
+        'wallet_id': selectedWalletId,
         'transaction_date': selectedDate.toIso8601String().split('T')[0],
         'note': _noteController.text.isEmpty ? null : _noteController.text,
         'image_path': finalImageUrl,
@@ -185,6 +392,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
     Color dividerColor = isDark ? Colors.white24 : Colors.grey.shade300;
 
+    double screenWidth = MediaQuery.of(context).size.width;
+    double itemWidth = (screenWidth - 40 - 32) / 5;
+
+    List<Map<String, dynamic>> currentCategories = isExpense ? expenseCategories : incomeCategories;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -195,7 +407,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         title: Text('Edit Transaksi', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.red, size: 20),
             onPressed: _isLoading ? null : _confirmDelete,
           )
         ],
@@ -210,13 +422,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               onTap: () => FocusScope.of(context).requestFocus(_amountFocusNode),
               child: Container(
                 width: double.infinity,
-                decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
                       child: Row(
                         children: [
                           _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
@@ -259,16 +471,16 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
             const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('KATEGORI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 95,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  final cat = categories[index];
-                  return _buildCatItem(cat['icon'], cat['name'], cat['color'], isDark, cardColor);
-                },
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Wrap(
+                spacing: 8.0,
+                runSpacing: 16.0,
+                alignment: WrapAlignment.start,
+                children: currentCategories.map((cat) {
+                  bool isNew = cat['name'] == 'Baru';
+                  return _buildCatItem(cat['icon'], cat['name'], cat['color'], isDark, cardColor, itemWidth, isNew: isNew);
+                }).toList(),
               ),
             ),
             const SizedBox(height: 20),
@@ -277,38 +489,51 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primaryGreen),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedAccount,
-                              isExpanded: true,
-                              dropdownColor: cardColor,
-                              iconEnabledColor: textColor,
-                              items: ["Uang Tunai", "BCA", "GoPay", "OVO"].map((String val) => DropdownMenuItem<String>(value: val, child: Text(val, style: TextStyle(fontSize: 14, color: textColor)))).toList(),
-                              onChanged: (val) => setState(() => selectedAccount = val!),
+                    InkWell(
+                      onTap: _wallets.isEmpty ? null : _showWalletSelector,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          children: [
+                            const FaIcon(FontAwesomeIcons.wallet, color: AppColors.primaryGreen, size: 20),
+                            const SizedBox(width: 15),
+                            Expanded(
+                              child: _wallets.isEmpty
+                                  ? const Text("Memuat dompet...", style: TextStyle(color: Colors.grey, fontSize: 14))
+                                  : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    selectedWalletId == null
+                                        ? "Pilih Dompet"
+                                        : _wallets.firstWhere((w) => w['id'] == selectedWalletId, orElse: () => {'name': 'Pilih Dompet'})['name'],
+                                    style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
+                                  ),
+                                  const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                     Divider(height: 30, color: dividerColor, thickness: 1),
                     InkWell(
                       onTap: () => _selectDate(context),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_outlined, color: AppColors.primaryGreen),
-                          const SizedBox(width: 15),
-                          Text(DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate), style: TextStyle(fontSize: 14, color: textColor)),
-                          const Spacer(),
-                          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          children: [
+                            const FaIcon(FontAwesomeIcons.calendarDays, color: AppColors.primaryGreen, size: 20),
+                            const SizedBox(width: 15),
+                            Text(DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate), style: TextStyle(fontSize: 14, color: textColor)),
+                            const Spacer(),
+                            const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -321,7 +546,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -361,7 +586,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
                           Row(
                             children: [
-                              const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen),
+                              const FaIcon(FontAwesomeIcons.camera, color: AppColors.primaryGreen, size: 20),
                               const SizedBox(width: 15),
                               Text((_imageFile == null && _existingImageUrl == null) ? "Lampirkan Foto Struk" : "Ubah Foto Struk", style: const TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w500)),
                             ],
@@ -396,10 +621,18 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   Widget _buildTabItem(String title, bool active, bool isDark, Color cardColor) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => isExpense = (title == "Pengeluaran")),
+        onTap: () {
+          bool targetIsExpense = (title == "Pengeluaran");
+          if (isExpense != targetIsExpense) {
+            setState(() {
+              isExpense = targetIsExpense;
+              selectedCategory = isExpense ? expenseCategories[0]['name'] : incomeCategories[0]['name'];
+            });
+          }
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(color: active ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: active ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : []),
+          decoration: BoxDecoration(color: active ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: active ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : []),
           alignment: Alignment.center,
           child: Text(title, style: TextStyle(color: active ? AppColors.primaryGreen : Colors.grey, fontWeight: active ? FontWeight.bold : FontWeight.normal)),
         ),
@@ -407,25 +640,38 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     );
   }
 
-  Widget _buildCatItem(IconData icon, String label, Color color, bool isDark, Color cardColor) {
+  Widget _buildCatItem(dynamic icon, String label, Color color, bool isDark, Color cardColor, double itemWidth, {bool isNew = false}) {
     bool isSelected = selectedCategory == label;
     return GestureDetector(
-      onTap: () => setState(() => selectedCategory = label),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+      onTap: () {
+        if (isNew) {
+          _showAddCategoryDialog();
+        } else {
+          setState(() => selectedCategory = label);
+        }
+      },
+      child: SizedBox(
+        width: itemWidth,
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: isSelected ? color.withOpacity(0.2) : cardColor,
+                color: isNew ? cardColor : (isSelected ? color.withValues(alpha: 0.2) : cardColor),
                 shape: BoxShape.circle,
-                border: isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent),
+                border: isNew ? Border.all(color: Colors.grey.shade500) : (isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent)),
+                boxShadow: (isDark || isSelected) ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: FaIcon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 8),
-            Text(label, style: TextStyle(fontSize: 12, color: isSelected ? (isDark ? Colors.white : Colors.black87) : Colors.grey)),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: isSelected ? (isDark ? Colors.white : Colors.black87) : Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

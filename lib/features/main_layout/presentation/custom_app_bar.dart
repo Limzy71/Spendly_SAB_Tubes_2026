@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -30,9 +31,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           padding: const EdgeInsets.only(right: 16),
-          icon: Icon(
-              Icons.notifications_none_outlined,
-              color: isDark ? Colors.white : Colors.black87
+          icon: FaIcon(
+            FontAwesomeIcons.bell,
+            size: 20,
+            color: isDark ? Colors.white : Colors.black87,
           ),
           onPressed: () {},
         ),

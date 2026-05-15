@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 import 'edit_transaction_screen.dart';
@@ -80,7 +81,9 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           processedIds.add(id);
           if (partner.isNotEmpty) processedIds.add(partner['id'] as int);
         } else {
-          displayTx.add(tx);
+          var mergedTx = Map<String, dynamic>.from(tx);
+          mergedTx['wallet_name'] = walletData[walletId]?['name'] ?? 'Dompet';
+          displayTx.add(mergedTx);
           processedIds.add(id);
         }
       }
@@ -100,6 +103,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   }
 
   String _formatCurrency(int amount) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+
   String _formatDate(String dateString) {
     try { return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(dateString)); }
     catch (e) { return dateString; }
@@ -143,12 +147,17 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     bool isExpense = tx['is_expense'] as bool;
 
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
-    Color bgIconColor = amountColor.withOpacity(0.1);
-    IconData icon = isTransfer ? Icons.swap_horiz : _getIconForCategory(tx['category']);
+    Color bgIconColor = amountColor.withValues(alpha: 0.1);
+
+    dynamic icon = isTransfer ? FontAwesomeIcons.rightLeft : _getIconForCategory(tx['category']);
 
     String note = tx['note'] ?? '';
     String title = isTransfer ? "Transfer" : (tx['category'] ?? "Lainnya");
-    String subtitle = _formatDate(tx['transaction_date'] ?? "");
+
+    // PERBAIKAN: Menggunakan Garis Vertikal ( | )
+    String walletNameStr = tx['wallet_name'] != null ? "  |  ${tx['wallet_name']}" : "";
+    String subtitle = "${_formatDate(tx['transaction_date'] ?? "")}$walletNameStr";
+
     String transferPath = isTransfer ? "${tx['from_wallet']} → ${tx['to_wallet']}" : "";
 
     return InkWell(
@@ -160,11 +169,15 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))]),
+        decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))]),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: bgIconColor, borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: amountColor, size: 24)),
+            Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: bgIconColor, borderRadius: BorderRadius.circular(12)),
+                child: FaIcon(icon, color: amountColor, size: 20)
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -194,14 +207,18 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     );
   }
 
-  IconData _getIconForCategory(String? category) {
-    if (category == null) return Icons.receipt;
+  dynamic _getIconForCategory(String? category) {
+    if (category == null) return FontAwesomeIcons.fileInvoice;
     switch (category.toLowerCase()) {
-      case 'makanan': return Icons.restaurant;
-      case 'transportasi': return Icons.directions_car;
-      case 'belanja': return Icons.shopping_bag;
-      case 'gaji': return Icons.wallet;
-      default: return Icons.receipt_long;
+      case 'makanan': return FontAwesomeIcons.utensils;
+      case 'transportasi': return FontAwesomeIcons.car;
+      case 'belanja': return FontAwesomeIcons.bagShopping;
+      case 'gaji': return FontAwesomeIcons.moneyBillWave;
+      case 'bonus': return FontAwesomeIcons.gift;
+      case 'investasi': return FontAwesomeIcons.arrowTrendUp;
+      case 'tagihan': return FontAwesomeIcons.fileInvoiceDollar;
+      case 'hiburan': return FontAwesomeIcons.film;
+      default: return FontAwesomeIcons.boxArchive;
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -11,28 +12,22 @@ class ChangePasswordScreen extends StatefulWidget {
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controller untuk menangkap input teks PIN
   final TextEditingController _oldPinController = TextEditingController();
   final TextEditingController _newPinController = TextEditingController();
   final TextEditingController _confirmPinController = TextEditingController();
 
-  // State untuk menyembunyikan/menampilkan PIN
   bool _obscureOld = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
-  // FUNGSI UTAMA: Validasi & Proses Perubahan PIN
   void _processChangePin() {
     if (_formKey.currentState!.validate()) {
-      // Jika semua validasi di dalam TextFormField lolos
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('PIN Keamanan berhasil diperbarui!'),
           backgroundColor: AppColors.primaryGreen,
         ),
       );
-
-      // Kembali ke halaman profil setelah sukses
       Navigator.pop(context);
     }
   }
@@ -47,7 +42,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     return Scaffold(
@@ -58,7 +52,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
+          icon: Icon(Icons.arrow_back, color: textColor), // Tetap pakai material icon untuk back standar OS
           onPressed: () => Navigator.pop(context),
         ),
         backgroundColor: Colors.transparent,
@@ -67,7 +61,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
-          key: _formKey, // Pasang key untuk validasi form
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -77,7 +71,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 1. INPUT PIN LAMA
               _buildFormLabel('PIN Lama', textColor),
               _buildPinField(
                 controller: _oldPinController,
@@ -93,7 +86,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 2. INPUT PIN BARU
               _buildFormLabel('PIN Baru', textColor),
               _buildPinField(
                 controller: _newPinController,
@@ -112,7 +104,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 3. INPUT KONFIRMASI PIN BARU
               _buildFormLabel('Konfirmasi PIN Baru', textColor),
               _buildPinField(
                 controller: _confirmPinController,
@@ -123,7 +114,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Konfirmasi PIN wajib diisi';
                   }
-                  // Validasi mencocokkan PIN baru
                   if (value != _newPinController.text) {
                     return 'Konfirmasi PIN tidak cocok';
                   }
@@ -132,7 +122,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: 40),
 
-              // TOMBOL KONFIRMASI
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -158,18 +147,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  // Widget Helper untuk Label Form agar adaptif
   Widget _buildFormLabel(String label, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
       child: Text(
         label,
-        style: TextStyle(color: textColor.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w500),
+        // PERBAIKAN: Mengganti withOpacity menjadi withValues(alpha: ...)
+        style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500),
       ),
     );
   }
 
-  // Widget Helper untuk Merender TextFormField PIN yang bersih
   Widget _buildPinField({
     required TextEditingController controller,
     required String hint,
@@ -181,7 +169,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       controller: controller,
       obscureText: obscureText,
       validator: validator,
-      keyboardType: TextInputType.number, // Mengoptimalkan keyboard khusus angka untuk input PIN
+      keyboardType: TextInputType.number,
       style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
       decoration: InputDecoration(
         hintText: hint,
@@ -190,16 +178,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
-
-        // PERBAIKAN: Ubah BoxBorderSide menjadi BorderSide
         errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
-
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent, width: 2)),
         suffixIcon: IconButton(
-          icon: Icon(
-            obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          icon: FaIcon(
+            obscureText ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye,
             color: Colors.grey,
-            size: 20,
+            size: 18,
           ),
           onPressed: onToggleVisibility,
         ),

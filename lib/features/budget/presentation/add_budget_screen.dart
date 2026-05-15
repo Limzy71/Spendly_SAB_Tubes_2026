@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 
@@ -18,12 +19,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   bool _isLoading = false;
   final TextEditingController _limitController = TextEditingController(text: "2.000.000");
 
-  // Nama kategori diseragamkan dengan halaman Transaksi
   final List<Map<String, dynamic>> categories = [
-    {'name': 'Makanan', 'icon': Icons.restaurant, 'color': Colors.orange},
-    {'name': 'Transportasi', 'icon': Icons.directions_car, 'color': Colors.green},
-    {'name': 'Hiburan', 'icon': Icons.movie, 'color': Colors.blue},
-    {'name': 'Belanja', 'icon': Icons.shopping_bag, 'color': Colors.purple},
+    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.orange},
+    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': Colors.green},
+    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': Colors.blue},
+    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple},
   ];
 
   Future<void> _saveBudget() async {
@@ -41,42 +41,32 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final now = DateTime.now();
       final periodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
 
-      // ====================================================================
-      // PERBAIKAN BUG 406: Menggunakan .select() biasa alih-alih .maybeSingle()
-      // ====================================================================
       final List<dynamic> existingBudgets = await supabase
           .from('budgets')
           .select()
           .eq('category', selectedCategory!)
           .eq('period_month', periodMonth);
 
-      // Ambil data pertama jika list tidak kosong menggunakan firstOrNull
       final Map<String, dynamic>? existingBudget =
       existingBudgets.isEmpty ? null : existingBudgets.first;
 
       if (existingBudget != null) {
-        // JIKA ADA: Akumulasikan limit lama dengan input limit baru
         final int oldLimit = existingBudget['limit_amount'] as int;
         final int finalLimit = oldLimit + limitAmount;
 
-        // Update baris data tersebut berdasarkan ID-nya
         await supabase
             .from('budgets')
             .update({'limit_amount': finalLimit})
             .eq('id', existingBudget['id']);
-
       } else {
-        // JIKA BELUM ADA: Insert data baru seperti biasa
         await supabase.from('budgets').insert({
           'category': selectedCategory,
           'limit_amount': limitAmount,
           'period_month': periodMonth,
         });
       }
-      // ====================================================================
 
       if (mounted) {
-        // Tambahkan parameter true di Navigator.pop
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anggaran berhasil diperbarui!')));
       }
@@ -111,7 +101,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Row(
                 children: [
@@ -159,7 +149,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Column(
                 children: categories.map((cat) {
@@ -169,15 +159,15 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: cat['color'].withOpacity(0.1),
+                        color: cat['color'].withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(cat['icon'], color: cat['color'] == Colors.green ? AppColors.primaryGreen : cat['color']),
+                      child: FaIcon(cat['icon'], color: cat['color'] == Colors.green ? AppColors.primaryGreen : cat['color'], size: 20),
                     ),
                     title: Text(cat['name'], style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
                     trailing: isSelected
-                        ? const Icon(Icons.check_circle, color: AppColors.primaryGreen)
-                        : const Icon(Icons.circle_outlined, color: Colors.grey),
+                        ? const FaIcon(FontAwesomeIcons.circleCheck, color: AppColors.primaryGreen)
+                        : const FaIcon(FontAwesomeIcons.circle, color: Colors.grey),
                   );
                 }).toList(),
               ),
@@ -188,11 +178,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.notifications_active_outlined, color: AppColors.primaryGreen),
+                  const FaIcon(FontAwesomeIcons.bell, color: AppColors.primaryGreen),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

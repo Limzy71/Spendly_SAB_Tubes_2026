@@ -10,7 +10,6 @@ class SubAppBar extends StatelessWidget implements PreferredSizeWidget {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AppBar(
-      // Latar belakang disamakan dengan warna Scaffold (layar utama)
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       centerTitle: true,
