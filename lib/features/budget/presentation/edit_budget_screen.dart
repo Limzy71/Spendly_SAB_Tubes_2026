@@ -24,6 +24,9 @@ class EditBudgetScreen extends StatefulWidget {
 class _EditBudgetScreenState extends State<EditBudgetScreen> {
   final supabase = Supabase.instance.client;
   bool _isLoading = false;
+  // State untuk riwayat anggaran
+  List<Map<String, dynamic>> _budgetHistory = [];
+  bool _isLoadingHistory = true;
   late TextEditingController _limitController;
   late TextEditingController _categoryController;
 
@@ -33,6 +36,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     _categoryController = TextEditingController(text: widget.category);
     String formattedInitial = _formatNumber(widget.currentLimit.toString());
     _limitController = TextEditingController(text: formattedInitial);
+    _fetchBudgetHistory();
   }
 
   @override
@@ -51,6 +55,28 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       count++;
     }
     return formatted;
+  }
+
+  // Fungsi mengambil riwayat limit anggaran berdasarkan periode bulan
+  Future<void> _fetchBudgetHistory() async {
+    try {
+      final response = await supabase
+          .from('budgets')
+          .select()
+          .ilike('category', widget.category.trim())
+          .order('period_month', ascending: false); // Urutkan dari bulan terbaru
+
+      if (mounted) {
+        setState(() {
+          _budgetHistory = List<Map<String, dynamic>>.from(response);
+          _isLoadingHistory = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingHistory = false);
+      }
+    }
   }
 
   Future<void> _updateBudget() async {
@@ -82,11 +108,16 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       }
 
       if (mounted) {
-        Navigator.pop(context, true);
+        // 1. Hapus atau beri komentar pada Navigator.pop agar tetap di halaman ini
+        // Navigator.pop(context, true);
+
+        // 2. Panggil fungsi fetch untuk me-refresh list riwayat secara real-time
+        _fetchBudgetHistory();
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Anggaran berhasil diperbarui!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.primaryGreen,
           ),
         );
       }
@@ -158,6 +189,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
+        centerTitle: true,
         title: Text('Edit Anggaran', style: TextStyle(color: textColor, fontSize: 16)),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -266,6 +298,83 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
+            ),
+
+            // --- KODE TOMBOL SIMPAN KAMU BERADA DI ATAS SINI ---
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+            Text('Riwayat Anggaran', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+            const SizedBox(height: 16),
+
+            // Menampilkan loading, teks kosong, atau list transaksi
+            _isLoadingHistory
+                ? const Center(child: CircularProgressIndicator())
+                : _budgetHistory.isEmpty
+                ? Center(child: Text('Belum ada riwayat anggaran.', style: TextStyle(color: Colors.grey[600])))
+                : ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _budgetHistory.length,
+              itemBuilder: (context, index) {
+                final budget = _budgetHistory[index];
+
+                // Format nominal limit anggaran
+                final limit = budget['limit_amount'] as int;
+                String formattedLimit = '';
+                int count = 0;
+                String s = limit.toString();
+                for (int i = s.length - 1; i >= 0; i--) {
+                  if (count != 0 && count % 3 == 0) formattedLimit = '.$formattedLimit';
+                  formattedLimit = s[i] + formattedLimit;
+                  count++;
+                }
+
+                // Ambil periode bulan (Misal: 2026-05-01)
+                final periodStr = budget['period_month'].toString().split('T')[0];
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                  ),
+                  child: Row(
+                    children: [
+                      // ===================================================================
+                      // PERBAIKAN 1 & 2: Menggunakan icon kategori yang sesuai & konsisten
+                      // ===================================================================
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          // Gunakan parameter warna dan ikon dari widget utama (makanan)
+                            color: widget.iconColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10)
+                        ),
+                        // Gunakan FaIcon untuk menampilkan widget.icon (utensils)
+                        child: FaIcon(widget.icon, color: widget.iconColor, size: 24),
+                      ),
+                      // ===================================================================
+
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(budget['category']?.toString() ?? widget.category, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+                            const SizedBox(height: 4),
+                            Text('Periode: $periodStr', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Text('Rp $formattedLimit', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen, fontSize: 14)),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
