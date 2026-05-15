@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class TransactionItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final String amount;
   final Color bgIconColor;
-  final IconData icon;
+  final dynamic icon;
   final Color amountColor;
 
   const TransactionItem({
@@ -20,19 +21,17 @@ class TransactionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Deteksi apakah sedang dark mode
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        // PERBAIKAN: Gunakan cardColor agar otomatis berubah saat dark mode
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           )
@@ -46,8 +45,7 @@ class TransactionItem extends StatelessWidget {
               color: bgIconColor,
               borderRadius: BorderRadius.circular(12),
             ),
-            // PERBAIKAN: Gunakan warna icon yang adaptif (misal: primaryGreen atau onSurface)
-            child: Icon(icon, color: isDark ? Colors.white : Colors.black87),
+            child: FaIcon(icon, size: 20, color: isDark ? Colors.white : Colors.black87),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -63,7 +61,6 @@ class TransactionItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // PERBAIKAN: Gunakan warna bodySmall (biasanya abu-abu) untuk Subtitle
                 Text(
                   subtitle,
                   style: TextStyle(

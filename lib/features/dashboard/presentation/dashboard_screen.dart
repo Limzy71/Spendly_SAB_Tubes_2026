@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../transaction/presentation/all_transactions_screen.dart';
@@ -111,7 +112,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           processedIds.add(id);
           if (partner.isNotEmpty) processedIds.add(partner['id'] as int);
         } else {
-          displayTx.add(tx);
+          var mergedTx = Map<String, dynamic>.from(tx);
+          mergedTx['wallet_name'] = walletData[walletId]?['name'] ?? 'Dompet';
+          displayTx.add(mergedTx);
           processedIds.add(id);
         }
       }
@@ -202,7 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'income')));
                             _fetchDashboardData();
                           },
-                          child: _buildSummaryCard(context, title: "Pemasukan", amount: _formatCurrency(_totalIncome), indicatorColor: AppColors.primaryGreen, icon: Icons.trending_up, iconBgColor: isDark ? Colors.green.withOpacity(0.1) : const Color(0xFFF1FAF5)),
+                          child: _buildSummaryCard(context, title: "Pemasukan", amount: _formatCurrency(_totalIncome), indicatorColor: AppColors.primaryGreen, icon: FontAwesomeIcons.arrowTrendUp, iconBgColor: isDark ? Colors.green.withValues(alpha: 0.1) : const Color(0xFFF1FAF5)),
                         )
                     ),
                     const SizedBox(width: 12),
@@ -213,7 +216,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'expense')));
                             _fetchDashboardData();
                           },
-                          child: _buildSummaryCard(context, title: "Pengeluaran", amount: _formatCurrency(_totalExpense), indicatorColor: Colors.red, icon: Icons.trending_down, iconBgColor: Colors.red.withOpacity(0.1)),
+                          child: _buildSummaryCard(context, title: "Pengeluaran", amount: _formatCurrency(_totalExpense), indicatorColor: Colors.red, icon: FontAwesomeIcons.arrowTrendDown, iconBgColor: Colors.red.withValues(alpha: 0.1)),
                         )
                     ),
                   ],
@@ -252,12 +255,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool isExpense = tx['is_expense'] as bool;
 
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
-    Color bgIconColor = amountColor.withOpacity(0.1);
-    IconData icon = isTransfer ? Icons.swap_horiz : _getIconForCategory(tx['category']);
+    Color bgIconColor = amountColor.withValues(alpha: 0.1);
+
+    dynamic icon = isTransfer ? FontAwesomeIcons.rightLeft : _getIconForCategory(tx['category']);
 
     String note = tx['note'] ?? '';
     String title = isTransfer ? "Transfer" : (tx['category'] ?? "Lainnya");
-    String subtitle = _formatDate(tx['transaction_date'] ?? "");
+
+    // PERBAIKAN: Menggunakan Garis Vertikal ( | )
+    String walletNameStr = tx['wallet_name'] != null ? "  |  ${tx['wallet_name']}" : "";
+    String subtitle = "${_formatDate(tx['transaction_date'] ?? "")}$walletNameStr";
 
     String transferPath = isTransfer ? "${tx['from_wallet']} → ${tx['to_wallet']}" : "";
 
@@ -270,11 +277,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))]),
+        decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))]),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: bgIconColor, borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: amountColor, size: 24)),
+            Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: bgIconColor, borderRadius: BorderRadius.circular(12)),
+                child: FaIcon(icon, color: amountColor, size: 20)
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -304,19 +315,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  IconData _getIconForCategory(String? category) {
-    if (category == null) return Icons.receipt;
+  dynamic _getIconForCategory(String? category) {
+    if (category == null) return FontAwesomeIcons.fileInvoice;
     switch (category.toLowerCase()) {
-      case 'makanan': return Icons.restaurant;
-      case 'transportasi': return Icons.directions_car;
-      case 'belanja': return Icons.shopping_bag;
-      case 'gaji': return Icons.wallet;
-      default: return Icons.receipt_long;
+      case 'makanan': return FontAwesomeIcons.utensils;
+      case 'transportasi': return FontAwesomeIcons.car;
+      case 'belanja': return FontAwesomeIcons.bagShopping;
+      case 'gaji': return FontAwesomeIcons.moneyBillWave;
+      case 'bonus': return FontAwesomeIcons.gift;
+      case 'investasi': return FontAwesomeIcons.arrowTrendUp;
+      case 'tagihan': return FontAwesomeIcons.fileInvoiceDollar;
+      case 'hiburan': return FontAwesomeIcons.film;
+      default: return FontAwesomeIcons.boxArchive;
     }
   }
 
-  Widget _buildEmptyState(BuildContext context, Color primaryGreen) { return Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 40), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Theme.of(context).cardColor, shape: BoxShape.circle), child: Icon(Icons.receipt_long_outlined, size: 64, color: primaryGreen.withOpacity(0.5))), const SizedBox(height: 24), Text("Belum ada transaksi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)), const SizedBox(height: 8), const Text("Catat pengeluaran dan pemasukan\npertamamu hari ini!", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5))],)); }
-  Widget _buildBalanceCard(BuildContext context, Color primaryColor, bool hasData) { return Container(width: double.infinity, padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10, offset: const Offset(0, 4))]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("Total Saldo", style: TextStyle(color: Colors.grey, fontSize: 14)), Icon(Icons.account_balance_wallet, color: primaryColor, size: 26)]), const SizedBox(height: 4), Text(_formatCurrency(_totalBalance), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _totalBalance < 0 ? Colors.red : Theme.of(context).textTheme.bodyLarge?.color)), const SizedBox(height: 20), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: _buildMiniWalletCard(context, "Tunai", _formatShortCurrency(_tunaiBalance))), const SizedBox(width: 8), Expanded(child: _buildMiniWalletCard(context, "Bank", _formatShortCurrency(_bankBalance))), const SizedBox(width: 8), Expanded(child: _buildMiniWalletCard(context, "E-Wallet", _formatShortCurrency(_ewalletBalance)))])])); }
-  Widget _buildMiniWalletCard(BuildContext context, String name, String value) { return Container(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), decoration: BoxDecoration(color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : const Color(0xFFE6F7ED), borderRadius: BorderRadius.circular(12)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54, fontSize: 11)), const SizedBox(height: 4), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)))],)); }
-  Widget _buildSummaryCard(BuildContext context, {required String title, required String amount, required Color indicatorColor, required IconData icon, required Color iconBgColor}) { return Container(decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)), child: ClipRRect(borderRadius: BorderRadius.circular(12), child: IntrinsicHeight(child: Row(children: [Container(width: 4, color: indicatorColor), Expanded(child: Padding(padding: const EdgeInsets.all(12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle), child: Icon(icon, size: 14, color: indicatorColor)), const SizedBox(width: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]), const SizedBox(height: 8), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(amount, style: TextStyle(color: indicatorColor, fontWeight: FontWeight.bold, fontSize: 16)))],),),),],),),),); }
+  Widget _buildEmptyState(BuildContext context, Color primaryGreen) { return Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 40), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Theme.of(context).cardColor, shape: BoxShape.circle), child: FaIcon(FontAwesomeIcons.fileInvoice, size: 48, color: primaryGreen.withValues(alpha: 0.5))), const SizedBox(height: 24), Text("Belum ada transaksi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)), const SizedBox(height: 8), const Text("Catat pengeluaran dan pemasukan\npertamamu hari ini!", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5))],)); }
+
+  Widget _buildBalanceCard(BuildContext context, Color primaryColor, bool hasData) { return Container(width: double.infinity, padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10, offset: const Offset(0, 4))]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("Total Saldo", style: TextStyle(color: Colors.grey, fontSize: 14)), FaIcon(FontAwesomeIcons.wallet, color: primaryColor, size: 24)]), const SizedBox(height: 4), Text(_formatCurrency(_totalBalance), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _totalBalance < 0 ? Colors.red : Theme.of(context).textTheme.bodyLarge?.color)), const SizedBox(height: 20), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: _buildMiniWalletCard(context, "Tunai", _formatShortCurrency(_tunaiBalance))), const SizedBox(width: 8), Expanded(child: _buildMiniWalletCard(context, "Bank", _formatShortCurrency(_bankBalance))), const SizedBox(width: 8), Expanded(child: _buildMiniWalletCard(context, "E-Wallet", _formatShortCurrency(_ewalletBalance)))])])); }
+
+  Widget _buildMiniWalletCard(BuildContext context, String name, String value) { return Container(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), decoration: BoxDecoration(color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE6F7ED), borderRadius: BorderRadius.circular(12)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54, fontSize: 11)), const SizedBox(height: 4), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)))],)); }
+
+  Widget _buildSummaryCard(BuildContext context, {required String title, required String amount, required Color indicatorColor, required dynamic icon, required Color iconBgColor}) { return Container(decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)), child: ClipRRect(borderRadius: BorderRadius.circular(12), child: IntrinsicHeight(child: Row(children: [Container(width: 4, color: indicatorColor), Expanded(child: Padding(padding: const EdgeInsets.all(12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle), child: FaIcon(icon, size: 12, color: indicatorColor)), const SizedBox(width: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]), const SizedBox(height: 8), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(amount, style: TextStyle(color: indicatorColor, fontWeight: FontWeight.bold, fontSize: 16)))],),),),],),),),); }
 }

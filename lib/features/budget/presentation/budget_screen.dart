@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'add_budget_screen.dart';
 import 'edit_budget_screen.dart';
 import '../../../theme/app_colors.dart';
@@ -32,22 +33,15 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
     try {
       final DateTime now = DateTime.now();
-      // Format tanggal awal dan akhir bulan yang presisi (YYYY-MM-DD)
-      final String currentPeriodMonth = DateTime(now.year, now.month, 1)
-          .toIso8601String()
-          .split('T')[0];
-      final String firstDayOfMonth = DateTime(now.year, now.month, 1)
-          .toIso8601String();
-      final String lastDayOfMonth = DateTime(
-          now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+      final String currentPeriodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
+      final String firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+      final String lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
 
-      // 1. FIX QUERY: Hanya ambil data Anggaran untuk periode bulan berjalan ini saja
       final budgetResponse = await supabase
           .from('budgets')
           .select()
           .eq('period_month', currentPeriodMonth);
 
-      // 2. Mengambil data Pengeluaran (Transactions) di bulan ini
       final transactionResponse = await supabase
           .from('transactions')
           .select()
@@ -58,7 +52,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
       int tempTotalLimit = 0;
       int tempTotalSpent = 0;
 
-      // A. Tarik seluruh data transaksi tanpa filter tanggal untuk menghitung saldo total
       final allTransactions = await supabase.from('transactions').select();
 
       int totalIncome = 0;
@@ -75,22 +68,17 @@ class _BudgetScreenState extends State<BudgetScreen> {
         }
       }
 
-// B. Kalkulasi saldo saat ini
       int currentTotalBalance = totalIncome - totalExpense;
 
-      // Map sementara untuk melakukan akumulasi lokal jika ada kategori yang kembar di DB
       Map<String, Map<String, dynamic>> accumulatedBudgets = {};
 
-      // 3. Gabungkan dan akumulasikan data Anggaran
       for (var budget in budgetResponse) {
         String category = budget['category'] as String;
         int limit = budget['limit_amount'] as int;
 
         if (accumulatedBudgets.containsKey(category)) {
-          // Jika kategori sudah ada di map (duplikat di DB), tambahkan limitnya
           accumulatedBudgets[category]!['limit'] += limit;
         } else {
-          // Jika belum ada, buat record baru di map
           accumulatedBudgets[category] = {
             'category': category,
             'limit': limit,
@@ -99,7 +87,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
         }
       }
 
-      // 4. Hitung pengeluaran khusus untuk masing-masing kategori yang sudah bersih/terkelompok
       accumulatedBudgets.forEach((category, data) {
         int spent = 0;
         for (var tx in transactionResponse) {
@@ -114,7 +101,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
         tempTotalSpent += spent;
       });
 
-      // 5. Ubah kembali Map menjadi List untuk konsumsi UI Widget
       List<Map<String, dynamic>> processedBudgets = accumulatedBudgets.values
           .map((data) {
         int limit = data['limit'] as int;
@@ -129,7 +115,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       if (mounted) {
         setState(() {
-          // Ubah baris ini agar menggunakan hasil kalkulasi saldo total
           _totalBudgetLimit = currentTotalBalance;
           _totalBudgetSpent = tempTotalSpent;
           _budgets = processedBudgets;
@@ -147,8 +132,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   String _formatCurrency(int amount) {
     if (amount >= 1000000) {
-      return 'Rp ${(amount / 1000000).toStringAsFixed(1).replaceAll(
-          '.0', '')}Jt';
+      return 'Rp ${(amount / 1000000).toStringAsFixed(1).replaceAll('.0', '')}Jt';
     } else if (amount >= 1000) {
       return 'Rp ${(amount / 1000).toInt()}k';
     }
@@ -161,23 +145,20 @@ class _BudgetScreenState extends State<BudgetScreen> {
         locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
-  IconData _getIconForCategory(String category) {
-    // Ubah huruf jadi kecil semua agar gampang dicocokkan
+  dynamic _getIconForCategory(String category) {
     String cat = category.toLowerCase();
 
-    // Gunakan .contains() untuk mencari kata kunci
     if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum')) {
-      return Icons.restaurant;
+      return FontAwesomeIcons.utensils;
     } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir')) {
-      return Icons.directions_car_outlined;
+      return FontAwesomeIcons.car;
     } else if (cat.contains('belanja') || cat.contains('shop') || cat.contains('kebutuhan')) {
-      return Icons.shopping_bag_outlined;
+      return FontAwesomeIcons.bagShopping;
     } else if (cat.contains('hiburan') || cat.contains('nonton') || cat.contains('game') || cat.contains('main')) {
-      return Icons.movie;
+      return FontAwesomeIcons.film;
     }
 
-    // Default jika tidak ada kata kunci yang cocok
-    return Icons.category;
+    return FontAwesomeIcons.boxArchive;
   }
 
   Color _getColorForCategory(String category) {
@@ -193,32 +174,20 @@ class _BudgetScreenState extends State<BudgetScreen> {
       return Colors.blue;
     }
 
-    // Default warna jika tidak ada kata kunci yang cocok
     return Colors.orange;
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
-    Color cardColor = Theme
-        .of(context)
-        .cardColor;
-    Color textColor = Theme
-        .of(context)
-        .textTheme
-        .bodyLarge
-        ?.color ?? Colors.black87;
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    Color cardColor = Theme.of(context).cardColor;
+    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
-    double totalPercentage = _totalBudgetLimit == 0 ? 0.0 : (_totalBudgetSpent /
-        _totalBudgetLimit);
+    double totalPercentage = _totalBudgetLimit == 0 ? 0.0 : (_totalBudgetSpent / _totalBudgetLimit);
     int totalRemaining = _totalBudgetLimit - _totalBudgetSpent;
 
     return Scaffold(
-      backgroundColor: Theme
-          .of(context)
-          .scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const SubAppBar(title: 'Rincian Anggaran'),
       body: RefreshIndicator(
         onRefresh: _fetchBudgetData,
@@ -239,24 +208,21 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   style: TextStyle(fontSize: 14, color: Colors.grey[600])),
               const SizedBox(height: 24),
 
-              // Fitur Peringatan Dinamis: Akan muncul jika ada kategori yang >= 80%
               ..._budgets.where((b) => b['percentage'] >= 0.8).map((budget) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.red.withOpacity(0.1) : Colors
-                          .red[50],
+                      color: isDark ? Colors.red.withValues(alpha: 0.1) : Colors.red[50],
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: isDark ? Colors.red.withOpacity(0.3) : Colors
-                              .red.shade100),
+                          color: isDark ? Colors.red.withValues(alpha: 0.3) : Colors.red.shade100),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.warning_rounded, color: Colors.red),
+                        const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.red, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -268,9 +234,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                       fontSize: 14)),
                               const SizedBox(height: 4),
                               Text(
-                                'Anggaran ${budget['category']} mencapai ${(budget['percentage'] *
-                                    100)
-                                    .toInt()}%! Sebaiknya kurangi pengeluaran di kategori ini.',
+                                'Anggaran ${budget['category']} mencapai ${(budget['percentage'] * 100).toInt()}%! Sebaiknya kurangi pengeluaran di kategori ini.',
                                 style: const TextStyle(color: Colors.red,
                                     fontSize: 12,
                                     height: 1.4),
@@ -284,7 +248,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 );
               }).toList(),
 
-              // Progress Bar Total
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -292,7 +255,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                         blurRadius: 10,
                         offset: const Offset(0, 4))
                   ],
@@ -333,12 +296,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
                         value: totalPercentage.clamp(0.0, 1.0),
-                        // Clamp mencegah error jika melebihi 100%
-                        backgroundColor: isDark ? Colors.white12 : Colors
-                            .grey[200],
+                        backgroundColor: isDark ? Colors.white12 : Colors.grey[200],
                         valueColor: AlwaysStoppedAnimation<Color>(
-                            totalPercentage >= 0.8 ? Colors.red : AppColors
-                                .primaryGreen),
+                            totalPercentage >= 0.8 ? Colors.red : AppColors.primaryGreen),
                         minHeight: 8,
                       ),
                     ),
@@ -402,9 +362,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   onPressed: () async {
                     await Navigator.push(context, MaterialPageRoute(
                         builder: (context) => const AddBudgetScreen()));
-                    _fetchBudgetData(); // Refresh otomatis jika ada data baru
+                    _fetchBudgetData();
                   },
-                  icon: const Icon(Icons.add, color: Colors.white),
+                  icon: const FaIcon(FontAwesomeIcons.plus, color: Colors.white, size: 16),
                   label: const Text('Tambah Anggaran Baru', style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -426,14 +386,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  // Tambahkan parameter `int rawLimit` di bagian akhir
   Widget _buildBudgetItem(Color cardColor, Color textColor, bool isDark,
-      IconData icon, Color iconColor, String title, String spent, String limit,
+      dynamic icon, Color iconColor, String title, String spent, String limit,
       double percentage, int rawLimit) {
     final bool isWarning = percentage >= 0.80;
     final Color progressColor = isWarning ? Colors.red : AppColors.primaryGreen;
 
-    // Bungkus Container dengan GestureDetector
     return GestureDetector(
       onTap: () async {
         final isDataChanged = await Navigator.push<bool>(
@@ -453,7 +411,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
           _fetchBudgetData();
         }
       },
-
       child: Container(
         margin: const EdgeInsets.only(bottom: 16.0),
         padding: const EdgeInsets.all(16),
@@ -461,7 +418,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           color: cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(isDark ? 0.1 : 0.02),
+            BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
                 blurRadius: 8,
                 offset: const Offset(0, 2))
           ],
@@ -473,9 +430,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: iconColor.withOpacity(0.1),
+                  decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10)),
-                  child: Icon(icon, color: iconColor, size: 24),
+                  child: FaIcon(icon, color: iconColor, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -512,4 +469,3 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 }
-

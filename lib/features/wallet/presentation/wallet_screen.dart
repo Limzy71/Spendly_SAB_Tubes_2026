@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import 'add_wallet_screen.dart';
 
@@ -130,8 +131,6 @@ class _WalletScreenState extends State<WalletScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer Berhasil!')));
         _amountController.clear();
         _noteController.clear();
-        selectedFromAccountId = null;
-        selectedToAccountId = null;
         _fetchWalletData();
       }
     } catch (e) {
@@ -203,7 +202,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 children: [
                   Text('Edit Dompet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    icon: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.red, size: 20),
                     onPressed: () {
                       Navigator.pop(ctx);
                       _deleteWallet(wallet['id'], wallet['name']);
@@ -335,23 +334,23 @@ class _WalletScreenState extends State<WalletScreen> {
     return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
-  IconData _getIconFromDbString(String? iconName, String walletName) {
+  dynamic _getIconFromDbString(String? iconName, String walletName) {
     switch (iconName) {
-      case 'money': return Icons.money;
-      case 'bank': return Icons.account_balance;
-      case 'wallet': return Icons.account_balance_wallet;
-      case 'card': return Icons.credit_card;
-      case 'savings': return Icons.savings;
-      case 'crypto': return Icons.currency_bitcoin;
-      case 'business': return Icons.storefront;
-      case 'investment': return Icons.trending_up;
-      case 'safe': return Icons.lock_outline;
-      case 'online': return Icons.payments_outlined;
+      case 'money': return FontAwesomeIcons.moneyBillWave;
+      case 'bank': return FontAwesomeIcons.buildingColumns;
+      case 'wallet': return FontAwesomeIcons.wallet;
+      case 'card': return FontAwesomeIcons.creditCard;
+      case 'savings': return FontAwesomeIcons.piggyBank;
+      case 'crypto': return FontAwesomeIcons.bitcoin;
+      case 'business': return FontAwesomeIcons.store;
+      case 'investment': return FontAwesomeIcons.arrowTrendUp;
+      case 'safe': return FontAwesomeIcons.vault;
+      case 'online': return FontAwesomeIcons.globe;
       default:
         String lower = walletName.toLowerCase();
-        if (lower.contains('tunai')) return Icons.money;
-        if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana') || lower.contains('shopee')) return Icons.account_balance_wallet;
-        return Icons.account_balance;
+        if (lower.contains('tunai')) return FontAwesomeIcons.moneyBillWave;
+        if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana') || lower.contains('shopee')) return FontAwesomeIcons.wallet;
+        return FontAwesomeIcons.buildingColumns;
     }
   }
 
@@ -398,7 +397,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.primaryGreen,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: AppColors.primaryGreen.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))],
+                  boxShadow: [BoxShadow(color: AppColors.primaryGreen.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 6))],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,7 +408,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -438,7 +437,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         _fetchWalletData();
                       }
                     },
-                    icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryGreen, size: 18),
+                    icon: const FaIcon(FontAwesomeIcons.circlePlus, color: AppColors.primaryGreen, size: 16),
                     label: const Text('Tambah', style: TextStyle(color: AppColors.primaryGreen)),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                   ),
@@ -460,8 +459,8 @@ class _WalletScreenState extends State<WalletScreen> {
 
               Row(
                 children: [
-                  const Icon(Icons.swap_horiz, color: AppColors.primaryGreen),
-                  const SizedBox(width: 8),
+                  const FaIcon(FontAwesomeIcons.rightLeft, color: AppColors.primaryGreen, size: 20),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,13 +476,13 @@ class _WalletScreenState extends State<WalletScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.teal.withOpacity(0.1) : const Color(0xFFF1FAF5),
+                  color: isDarkMode ? Colors.teal.withValues(alpha: 0.1) : const Color(0xFFF1FAF5),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.primaryGreen.withOpacity(0.2)),
+                  border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: AppColors.primaryGreen, size: 20),
+                    const FaIcon(FontAwesomeIcons.circleInfo, color: AppColors.primaryGreen, size: 18),
                     const SizedBox(width: 12),
                     Expanded(child: Text('Transfer internal ini akan dicatat dalam riwayat transaksi Anda untuk pelacakan.', style: TextStyle(fontSize: 12, color: isDarkMode ? Colors.white70 : Colors.black87))),
                   ],
@@ -588,7 +587,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isTransferring ? null : _processTransfer,
-                  icon: _isTransferring ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send, color: Colors.white, size: 18),
+                  icon: _isTransferring ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const FaIcon(FontAwesomeIcons.paperPlane, color: Colors.white, size: 16),
                   label: Text(_isTransferring ? 'Memproses...' : 'Konfirmasi Transfer', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
                 ),
@@ -608,13 +607,13 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200)),
+        decoration: BoxDecoration(color: isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200)),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: wallet['color'].withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: Icon(wallet['icon'], color: wallet['color'], size: 24),
+              decoration: BoxDecoration(color: wallet['color'].withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              child: FaIcon(wallet['icon'], color: wallet['color'], size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -637,7 +636,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildFormLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-      child: Text(text, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7), fontSize: 13, fontWeight: FontWeight.w600)),
+      child: Text(text, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7), fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 }

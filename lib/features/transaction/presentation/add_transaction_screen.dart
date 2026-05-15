@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:io';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
@@ -32,21 +33,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final FocusNode _amountFocusNode = FocusNode();
 
   List<Map<String, dynamic>> expenseCategories = [
-    {'name': 'Makanan', 'icon': Icons.restaurant, 'color': Colors.redAccent},
-    {'name': 'Transportasi', 'icon': Icons.directions_car, 'color': Colors.blue},
-    {'name': 'Belanja', 'icon': Icons.shopping_bag, 'color': Colors.purple},
-    {'name': 'Tagihan', 'icon': Icons.receipt_long, 'color': Colors.orange},
-    {'name': 'Lainnya', 'icon': Icons.category, 'color': Colors.teal},
-    {'name': 'Baru', 'icon': Icons.add, 'color': Colors.grey},
+    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.redAccent},
+    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': Colors.blue},
+    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple},
+    {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': Colors.orange},
+    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': Colors.teal},
+    {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
   List<Map<String, dynamic>> incomeCategories = [
-    {'name': 'Gaji', 'icon': Icons.money, 'color': AppColors.primaryGreen},
-    {'name': 'Bonus', 'icon': Icons.card_giftcard, 'color': Colors.amber.shade600},
-    {'name': 'Investasi', 'icon': Icons.trending_up, 'color': Colors.blueAccent},
-    {'name': 'Dana', 'icon': Icons.account_balance_wallet, 'color': Colors.indigo},
-    {'name': 'Lainnya', 'icon': Icons.category, 'color': Colors.teal},
-    {'name': 'Baru', 'icon': Icons.add, 'color': Colors.grey},
+    {'name': 'Gaji', 'icon': FontAwesomeIcons.moneyBillWave, 'color': AppColors.primaryGreen},
+    {'name': 'Bonus', 'icon': FontAwesomeIcons.gift, 'color': Colors.amber.shade600},
+    {'name': 'Investasi', 'icon': FontAwesomeIcons.arrowTrendUp, 'color': Colors.blueAccent},
+    {'name': 'Dana', 'icon': FontAwesomeIcons.wallet, 'color': Colors.indigo},
+    {'name': 'Lainnya', 'icon': FontAwesomeIcons.boxArchive, 'color': Colors.teal},
+    {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
   @override
@@ -152,13 +153,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   void _showAddCategoryDialog() {
     TextEditingController catController = TextEditingController();
-    IconData selectedIcon = Icons.star;
+    dynamic selectedIcon = FontAwesomeIcons.star;
 
-    final List<IconData> availableIcons = [
-      Icons.star, Icons.local_cafe, Icons.flight, Icons.home,
-      Icons.local_hospital, Icons.school, Icons.pets, Icons.sports_esports,
-      Icons.checkroom, Icons.laptop_mac, Icons.movie, Icons.train,
-      Icons.business, Icons.monetization_on, Icons.savings
+    final List<dynamic> availableIcons = [
+      FontAwesomeIcons.star, FontAwesomeIcons.mugHot, FontAwesomeIcons.plane, FontAwesomeIcons.house,
+      FontAwesomeIcons.hospital, FontAwesomeIcons.graduationCap, FontAwesomeIcons.paw, FontAwesomeIcons.gamepad,
+      FontAwesomeIcons.shirt, FontAwesomeIcons.laptop, FontAwesomeIcons.film, FontAwesomeIcons.train,
+      FontAwesomeIcons.building, FontAwesomeIcons.coins, FontAwesomeIcons.piggyBank
     ];
 
     showDialog(
@@ -194,11 +195,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primaryGreen.withOpacity(0.2) : Colors.transparent,
+                                color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.2) : Colors.transparent,
                                 shape: BoxShape.circle,
                                 border: Border.all(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300, width: isSelected ? 2 : 1),
                               ),
-                              child: Icon(icon, color: isSelected ? AppColors.primaryGreen : Colors.grey),
+                              child: FaIcon(icon, color: isSelected ? AppColors.primaryGreen : Colors.grey, size: 20),
                             ),
                           );
                         }).toList(),
@@ -372,13 +373,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               onTap: () => FocusScope.of(context).requestFocus(_amountFocusNode),
               child: Container(
                 width: double.infinity,
-                decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
                       child: Row(
                         children: [
                           _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
@@ -443,7 +444,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: Column(
                   children: [
                     InkWell(
@@ -452,7 +453,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
                           children: [
-                            const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primaryGreen),
+                            const FaIcon(FontAwesomeIcons.wallet, color: AppColors.primaryGreen, size: 20),
                             const SizedBox(width: 15),
                             Expanded(
                               child: _wallets.isEmpty
@@ -481,7 +482,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today_outlined, color: AppColors.primaryGreen),
+                            const FaIcon(FontAwesomeIcons.calendarDays, color: AppColors.primaryGreen, size: 20),
                             const SizedBox(width: 15),
                             Text(DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate), style: TextStyle(fontSize: 14, color: textColor)),
                             const Spacer(),
@@ -500,7 +501,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -526,7 +527,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             ),
                           Row(
                             children: [
-                              const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGreen),
+                              const FaIcon(FontAwesomeIcons.camera, color: AppColors.primaryGreen, size: 18),
                               const SizedBox(width: 15),
                               Text(_imageFile == null ? "Lampirkan Foto Struk" : "Ubah Foto Struk", style: const TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w500)),
                             ],
@@ -572,7 +573,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(color: active ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: active ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : []),
+          decoration: BoxDecoration(color: active ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent, borderRadius: BorderRadius.circular(8), boxShadow: active ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : []),
           alignment: Alignment.center,
           child: Text(title, style: TextStyle(color: active ? AppColors.primaryGreen : Colors.grey, fontWeight: active ? FontWeight.bold : FontWeight.normal)),
         ),
@@ -580,7 +581,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildCatItem(IconData icon, String label, Color color, bool isDark, Color cardColor, double itemWidth, {bool isNew = false}) {
+  Widget _buildCatItem(dynamic icon, String label, Color color, bool isDark, Color cardColor, double itemWidth, {bool isNew = false}) {
     bool isSelected = selectedCategory == label;
     return GestureDetector(
       onTap: () {
@@ -597,12 +598,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             Container(
               padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: isNew ? cardColor : (isSelected ? color.withOpacity(0.2) : cardColor),
+                color: isNew ? cardColor : (isSelected ? color.withValues(alpha: 0.2) : cardColor),
                 shape: BoxShape.circle,
                 border: isNew ? Border.all(color: Colors.grey.shade500) : (isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent)),
-                boxShadow: (isDark || isSelected) ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
+                boxShadow: (isDark || isSelected) ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
               ),
-              child: Icon(icon, color: color, size: 26),
+              child: FaIcon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 8),
             Text(

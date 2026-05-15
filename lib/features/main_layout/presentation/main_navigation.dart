@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'custom_app_bar.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
 import '../../report/presentation/report_screen.dart';
@@ -34,9 +35,7 @@ class _MainNavigationState extends State<MainNavigation> {
     Color unselectedColor = isDark ? Colors.white54 : Colors.grey;
 
     return Scaffold(
-      // LOGIKA BARU: Mencegah FAB / Tombol bawah ikut terdorong saat keyboard muncul
       resizeToAvoidBottomInset: false,
-
       appBar: const CustomAppBar(),
       body: IndexedStack(
         index: _selectedIndex,
@@ -60,7 +59,7 @@ class _MainNavigationState extends State<MainNavigation> {
         backgroundColor: AppColors.primaryGreen,
         shape: const CircleBorder(),
         elevation: 4,
-        child: const Icon(Icons.add, size: 32, color: Colors.white),
+        child: const FaIcon(FontAwesomeIcons.plus, size: 24, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -73,11 +72,11 @@ class _MainNavigationState extends State<MainNavigation> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home_outlined, Icons.home, 'Beranda', unselectedColor),
-              _buildNavItem(1, Icons.bar_chart_outlined, Icons.bar_chart, 'Laporan', unselectedColor),
-              const SizedBox(width: 56),
-              _buildNavItem(2, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Dompet', unselectedColor),
-              _buildNavItem(3, Icons.person_outline, Icons.person, 'Profil', unselectedColor),
+              _buildNavItem(0, FontAwesomeIcons.house, 'Beranda', unselectedColor),
+              _buildNavItem(1, FontAwesomeIcons.chartSimple, 'Laporan', unselectedColor),
+              const SizedBox(width: 56), // Spasi untuk Floating Action Button
+              _buildNavItem(2, FontAwesomeIcons.wallet, 'Dompet', unselectedColor),
+              _buildNavItem(3, FontAwesomeIcons.user, 'Profil', unselectedColor),
             ],
           ),
         ),
@@ -85,7 +84,8 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData iconOutlined, IconData iconFilled, String label, Color unselectedColor) {
+  // Mengubah parameter icon menjadi tipe dinamis (dynamic) untuk menampung FontAwesome
+  Widget _buildNavItem(int index, dynamic icon, String label, Color unselectedColor) {
     bool isSelected = _selectedIndex == index;
     return Expanded(
       child: MaterialButton(
@@ -95,10 +95,10 @@ class _MainNavigationState extends State<MainNavigation> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isSelected ? iconFilled : iconOutlined,
+            FaIcon(
+              icon,
               color: isSelected ? AppColors.primaryGreen : unselectedColor,
-              size: 26,
+              size: 22,
             ),
             const SizedBox(height: 4),
             Flexible(
