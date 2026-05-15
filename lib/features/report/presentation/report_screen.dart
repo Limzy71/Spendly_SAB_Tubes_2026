@@ -33,20 +33,30 @@ class _ReportScreenState extends State<ReportScreen> {
   List<double> _monthlyIncome = List.filled(12, 0.0);
   List<double> _monthlyExpense = List.filled(12, 0.0);
 
-  final List<Color> _pieColors = [
-    AppColors.primaryGreen,
-    const Color(0xFF4F46E5),
-    const Color(0xFFFF8FA3),
-    Colors.orange,
-    Colors.teal,
-    Colors.purple,
-  ];
-
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('id', null);
     _fetchReportData();
+  }
+
+  Color _getColorForCategory(String categoryName) {
+    final List<Color> palette = [
+      AppColors.primaryGreen,
+      Colors.blue.shade600,
+      Colors.redAccent,
+      Colors.orange.shade500,
+      Colors.purple.shade500,
+      Colors.teal.shade600,
+      Colors.amber.shade600,
+      Colors.indigo.shade500,
+      Colors.pink.shade400,
+      Colors.cyan.shade600,
+      Colors.lime.shade700,
+      Colors.deepOrange.shade500,
+    ];
+    int hash = categoryName.hashCode.abs();
+    return palette[hash % palette.length];
   }
 
   DateTime _getStartDate() {
@@ -110,26 +120,13 @@ class _ReportScreenState extends State<ReportScreen> {
             appBarTheme: AppBarTheme(
               backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
               elevation: 0,
-              iconTheme: const IconThemeData(
-                color: Colors.white,
-              ),
-              actionsIconTheme: const IconThemeData(
-                color: Colors.white,
-              ),
-              titleTextStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              iconTheme: const IconThemeData(color: Colors.white),
+              actionsIconTheme: const IconThemeData(color: Colors.white),
+              titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            iconTheme: const IconThemeData(
-              color: Colors.white,
-            ),
+            iconTheme: const IconThemeData(color: Colors.white),
             textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.white, textStyle: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
           child: child!,
@@ -203,9 +200,12 @@ class _ReportScreenState extends State<ReportScreen> {
 
       Map<String, double> tempCategoryPercentages = {};
       if (totalExpenseForPie > 0) {
-        categoryTotals.forEach((key, value) {
-          tempCategoryPercentages[key] = (value / totalExpenseForPie) * 100;
-        });
+        var sortedCategories = categoryTotals.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        for (var entry in sortedCategories) {
+          tempCategoryPercentages[entry.key] = (entry.value / totalExpenseForPie) * 100;
+        }
       }
 
       if (mounted) {
@@ -348,13 +348,11 @@ class _ReportScreenState extends State<ReportScreen> {
                     else ...[
                       _buildPieChart(textColor),
                       const SizedBox(height: 24),
-                      ..._categoryPercentages.entries.toList().asMap().entries.map((entry) {
-                        int idx = entry.key;
-                        var data = entry.value;
-                        Color color = _pieColors[idx % _pieColors.length];
+                      ..._categoryPercentages.entries.map((entry) {
+                        Color color = _getColorForCategory(entry.key);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
-                          child: _buildPieLegendItem(color, data.key, '${data.value.toStringAsFixed(1)}%', textColor),
+                          child: _buildPieLegendItem(color, entry.key, '${entry.value.toStringAsFixed(1)}%', textColor),
                         );
                       }),
                     ]
@@ -388,7 +386,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       ],
                     ),
                     const SizedBox(height: 32),
-                    _buildBarChart(textColor),
+                    _buildBarChart(textColor, isDark),
                   ],
                 ),
               ),
@@ -426,12 +424,15 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _buildPieChart(Color textColor) {
     List<PieChartSectionData> sections = [];
-    int idx = 0;
     _categoryPercentages.forEach((key, value) {
       sections.add(
-          PieChartSectionData(color: _pieColors[idx % _pieColors.length], value: value, title: '', radius: 15)
+          PieChartSectionData(
+            color: _getColorForCategory(key),
+            value: value,
+            title: '',
+            radius: 20,
+          )
       );
-      idx++;
     });
 
     return SizedBox(
@@ -442,11 +443,26 @@ class _ReportScreenState extends State<ReportScreen> {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('100%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: textColor)),
-              const Text('TOTAL', style: TextStyle(fontSize: 10, color: Colors.grey)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 45),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                      _formatCurrency(_filteredExpense),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Text('TOTAL', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
             ],
           ),
-          PieChart(PieChartData(sectionsSpace: 4, centerSpaceRadius: 65, startDegreeOffset: 270, sections: sections)),
+          PieChart(PieChartData(
+              sectionsSpace: 0,
+              centerSpaceRadius: 60,
+              startDegreeOffset: 270,
+              sections: sections
+          )),
         ],
       ),
     );
@@ -468,12 +484,13 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildBarChart(Color textColor) {
-    double maxVal = 100000;
+  Widget _buildBarChart(Color textColor, bool isDark) {
+    double maxVal = 0;
     for (int i = 0; i < 12; i++) {
       if (_monthlyIncome[i] > maxVal) maxVal = _monthlyIncome[i];
       if (_monthlyExpense[i] > maxVal) maxVal = _monthlyExpense[i];
     }
+    if (maxVal == 0) maxVal = 100000;
 
     int currentMonth = DateTime.now().month;
     List<BarChartGroupData> barGroups = [];
@@ -491,12 +508,24 @@ class _ReportScreenState extends State<ReportScreen> {
     }
 
     return SizedBox(
-      height: 200,
+      height: 220, // Agak ditinggikan sedikit
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
           maxY: maxVal * 1.2,
-          barTouchData: BarTouchData(enabled: true),
+          // PERBAIKAN 1: Tambah Tooltip saat di-tap
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (group) => isDark ? Colors.grey.shade800 : Colors.black87,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  NumberFormat.compactCurrency(locale: 'id_ID', symbol: 'Rp ').format(rod.toY),
+                  const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                );
+              },
+            ),
+          ),
           titlesData: FlTitlesData(
             show: true,
             bottomTitles: AxisTitles(
@@ -510,11 +539,36 @@ class _ReportScreenState extends State<ReportScreen> {
                 },
               ),
             ),
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            // PERBAIKAN 2: Tambahkan skala (Y-Axis) di sebelah kiri
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                getTitlesWidget: (value, meta) {
+                  if (value == 0 || value == maxVal * 1.2) return const SizedBox.shrink();
+                  return SideTitleWidget(
+                    meta: meta,
+                    space: 4,
+                    child: Text(
+                      NumberFormat.compactCurrency(locale: 'id_ID', symbol: '').format(value),
+                      style: const TextStyle(color: Colors.grey, fontSize: 10),
+                    ),
+                  );
+                },
+              ),
+            ),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          gridData: const FlGridData(show: false),
+          // PERBAIKAN 3: Tambahkan garis bantu (Grid) horizontal
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: (maxVal / 4) > 0 ? (maxVal / 4) : 100000,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1, dashArray: [5, 5]);
+            },
+          ),
           borderData: FlBorderData(show: false),
           barGroups: barGroups,
         ),
