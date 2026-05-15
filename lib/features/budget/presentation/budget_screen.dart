@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'add_budget_screen.dart';
+import 'edit_budget_screen.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 
@@ -32,9 +33,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
     try {
       final DateTime now = DateTime.now();
       // Format tanggal awal dan akhir bulan yang presisi (YYYY-MM-DD)
-      final String currentPeriodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
-      final String firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
-      final String lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+      final String currentPeriodMonth = DateTime(now.year, now.month, 1)
+          .toIso8601String()
+          .split('T')[0];
+      final String firstDayOfMonth = DateTime(now.year, now.month, 1)
+          .toIso8601String();
+      final String lastDayOfMonth = DateTime(
+          now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
 
       // 1. FIX QUERY: Hanya ambil data Anggaran untuk periode bulan berjalan ini saja
       final budgetResponse = await supabase
@@ -52,6 +57,26 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       int tempTotalLimit = 0;
       int tempTotalSpent = 0;
+
+      // A. Tarik seluruh data transaksi tanpa filter tanggal untuk menghitung saldo total
+      final allTransactions = await supabase.from('transactions').select();
+
+      int totalIncome = 0;
+      int totalExpense = 0;
+
+      for (var tx in allTransactions) {
+        int amount = tx['amount'] as int;
+        bool isExpense = tx['is_expense'] as bool;
+
+        if (isExpense) {
+          totalExpense += amount;
+        } else {
+          totalIncome += amount;
+        }
+      }
+
+// B. Kalkulasi saldo saat ini
+      int currentTotalBalance = totalIncome - totalExpense;
 
       // Map sementara untuk melakukan akumulasi lokal jika ada kategori yang kembar di DB
       Map<String, Map<String, dynamic>> accumulatedBudgets = {};
@@ -78,7 +103,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
       accumulatedBudgets.forEach((category, data) {
         int spent = 0;
         for (var tx in transactionResponse) {
-          if (tx['category']?.toString().toLowerCase() == category.toLowerCase()) {
+          if (tx['category']?.toString().toLowerCase() ==
+              category.toLowerCase()) {
             spent += tx['amount'] as int;
           }
         }
@@ -89,7 +115,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
       });
 
       // 5. Ubah kembali Map menjadi List untuk konsumsi UI Widget
-      List<Map<String, dynamic>> processedBudgets = accumulatedBudgets.values.map((data) {
+      List<Map<String, dynamic>> processedBudgets = accumulatedBudgets.values
+          .map((data) {
         int limit = data['limit'] as int;
         int spent = data['spent'] as int;
         return {
@@ -102,7 +129,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       if (mounted) {
         setState(() {
-          _totalBudgetLimit = tempTotalLimit;
+          // Ubah baris ini agar menggunakan hasil kalkulasi saldo total
+          _totalBudgetLimit = currentTotalBalance;
           _totalBudgetSpent = tempTotalSpent;
           _budgets = processedBudgets;
           _isLoading = false;
@@ -111,70 +139,104 @@ class _BudgetScreenState extends State<BudgetScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengambil data anggaran: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal mengambil data anggaran: $e')));
       }
     }
   }
 
   String _formatCurrency(int amount) {
     if (amount >= 1000000) {
-      return 'Rp ${(amount / 1000000).toStringAsFixed(1).replaceAll('.0', '')}Jt';
+      return 'Rp ${(amount / 1000000).toStringAsFixed(1).replaceAll(
+          '.0', '')}Jt';
     } else if (amount >= 1000) {
       return 'Rp ${(amount / 1000).toInt()}k';
     }
-    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+    return NumberFormat.currency(
+        locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
   String _formatFullCurrency(int amount) {
-    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+    return NumberFormat.currency(
+        locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
   IconData _getIconForCategory(String category) {
-    switch (category.toLowerCase()) {
-      case 'makanan': return Icons.restaurant;
-      case 'transportasi': return Icons.directions_car_outlined;
-      case 'belanja': return Icons.shopping_bag_outlined;
-      case 'hiburan': return Icons.movie;
-      default: return Icons.category;
+    // Ubah huruf jadi kecil semua agar gampang dicocokkan
+    String cat = category.toLowerCase();
+
+    // Gunakan .contains() untuk mencari kata kunci
+    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum')) {
+      return Icons.restaurant;
+    } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir')) {
+      return Icons.directions_car_outlined;
+    } else if (cat.contains('belanja') || cat.contains('shop') || cat.contains('kebutuhan')) {
+      return Icons.shopping_bag_outlined;
+    } else if (cat.contains('hiburan') || cat.contains('nonton') || cat.contains('game') || cat.contains('main')) {
+      return Icons.movie;
     }
+
+    // Default jika tidak ada kata kunci yang cocok
+    return Icons.category;
   }
 
   Color _getColorForCategory(String category) {
-    switch (category.toLowerCase()) {
-      case 'makanan': return Colors.redAccent;
-      case 'transportasi': return AppColors.primaryGreen;
-      case 'belanja': return Colors.purple;
-      case 'hiburan': return Colors.blue;
-      default: return Colors.orange;
+    String cat = category.toLowerCase();
+
+    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum')) {
+      return Colors.redAccent;
+    } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir')) {
+      return AppColors.primaryGreen;
+    } else if (cat.contains('belanja') || cat.contains('shop') || cat.contains('kebutuhan')) {
+      return Colors.purple;
+    } else if (cat.contains('hiburan') || cat.contains('nonton') || cat.contains('game') || cat.contains('main')) {
+      return Colors.blue;
     }
+
+    // Default warna jika tidak ada kata kunci yang cocok
+    return Colors.orange;
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color cardColor = Theme.of(context).cardColor;
-    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    bool isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
+    Color cardColor = Theme
+        .of(context)
+        .cardColor;
+    Color textColor = Theme
+        .of(context)
+        .textTheme
+        .bodyLarge
+        ?.color ?? Colors.black87;
 
-    double totalPercentage = _totalBudgetLimit == 0 ? 0.0 : (_totalBudgetSpent / _totalBudgetLimit);
+    double totalPercentage = _totalBudgetLimit == 0 ? 0.0 : (_totalBudgetSpent /
+        _totalBudgetLimit);
     int totalRemaining = _totalBudgetLimit - _totalBudgetSpent;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Theme
+          .of(context)
+          .scaffoldBackgroundColor,
       appBar: const SubAppBar(title: 'Rincian Anggaran'),
       body: RefreshIndicator(
         onRefresh: _fetchBudgetData,
         color: AppColors.primaryGreen,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+            ? const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryGreen))
             : SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Anggaran Saya', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
+              Text('Anggaran Saya', style: TextStyle(
+                  fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
               const SizedBox(height: 8),
-              Text('Pantau pengeluaran bulanan Anda agar tetap terkendali.', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+              Text('Pantau pengeluaran bulanan Anda agar tetap terkendali.',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600])),
               const SizedBox(height: 24),
 
               // Fitur Peringatan Dinamis: Akan muncul jika ada kategori yang >= 80%
@@ -184,9 +246,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.red.withOpacity(0.1) : Colors.red[50],
+                      color: isDark ? Colors.red.withOpacity(0.1) : Colors
+                          .red[50],
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isDark ? Colors.red.withOpacity(0.3) : Colors.red.shade100),
+                      border: Border.all(
+                          color: isDark ? Colors.red.withOpacity(0.3) : Colors
+                              .red.shade100),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,11 +262,18 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Peringatan Anggaran', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 14)),
+                              const Text('Peringatan Anggaran',
+                                  style: TextStyle(fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                      fontSize: 14)),
                               const SizedBox(height: 4),
                               Text(
-                                'Anggaran ${budget['category']} mencapai ${(budget['percentage'] * 100).toInt()}%! Sebaiknya kurangi pengeluaran di kategori ini.',
-                                style: const TextStyle(color: Colors.red, fontSize: 12, height: 1.4),
+                                'Anggaran ${budget['category']} mencapai ${(budget['percentage'] *
+                                    100)
+                                    .toInt()}%! Sebaiknya kurangi pengeluaran di kategori ini.',
+                                style: const TextStyle(color: Colors.red,
+                                    fontSize: 12,
+                                    height: 1.4),
                               ),
                             ],
                           ),
@@ -218,26 +290,41 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 decoration: BoxDecoration(
                   color: cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4))
+                  ],
                 ),
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Total Terpakai', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: textColor)),
-                        Text(DateFormat('MMMM yyyy', 'id').format(DateTime.now()), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text('Total Terpakai',
+                            style: TextStyle(fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: textColor)),
+                        Text(DateFormat('MMMM yyyy', 'id').format(DateTime
+                            .now()), style: const TextStyle(color: Colors.grey,
+                            fontSize: 12)),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(_formatFullCurrency(_totalBudgetSpent), style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
+                        Text(_formatFullCurrency(_totalBudgetSpent),
+                            style: TextStyle(fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: textColor)),
                         const SizedBox(width: 8),
                         Padding(
                           padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('/ ${_formatFullCurrency(_totalBudgetLimit)}', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                          child: Text('/ ${_formatFullCurrency(
+                              _totalBudgetLimit)}', style: const TextStyle(
+                              fontSize: 14, color: Colors.grey)),
                         ),
                       ],
                     ),
@@ -245,9 +332,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
-                        value: totalPercentage.clamp(0.0, 1.0), // Clamp mencegah error jika melebihi 100%
-                        backgroundColor: isDark ? Colors.white12 : Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation<Color>(totalPercentage >= 0.8 ? Colors.red : AppColors.primaryGreen),
+                        value: totalPercentage.clamp(0.0, 1.0),
+                        // Clamp mencegah error jika melebihi 100%
+                        backgroundColor: isDark ? Colors.white12 : Colors
+                            .grey[200],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            totalPercentage >= 0.8 ? Colors.red : AppColors
+                                .primaryGreen),
                         minHeight: 8,
                       ),
                     ),
@@ -255,8 +346,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('${(totalPercentage * 100).toInt()}% Terpakai', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: totalPercentage >= 0.8 ? Colors.red : AppColors.primaryGreen)),
-                        Text(totalRemaining < 0 ? 'Overbudget ${_formatFullCurrency(totalRemaining.abs())}' : 'Sisa ${_formatFullCurrency(totalRemaining)}', style: TextStyle(fontSize: 12, color: totalRemaining < 0 ? Colors.red : Colors.grey[600])),
+                        Text('${(totalPercentage * 100).toInt()}% Terpakai',
+                            style: TextStyle(fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: totalPercentage >= 0.8
+                                    ? Colors.red
+                                    : AppColors.primaryGreen)),
+                        Text(totalRemaining < 0
+                            ? 'Overbudget ${_formatFullCurrency(
+                            totalRemaining.abs())}'
+                            : 'Sisa ${_formatFullCurrency(totalRemaining)}',
+                            style: TextStyle(
+                                fontSize: 12, color: totalRemaining < 0 ? Colors
+                                .red : Colors.grey[600])),
                       ],
                     ),
                   ],
@@ -264,14 +366,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
               ),
               const SizedBox(height: 32),
 
-              Text('Kategori Anggaran', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+              Text('Kategori Anggaran', style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
               const SizedBox(height: 16),
 
               if (_budgets.isEmpty)
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Text("Belum ada anggaran yang dibuat.", style: TextStyle(color: Colors.grey[600])),
+                    child: Text("Belum ada anggaran yang dibuat.",
+                        style: TextStyle(color: Colors.grey[600])),
                   ),
                 )
               else
@@ -286,6 +390,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     _formatCurrency(budget['spent']),
                     _formatCurrency(budget['limit']),
                     budget['percentage'],
+                    budget['limit'],
                   );
                 }).toList(),
 
@@ -295,15 +400,20 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddBudgetScreen()));
+                    await Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => const AddBudgetScreen()));
                     _fetchBudgetData(); // Refresh otomatis jika ada data baru
                   },
                   icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('Tambah Anggaran Baru', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+                  label: const Text('Tambah Anggaran Baru', style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 16)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -316,54 +426,90 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  Widget _buildBudgetItem(Color cardColor, Color textColor, bool isDark, IconData icon, Color iconColor, String title, String spent, String limit, double percentage) {
-    final bool isWarning = percentage >= 0.80; // Peringatan saat 80%
+  // Tambahkan parameter `int rawLimit` di bagian akhir
+  Widget _buildBudgetItem(Color cardColor, Color textColor, bool isDark,
+      IconData icon, Color iconColor, String title, String spent, String limit,
+      double percentage, int rawLimit) {
+    final bool isWarning = percentage >= 0.80;
     final Color progressColor = isWarning ? Colors.red : AppColors.primaryGreen;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.1 : 0.02), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: iconColor, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
-                    const SizedBox(height: 4),
-                    Text('$spent / $limit', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                  ],
+    // Bungkus Container dengan GestureDetector
+    return GestureDetector(
+      onTap: () async {
+        final isDataChanged = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                EditBudgetScreen(
+                  category: title,
+                  currentLimit: rawLimit,
+                  icon: icon,
+                  iconColor: iconColor,
                 ),
-              ),
-              Text('${(percentage * 100).toInt()}%', style: TextStyle(fontWeight: FontWeight.bold, color: progressColor, fontSize: 16)),
-            ],
           ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: percentage.clamp(0.0, 1.0),
-              backgroundColor: isDark ? Colors.white12 : Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-              minHeight: 8,
+        );
+
+        if (isDataChanged == true) {
+          _fetchBudgetData();
+        }
+      },
+
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16.0),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(isDark ? 0.1 : 0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: iconColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Icon(icon, color: iconColor, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: TextStyle(fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: textColor)),
+                      const SizedBox(height: 4),
+                      Text('$spent / $limit', style: TextStyle(
+                          color: Colors.grey[600], fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Text('${(percentage * 100).toInt()}%', style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: progressColor,
+                    fontSize: 16)),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            ClipRRect(
+              child: LinearProgressIndicator(
+                value: percentage.clamp(0.0, 1.0),
+                backgroundColor: isDark ? Colors.white12 : Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                minHeight: 8,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
