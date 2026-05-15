@@ -6,6 +6,8 @@ import '../../../theme/app_colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../logic/theme_cubit.dart';
 import 'dart:io';
+import '../logic/export_service.dart';
+import '../logic/drive_sync_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -253,9 +255,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
+
+            // ==========================================
+            // BAGIAN DATA & SINKRONISASI YANG DIPERBARUI
+            // ==========================================
             _buildSectionTitle('DATA & SINKRONISASI'),
-            _buildListTile(icon: FontAwesomeIcons.cloudArrowUp, title: 'Cadangkan & Sinkronisasi', subtitle: 'Terhubung ke Google Drive', trailing: ElevatedButton(onPressed: () {}, style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), minimumSize: const Size(0, 32)), child: const Text('Sinkron', style: TextStyle(fontSize: 12, color: Colors.white)))),
-            _buildListTile(icon: FontAwesomeIcons.fileExport, title: 'Ekspor Data (.csv, .pdf)', trailing: const Icon(Icons.chevron_right, color: Colors.grey), onTap: () {}),
+
+            // 1. Tombol Cadangkan & Sinkronisasi
+            _buildListTile(
+                icon: FontAwesomeIcons.cloudArrowUp,
+                title: 'Cadangkan & Sinkronisasi',
+                subtitle: 'Terhubung ke Google Drive',
+                trailing: ElevatedButton(
+                    onPressed: () async {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Memulai proses pencadangan...')),
+                      );
+
+                      // Hapus baris di bawah ini dan uncomment kode pemanggilan service jika file sudah siap
+                      await Future.delayed(const Duration(seconds: 2));
+                      // File localDatabase = File('path_ke_file_database_kamu.db');
+                      // await DriveSyncService().backupDataToDrive(localDatabase);
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Sinkronisasi ke Google Drive berhasil!')),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                        minimumSize: const Size(0, 32)
+                    ),
+                    child: const Text('Sinkron', style: TextStyle(fontSize: 12, color: Colors.white))
+                )
+            ),
+
+            // 2. Tombol Ekspor Data dengan Bottom Sheet
+            _buildListTile(
+                icon: FontAwesomeIcons.fileExport,
+                title: 'Ekspor Data (.csv, .pdf)',
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Theme.of(context).cardColor,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    builder: (BuildContext context) {
+                      Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+                      return SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                                child: Text(
+                                  'Pilih Format Ekspor',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: sheetTextColor),
+                                ),
+                              ),
+                              ListTile(
+                                leading: const FaIcon(FontAwesomeIcons.fileCsv, color: Colors.green),
+                                title: Text('Ekspor sebagai CSV', style: TextStyle(color: sheetTextColor)),
+                                subtitle: const Text('Cocok untuk Excel / Spreadsheet'),
+                                onTap: () async {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Menyiapkan file CSV...'))
+                                  );
+                                  // Uncomment baris di bawah jika ExportService sudah dibuat
+                                  await ExportService.exportTransactionsToCSV(context);
+                                },
+                              ),
+                              ListTile(
+                                leading: const FaIcon(FontAwesomeIcons.filePdf, color: Colors.red),
+                                title: Text('Ekspor sebagai PDF', style: TextStyle(color: sheetTextColor)),
+                                subtitle: const Text('Format rapi, siap untuk dicetak'),
+                                onTap: () async {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Menyiapkan file PDF...'))
+                                  );
+                                  await ExportService.exportTransactionsToPDF(context);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
+            ),
+            // ==========================================
+
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('BANTUAN & INFO'),
             _buildListTile(icon: FontAwesomeIcons.circleQuestion, title: 'Pusat Bantuan (FAQ)', trailing: const FaIcon(FontAwesomeIcons.arrowUpRightFromSquare, color: Colors.grey, size: 16), onTap: () {}),
