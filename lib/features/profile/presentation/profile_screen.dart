@@ -12,7 +12,8 @@ import '../../../theme/app_colors.dart';
 import '../logic/theme_cubit.dart';
 import '../logic/export_service.dart';
 import '../logic/drive_sync_service.dart';
-import 'faq_screen.dart'; // <-- IMPORT HALAMAN FAQ DITAMBAHKAN DI SINI
+import 'faq_screen.dart';
+import 'about_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -552,7 +553,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
             ),
 
-            _buildListTile(icon: FontAwesomeIcons.circleInfo, title: 'Tentang Spendly', subtitle: 'v1.0.0 (Kebijakan Privasi, Layanan)', trailing: const Icon(Icons.chevron_right, color: Colors.grey), onTap: () {}),
+            _buildListTile(
+                icon: FontAwesomeIcons.circleInfo,
+                title: 'Tentang Spendly',
+                subtitle: 'v1.0.0 (Kebijakan Privasi, Layanan)',
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AboutScreen()),
+                  );
+                }
+            ),
 
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('ZONA BERBAHAYA', color: Colors.redAccent),
