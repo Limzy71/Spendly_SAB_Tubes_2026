@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <-- IMPORT MEMORI LOKAL
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:io';
+
 import 'change_password_screen.dart';
 import 'widgets/update_profile_screen.dart';
 import '../../../theme/app_colors.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../logic/theme_cubit.dart';
-import 'dart:io';
 import '../logic/export_service.dart';
 import '../logic/drive_sync_service.dart';
 
@@ -19,49 +21,160 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isPinEnabled = false; // <-- Default dimatikan dulu
+  bool _isPinEnabled = false;
   bool _isBiometricEnabled = false;
   String? _profileImagePath;
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
   bool _isBillReminderEnabled = true;
 
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
   @override
   void initState() {
     super.initState();
-    _loadPinStatus(); // <-- Cek status PIN saat halaman dibuka
+    _loadSecuritySettings();
   }
 
-  // --- FUNGSI CEK STATUS SAKELAR PIN DARI MEMORI HP ---
-  Future<void> _loadPinStatus() async {
+  Future<void> _loadSecuritySettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isPinEnabled = prefs.getBool('is_pin_enabled') ?? false;
+      _isBiometricEnabled = prefs.getBool('is_biometric_enabled') ?? false;
     });
   }
 
-  // --- FUNGSI SAAT SAKELAR PIN DIGESER ---
+  void _showTopNotification(BuildContext context, String message, {bool isError = false, bool isWarning = false}) {
+    final overlay = Overlay.of(context);
+    OverlayEntry? overlayEntry;
+
+    Color bgColor = const Color(0xFF00AA5B);
+    IconData icon = Icons.check;
+
+    if (isError) {
+      bgColor = const Color(0xFFE63946);
+      icon = Icons.close;
+    } else if (isWarning) {
+      bgColor = Colors.orange.shade600;
+      icon = Icons.warning_amber_rounded;
+    }
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: -100, end: 0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(0, value),
+              child: child,
+            );
+          },
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(16),
+            color: bgColor,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (overlayEntry != null && overlayEntry!.mounted) {
+        overlayEntry!.remove();
+      }
+    });
+  }
+
   Future<void> _togglePin(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     final savedPin = prefs.getString('user_pin');
 
-    // Cek: Kalau user mau mengaktifkan PIN tapi belum pernah buat PIN sama sekali
-    if (value == true && savedPin == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan Buat PIN terlebih dahulu!'), backgroundColor: Colors.orange),
-      );
-      // Lempar ke halaman buat PIN
+    if (value == true && (savedPin == null || savedPin.isEmpty)) {
+      _showTopNotification(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
       Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen())).then((_) {
-        _loadPinStatus(); // Update status sakelar setelah kembali dari halaman buat PIN
+        _loadSecuritySettings();
       });
       return;
     }
 
-    // Simpan status sakelar ke memori HP
     await prefs.setBool('is_pin_enabled', value);
-    setState(() {
-      _isPinEnabled = value; // Ubah tampilan sakelar
-    });
+    setState(() => _isPinEnabled = value);
+
+    if (value == false) {
+      await prefs.setBool('is_biometric_enabled', false);
+      setState(() => _isBiometricEnabled = false);
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value == true && !_isPinEnabled) {
+      _showTopNotification(context, 'Aktifkan PIN Keamanan terlebih dahulu!', isWarning: true);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+
+    if (value == true) {
+      try {
+        final bool canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
+        final bool canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+
+        if (!canAuthenticate) {
+          _showTopNotification(context, 'Perangkat tidak mendukung biometrik.', isError: true);
+          return;
+        }
+
+        final bool didAuthenticate = await _localAuth.authenticate(
+          localizedReason: 'Pindai sidik jari / wajah Anda untuk mengaktifkan',
+        );
+
+        if (didAuthenticate) {
+          await prefs.setBool('is_biometric_enabled', true);
+          setState(() => _isBiometricEnabled = true);
+          _showTopNotification(context, 'Biometrik berhasil diaktifkan!');
+        } else {
+          setState(() => _isBiometricEnabled = false);
+        }
+      } catch (e) {
+        _showTopNotification(context, 'Gagal verifikasi biometrik', isError: true);
+      }
+    } else {
+      await prefs.setBool('is_biometric_enabled', false);
+      setState(() => _isBiometricEnabled = false);
+    }
   }
 
   Future<void> _selectTime(BuildContext context) async {
@@ -78,9 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
     if (picked != null && picked != _reminderTime) {
-      setState(() {
-        _reminderTime = picked;
-      });
+      setState(() => _reminderTime = picked);
     }
   }
 
@@ -125,9 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Text("Batal", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text("Hapus Permanen", style: TextStyle(color: Colors.white)),
             ),
@@ -141,7 +250,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
-
     final user = Supabase.instance.client.auth.currentUser;
     final userEmail = user?.email ?? 'Email tidak ditemukan';
     final userName = user?.userMetadata?['full_name'] ?? 'Pengguna Spendly';
@@ -169,9 +277,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: CircleAvatar(
                           radius: 40,
+                          backgroundColor: Colors.grey.shade300,
                           backgroundImage: _profileImagePath != null
                               ? FileImage(File(_profileImagePath!)) as ImageProvider
-                              : const NetworkImage('https://i.pravatar.cc/150?img=11'),
+                              : null,
+                          child: _profileImagePath == null
+                              ? const Icon(Icons.person, size: 45, color: Colors.white)
+                              : null,
                         ),
                       ),
                       Positioned(
@@ -221,22 +333,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ChangePasswordScreen()),
-                ).then((_) {
-                  _loadPinStatus(); // Update status PIN kalau habis diubah
-                });
+                ).then((_) => _loadSecuritySettings());
               },
             ),
-
-            // --- SAKELAR PIN YANG SUDAH DIPERBAIKI ---
             _buildSwitchTile(
                 icon: FontAwesomeIcons.shieldHalved,
                 title: 'PIN Keamanan',
                 value: _isPinEnabled,
-                onChanged: _togglePin, // Memanggil fungsi simpan ke memori
+                onChanged: _togglePin,
                 activeColor: AppColors.primaryGreen
             ),
-
-            _buildSwitchTile(icon: FontAwesomeIcons.fingerprint, title: 'Autentikasi Biometrik', subtitle: 'Sidik Jari / Pemindai Wajah', value: _isBiometricEnabled, onChanged: (val) => setState(() => _isBiometricEnabled = val), activeColor: AppColors.primaryGreen),
+            _buildSwitchTile(
+                icon: FontAwesomeIcons.fingerprint,
+                title: 'Autentikasi Biometrik',
+                subtitle: 'Sidik Jari / Pemindai Wajah',
+                value: _isBiometricEnabled,
+                onChanged: _toggleBiometric,
+                activeColor: AppColors.primaryGreen
+            ),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('PENGATURAN APLIKASI', color: AppColors.primaryGreen),
             Container(
@@ -269,9 +383,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   InkWell(
                     onTap: () {
-                      setState(() {
-                        _isBillReminderEnabled = !_isBillReminderEnabled;
-                      });
+                      setState(() => _isBillReminderEnabled = !_isBillReminderEnabled);
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -317,7 +429,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: 'Terhubung ke Google Drive',
                 trailing: ElevatedButton(
                     onPressed: () async {
-                      // PANGGIL SERVICE DRIVE DI SINI
                       await DriveSyncService.backupToDrive(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -363,9 +474,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 subtitle: const Text('Cocok untuk Excel / Spreadsheet'),
                                 onTap: () async {
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Menyiapkan file CSV...'))
-                                  );
                                   await ExportService.exportTransactionsToCSV(context);
                                 },
                               ),
@@ -375,9 +483,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 subtitle: const Text('Format rapi, siap untuk dicetak'),
                                 onTap: () async {
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Menyiapkan file PDF...'))
-                                  );
                                   await ExportService.exportTransactionsToPDF(context);
                                 },
                               ),

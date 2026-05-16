@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Tambahan Import
+import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../theme/app_colors.dart';
 import 'login_screen.dart';
 
@@ -30,7 +31,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // --- FUNGSI REGISTER KE SUPABASE ---
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -40,14 +40,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        data: {'full_name': _nameController.text.trim()}, // Simpan nama
+        data: {'full_name': _nameController.text.trim()},
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pendaftaran berhasil! Silakan masuk.'), backgroundColor: AppColors.primaryGreen),
         );
-        // Lempar kembali ke halaman Login setelah berhasil daftar
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
       }
     } on AuthException catch (error) {
@@ -100,13 +99,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   _buildTextField(controller: _nameController, hintText: 'Nama Lengkap', icon: Icons.person_outline, isDark: isDark),
                   const SizedBox(height: 16),
-                  _buildTextField(controller: _emailController, hintText: 'Alamat Email', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress, isDark: isDark),
+
+                  _buildTextField(
+                    controller: _emailController,
+                    hintText: 'Alamat Email',
+                    icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                    isDark: isDark,
+                    inputFormatters: [
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        return TextEditingValue(
+                          text: newValue.text.toLowerCase(),
+                          selection: newValue.selection,
+                        );
+                      }),
+                    ],
+                  ),
                   const SizedBox(height: 16),
+
                   _buildTextField(
                     controller: _passwordController, hintText: 'Kata Sandi', icon: Icons.lock_outline, isPassword: true,
                     isVisible: _isPasswordVisible, onVisibilityToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible), isDark: isDark,
                   ),
                   const SizedBox(height: 16),
+
                   _buildTextField(
                     controller: _confirmPasswordController, hintText: 'Konfirmasi Kata Sandi', icon: Icons.lock_outline, isPassword: true,
                     isVisible: _isConfirmPasswordVisible, onVisibilityToggle: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible), isDark: isDark, isConfirm: true,
@@ -116,7 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _signUp, // Panggil fungsi daftar
+                      onPressed: _isLoading ? null : _signUp,
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
                       child: _isLoading
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -148,16 +164,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required TextEditingController controller, required String hintText, required IconData icon,
     bool isPassword = false, bool isVisible = false, VoidCallback? onVisibilityToggle,
     TextInputType keyboardType = TextInputType.text, required bool isDark, bool isConfirm = false,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller, obscureText: isPassword && !isVisible, keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       validator: (value) {
         if (value == null || value.trim().isEmpty) return '$hintText tidak boleh kosong';
         if (keyboardType == TextInputType.emailAddress) {
           if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value)) return 'Format email tidak valid';
         }
-        if (isPassword && value.length < 6) return 'Minimal 6 karakter';
+        if (isPassword && value.length < 8) return 'Minimal 8 karakter';
         if (isConfirm && value != _passwordController.text) return 'Kata sandi tidak cocok';
         return null;
       },

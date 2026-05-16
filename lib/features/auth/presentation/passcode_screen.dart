@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 import '../../main_layout/presentation/main_navigation.dart';
 
 class PasscodeScreen extends StatefulWidget {
@@ -10,46 +11,78 @@ class PasscodeScreen extends StatefulWidget {
 }
 
 class _PasscodeScreenState extends State<PasscodeScreen> {
-  String enteredPin = ''; // Menyimpan angka yang sedang diketik user
-  bool _isError = false; // Status apakah PIN yang dimasukkan salah
+  String enteredPin = '';
+  bool _isError = false;
+  bool _isBiometricEnabled = false;
 
-  // Fungsi yang dipanggil tiap kali user menekan angka di Numpad
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricSettings();
+  }
+
+  Future<void> _checkBiometricSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool bioEnabled = prefs.getBool('is_biometric_enabled') ?? false;
+    setState(() => _isBiometricEnabled = bioEnabled);
+
+    if (bioEnabled) {
+      _authenticateWithBiometric();
+    }
+  }
+
+  Future<void> _authenticateWithBiometric() async {
+    try {
+      final bool canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
+      final bool canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+
+      if (!canAuthenticate) return;
+
+      // PARAMETER YANG BIKIN ERROR SUDAH DIHAPUS, HANYA PAKAI LOCALIZED REASON
+      final bool didAuthenticate = await _localAuth.authenticate(
+        localizedReason: 'Pindai sidik jari / wajah Anda untuk masuk',
+      );
+
+      if (didAuthenticate && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        );
+      }
+    } catch (e) {
+      // Abaikan jika error / batal, user tetap bisa pakai PIN
+    }
+  }
+
   void _onNumButtonPressed(String number) {
-    // Hanya izinkan mengetik jika panjang PIN belum sampai 6 digit
     if (enteredPin.length < 6) {
       setState(() {
-        enteredPin += number; // Tambahkan angka ke dalam string
-        _isError = false; // Reset pesan error setiap kali user mulai ngetik lagi
+        enteredPin += number;
+        _isError = false;
       });
 
-      // Jika user sudah mengetik tepat 6 digit, otomatis jalankan pengecekan!
       if (enteredPin.length == 6) {
         _verifyPin();
       }
     }
   }
 
-  // Fungsi untuk tombol hapus (backspace)
   void _onDeletePressed() {
     if (enteredPin.isNotEmpty) {
       setState(() {
-        // Potong 1 angka terakhir dari belakang
         enteredPin = enteredPin.substring(0, enteredPin.length - 1);
         _isError = false;
       });
     }
   }
 
-  // --- FUNGSI INTI: VERIFIKASI PIN ---
   Future<void> _verifyPin() async {
-    // 1. Buka memori lokal HP
     final prefs = await SharedPreferences.getInstance();
-    // 2. Ambil PIN asli yang pernah disave user saat membuat PIN
     final storedPin = prefs.getString('user_pin');
 
-    // 3. Cocokkan: Apakah yang diketik == PIN yang disave?
     if (enteredPin == storedPin) {
-      // JIKA BENAR: Hancurkan halaman Passcode ini dan ganti dengan Dashboard (MainNavigation)
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -57,7 +90,6 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
         );
       }
     } else {
-      // JIKA SALAH: Tampilkan error, kosongkan bulatan PIN agar user bisa ngetik ulang
       setState(() {
         _isError = true;
         enteredPin = '';
@@ -81,8 +113,6 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 32),
-
-                // Logo Aplikasi
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -95,7 +125,6 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
                 Text('Spendly', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                 const SizedBox(height: 32),
 
-                // Teks Instruksi: Jika salah PIN, teks akan berubah jadi merah
                 Text(
                   _isError ? 'PIN Tidak Valid' : 'Masukkan Passcode',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _isError ? Colors.red : Colors.black87),
@@ -104,10 +133,8 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
                 const Text('Gunakan 6 digit kode keamanan Anda', style: TextStyle(color: Colors.grey)),
                 const SizedBox(height: 32),
 
-                // Indikator Titik (Dots) PIN
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  // Membuat 6 buah titik
                   children: List.generate(6, (index) {
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -115,9 +142,6 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
                       height: 14,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        // Logika warna titik:
-                        // Jika index < panjang PIN yang diketik, warnai hijau (terisi)
-                        // Jika error, warnai merah transparan. Jika belum diisi, abu-abu.
                         color: index < enteredPin.length
                             ? Theme.of(context).colorScheme.primary
                             : (_isError ? Colors.red.shade100 : Colors.grey.shade300),
@@ -127,20 +151,21 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
                 ),
 
                 const SizedBox(height: 24),
-                // Tombol Fingerprint (Opsional / Dummy sementara)
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.fingerprint),
-                  label: const Text('Gunakan Fingerprint'),
-                  style: TextButton.styleFrom(backgroundColor: Colors.green.shade50),
-                ),
+
+                if (_isBiometricEnabled)
+                  TextButton.icon(
+                    onPressed: _authenticateWithBiometric,
+                    icon: const Icon(Icons.fingerprint),
+                    label: const Text('Gunakan Fingerprint'),
+                    style: TextButton.styleFrom(backgroundColor: Colors.green.shade50),
+                  )
+                else
+                  const SizedBox(height: 48),
 
                 const SizedBox(height: 32),
-                // Panggil Widget Numpad
                 _buildNumpad(),
                 const SizedBox(height: 24),
 
-                // Tombol Bantuan
                 TextButton(
                   onPressed: () {},
                   child: const Text('Butuh bantuan? Hubungi Support'),
@@ -154,7 +179,6 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
     );
   }
 
-  // Widget khusus untuk menggambar susunan keyboard angka
   Widget _buildNumpad() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -169,10 +193,8 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Tombol Lupa Sandi
               TextButton(onPressed: () {}, child: const Text('Lupa?', style: TextStyle(color: Colors.grey, fontSize: 16))),
               _numButton('0'),
-              // Tombol Hapus (Backspace)
               IconButton(onPressed: _onDeletePressed, icon: const Icon(Icons.backspace_outlined, color: Colors.black54), iconSize: 28),
             ],
           ),
@@ -181,10 +203,8 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
     );
   }
 
-  // Widget cetakan (template) untuk satu tombol angka agar kodenya tidak diulang-ulang
   Widget _numButton(String number) {
     return InkWell(
-      // Saat ditekan, oper angkanya ke fungsi _onNumButtonPressed
       onTap: () => _onNumButtonPressed(number),
       borderRadius: BorderRadius.circular(40),
       child: Container(
