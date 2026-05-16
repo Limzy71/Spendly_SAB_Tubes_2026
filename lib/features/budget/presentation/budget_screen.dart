@@ -120,7 +120,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       if (mounted) {
         setState(() {
-          _totalBudgetLimit = currentTotalBalance;
+          // PERBAIKAN 1: Gunakan tempTotalLimit, bukan currentTotalBalance
+          _totalBudgetLimit = tempTotalLimit;
+
           _totalBudgetSpent = tempTotalSpent;
           _budgets = processedBudgets;
           _isLoading = false;
@@ -352,8 +354,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     _getIconForCategory(budget['category']),
                     _getColorForCategory(budget['category']),
                     budget['category'],
-                    _formatCurrency(budget['spent']),
-                    _formatCurrency(budget['limit']),
+                    _formatFullCurrency(budget['spent']),
+                    _formatFullCurrency(budget['limit']),
                     budget['percentage'],
                     budget['limit'],
                   );
@@ -396,6 +398,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
       double percentage, int rawLimit) {
     final bool isWarning = percentage >= 0.80;
     final Color progressColor = isWarning ? Colors.red : AppColors.primaryGreen;
+
+    // Menghitung nominal kelebihan (overbudget)
+    final bool isOverbudget = percentage > 1.0;
+    final int excessAmount = isOverbudget ? ((percentage - 1.0) * rawLimit).round() : 0;
 
     return GestureDetector(
       onTap: () async {
@@ -468,6 +474,36 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 minHeight: 8,
               ),
             ),
+
+            // ===================================================================
+            // REVISI 3: PERSENTASE DI KIRI, OVERBUDGET DI KANAN
+            // ===================================================================
+            if (isOverbudget) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Teks persentase di sebelah kiri
+                  Text(
+                      '${(percentage * 100).toInt()}% Terpakai',
+                      style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold
+                      )
+                  ),
+                  // Teks nominal overbudget di sebelah kanan
+                  Text(
+                      'Overbudget ${_formatFullCurrency(excessAmount)}',
+                      style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                      )
+                  ),
+                ],
+              ),
+            ]
+            // ===================================================================
           ],
         ),
       ),
