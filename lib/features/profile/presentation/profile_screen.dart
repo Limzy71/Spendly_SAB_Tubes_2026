@@ -317,15 +317,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: 'Terhubung ke Google Drive',
                 trailing: ElevatedButton(
                     onPressed: () async {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Memulai proses pencadangan...')),
-                      );
-                      await Future.delayed(const Duration(seconds: 2));
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Sinkronisasi ke Google Drive berhasil!')),
-                        );
-                      }
+                      // PANGGIL SERVICE DRIVE DI SINI
+                      await DriveSyncService.backupToDrive(context);
                     },
                     style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
