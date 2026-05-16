@@ -57,7 +57,10 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   Future<void> _fetchExistingWallets() async {
     try {
-      final response = await supabase.from('wallets').select('name');
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await supabase.from('wallets').select('name').eq('user_id', userId);
       setState(() {
         _existingWallets = (response as List).map((e) => e['name'].toString().toLowerCase()).toList();
       });
@@ -164,6 +167,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       int initialBalance = 0;
       if (_balanceController.text.isNotEmpty) {
         final cleanAmount = _balanceController.text.replaceAll('.', '');
@@ -174,6 +180,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
         'name': selectedWalletName.trim(),
         'balance': initialBalance,
         'icon_name': selectedIconId,
+        'user_id': userId,
       });
 
       if (mounted) {

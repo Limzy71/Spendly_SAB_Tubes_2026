@@ -41,8 +41,11 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _fetchWalletData() async {
     setState(() => _isLoading = true);
     try {
-      final walletResponse = await supabase.from('wallets').select().order('id');
-      final txResponse = await supabase.from('transactions').select();
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
+      final txResponse = await supabase.from('transactions').select().eq('user_id', userId);
 
       int grandTotal = 0;
       List<Map<String, dynamic>> processedWallets = [];
@@ -104,6 +107,9 @@ class _WalletScreenState extends State<WalletScreen> {
     setState(() => _isTransferring = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final cleanAmount = _amountController.text.replaceAll('.', '');
       final amount = int.parse(cleanAmount);
       final today = DateTime.now().toIso8601String().split('T')[0];
@@ -116,6 +122,7 @@ class _WalletScreenState extends State<WalletScreen> {
         'wallet_id': selectedFromAccountId,
         'transaction_date': today,
         'note': note,
+        'user_id': userId,
       });
 
       await supabase.from('transactions').insert({
@@ -125,6 +132,7 @@ class _WalletScreenState extends State<WalletScreen> {
         'wallet_id': selectedToAccountId,
         'transaction_date': today,
         'note': note,
+        'user_id': userId,
       });
 
       if (mounted) {

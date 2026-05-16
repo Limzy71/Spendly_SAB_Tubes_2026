@@ -32,6 +32,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final DateTime now = DateTime.now();
       final String currentPeriodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
       final String firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
@@ -40,11 +43,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
       final budgetResponse = await supabase
           .from('budgets')
           .select()
+          .eq('user_id', userId)
           .eq('period_month', currentPeriodMonth);
 
       final transactionResponse = await supabase
           .from('transactions')
           .select()
+          .eq('user_id', userId)
           .eq('is_expense', true)
           .gte('transaction_date', firstDayOfMonth)
           .lte('transaction_date', lastDayOfMonth);
@@ -52,7 +57,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       int tempTotalLimit = 0;
       int tempTotalSpent = 0;
 
-      final allTransactions = await supabase.from('transactions').select();
+      final allTransactions = await supabase.from('transactions').select().eq('user_id', userId);
 
       int totalIncome = 0;
       int totalExpense = 0;

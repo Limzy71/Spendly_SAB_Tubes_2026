@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // <-- IMPORT MEMORI LOKAL
 import 'change_password_screen.dart';
 import 'widgets/update_profile_screen.dart';
 import '../../../theme/app_colors.dart';
@@ -17,13 +19,50 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isPinEnabled = true;
+  bool _isPinEnabled = false; // <-- Default dimatikan dulu
   bool _isBiometricEnabled = false;
   String? _profileImagePath;
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
-
   bool _isBillReminderEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPinStatus(); // <-- Cek status PIN saat halaman dibuka
+  }
+
+  // --- FUNGSI CEK STATUS SAKELAR PIN DARI MEMORI HP ---
+  Future<void> _loadPinStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isPinEnabled = prefs.getBool('is_pin_enabled') ?? false;
+    });
+  }
+
+  // --- FUNGSI SAAT SAKELAR PIN DIGESER ---
+  Future<void> _togglePin(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPin = prefs.getString('user_pin');
+
+    // Cek: Kalau user mau mengaktifkan PIN tapi belum pernah buat PIN sama sekali
+    if (value == true && savedPin == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Silakan Buat PIN terlebih dahulu!'), backgroundColor: Colors.orange),
+      );
+      // Lempar ke halaman buat PIN
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen())).then((_) {
+        _loadPinStatus(); // Update status sakelar setelah kembali dari halaman buat PIN
+      });
+      return;
+    }
+
+    // Simpan status sakelar ke memori HP
+    await prefs.setBool('is_pin_enabled', value);
+    setState(() {
+      _isPinEnabled = value; // Ubah tampilan sakelar
+    });
+  }
 
   Future<void> _selectTime(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -59,8 +98,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Text("Batal", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
+                await Supabase.instance.client.auth.signOut();
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text("Keluar", style: TextStyle(color: Colors.white)),
@@ -101,6 +141,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+
+    final user = Supabase.instance.client.auth.currentUser;
+    final userEmail = user?.email ?? 'Email tidak ditemukan';
+    final userName = user?.userMetadata?['full_name'] ?? 'Pengguna Spendly';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -161,9 +205,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text('Budi Santoso', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+                  Text(userName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 4),
-                  const Text('budi.santoso@email.com', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                  Text(userEmail, style: const TextStyle(fontSize: 14, color: Colors.grey)),
                 ],
               ),
             ),
@@ -177,10 +221,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ChangePasswordScreen()),
-                );
+                ).then((_) {
+                  _loadPinStatus(); // Update status PIN kalau habis diubah
+                });
               },
             ),
-            _buildSwitchTile(icon: FontAwesomeIcons.shieldHalved, title: 'PIN Keamanan', value: _isPinEnabled, onChanged: (val) => setState(() => _isPinEnabled = val), activeColor: AppColors.primaryGreen),
+
+            // --- SAKELAR PIN YANG SUDAH DIPERBAIKI ---
+            _buildSwitchTile(
+                icon: FontAwesomeIcons.shieldHalved,
+                title: 'PIN Keamanan',
+                value: _isPinEnabled,
+                onChanged: _togglePin, // Memanggil fungsi simpan ke memori
+                activeColor: AppColors.primaryGreen
+            ),
+
             _buildSwitchTile(icon: FontAwesomeIcons.fingerprint, title: 'Autentikasi Biometrik', subtitle: 'Sidik Jari / Pemindai Wajah', value: _isBiometricEnabled, onChanged: (val) => setState(() => _isBiometricEnabled = val), activeColor: AppColors.primaryGreen),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('PENGATURAN APLIKASI', color: AppColors.primaryGreen),
@@ -255,13 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
-
-            // ==========================================
-            // BAGIAN DATA & SINKRONISASI YANG DIPERBARUI
-            // ==========================================
             _buildSectionTitle('DATA & SINKRONISASI'),
-
-            // 1. Tombol Cadangkan & Sinkronisasi
             _buildListTile(
                 icon: FontAwesomeIcons.cloudArrowUp,
                 title: 'Cadangkan & Sinkronisasi',
@@ -271,12 +320,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Memulai proses pencadangan...')),
                       );
-
-                      // Hapus baris di bawah ini dan uncomment kode pemanggilan service jika file sudah siap
                       await Future.delayed(const Duration(seconds: 2));
-                      // File localDatabase = File('path_ke_file_database_kamu.db');
-                      // await DriveSyncService().backupDataToDrive(localDatabase);
-
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Sinkronisasi ke Google Drive berhasil!')),
@@ -293,8 +337,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: const Text('Sinkron', style: TextStyle(fontSize: 12, color: Colors.white))
                 )
             ),
-
-            // 2. Tombol Ekspor Data dengan Bottom Sheet
             _buildListTile(
                 icon: FontAwesomeIcons.fileExport,
                 title: 'Ekspor Data (.csv, .pdf)',
@@ -331,7 +373,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text('Menyiapkan file CSV...'))
                                   );
-                                  // Uncomment baris di bawah jika ExportService sudah dibuat
                                   await ExportService.exportTransactionsToCSV(context);
                                 },
                               ),
@@ -355,8 +396,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 }
             ),
-            // ==========================================
-
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('BANTUAN & INFO'),
             _buildListTile(icon: FontAwesomeIcons.circleQuestion, title: 'Pusat Bantuan (FAQ)', trailing: const FaIcon(FontAwesomeIcons.arrowUpRightFromSquare, color: Colors.grey, size: 16), onTap: () {}),

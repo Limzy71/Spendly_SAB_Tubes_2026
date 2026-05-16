@@ -67,8 +67,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Future<void> _fetchWallets() async {
     try {
-      final walletResponse = await supabase.from('wallets').select().order('id');
-      final txResponse = await supabase.from('transactions').select();
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
+      final txResponse = await supabase.from('transactions').select().eq('user_id', userId);
 
       List<Map<String, dynamic>> processedWallets = [];
 
@@ -315,6 +318,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final cleanAmount = _amountController.text.replaceAll('.', '');
       final amount = int.parse(cleanAmount);
 
@@ -335,6 +341,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         'transaction_date': selectedDate.toIso8601String().split('T')[0],
         'note': _noteController.text.isEmpty ? null : _noteController.text,
         'image_path': imageUrl,
+        'user_id': userId,
       });
 
       if (mounted) {
