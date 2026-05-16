@@ -345,8 +345,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }).eq('id', widget.transaction['id']).eq('user_id', userId);
 
       if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Berhasil Diperbarui!')));
+        // MENGIRIM PESAN SUKSES KE HALAMAN PEMANGGIL SEBAGAI STRING
+        Navigator.pop(context, 'Transaksi Berhasil Diperbarui!');
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memperbarui: $e')));
@@ -362,9 +362,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       if (userId == null) return;
 
       await supabase.from('transactions').delete().eq('id', widget.transaction['id']).eq('user_id', userId);
+
       if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Dihapus')));
+        // MENGIRIM PESAN SUKSES KE HALAMAN PEMANGGIL SEBAGAI STRING
+        Navigator.pop(context, 'Transaksi Berhasil Dihapus!');
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menghapus: $e')));

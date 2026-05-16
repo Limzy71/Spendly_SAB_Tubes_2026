@@ -345,8 +345,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       });
 
       if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Berhasil Disimpan!')));
+        // MENGIRIM PESAN SUKSES KE MAIN_NAVIGATION SEBAGAI STRING
+        Navigator.pop(context, 'Transaksi Berhasil Disimpan!');
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));

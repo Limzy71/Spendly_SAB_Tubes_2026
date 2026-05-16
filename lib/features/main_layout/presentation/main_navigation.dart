@@ -30,6 +30,69 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  void _showTopNotification(BuildContext context, String message, {bool isError = false}) {
+    final overlay = Overlay.of(context);
+    OverlayEntry? overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: -100, end: 0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(0, value),
+              child: child,
+            );
+          },
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(16),
+            color: isError ? const Color(0xFFE63946) : const Color(0xFF00AA5B),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isError ? Icons.close : Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (overlayEntry != null && overlayEntry!.mounted) {
+        overlayEntry!.remove();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -50,15 +113,23 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.push(
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
           );
-          setState(() {
-            _dashboardKey = UniqueKey();
-            _reportKey = UniqueKey();
-            _walletKey = UniqueKey();
-          });
+
+          if (result is String) {
+            setState(() {
+              _selectedIndex = 0;
+              _dashboardKey = UniqueKey();
+              _reportKey = UniqueKey();
+              _walletKey = UniqueKey();
+            });
+
+            if (context.mounted) {
+              _showTopNotification(context, result, isError: false);
+            }
+          }
         },
         backgroundColor: AppColors.primaryGreen,
         shape: const CircleBorder(),

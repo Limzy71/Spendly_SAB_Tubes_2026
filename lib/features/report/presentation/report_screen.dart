@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/transaction_item.dart';
 import '../../budget/presentation/budget_screen.dart';
+import '../../transaction/presentation/edit_transaction_screen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -40,23 +41,42 @@ class _ReportScreenState extends State<ReportScreen> {
     _fetchReportData();
   }
 
+  // LOGIKA WARNA DIPERBARUI: Warna Tetap (Hardcoded) yang sangat kontras
   Color _getColorForCategory(String categoryName) {
-    final List<Color> palette = [
-      AppColors.primaryGreen,
-      Colors.blue.shade600,
-      Colors.redAccent,
-      Colors.orange.shade500,
-      Colors.purple.shade500,
-      Colors.teal.shade600,
-      Colors.amber.shade600,
-      Colors.indigo.shade500,
-      Colors.pink.shade400,
-      Colors.cyan.shade600,
-      Colors.lime.shade700,
-      Colors.deepOrange.shade500,
-    ];
-    int hash = categoryName.hashCode.abs();
-    return palette[hash % palette.length];
+    switch (categoryName.toLowerCase()) {
+      case 'makanan':
+        return Colors.orange.shade600; // Oranye
+      case 'transportasi':
+        return Colors.blue.shade600; // Biru
+      case 'belanja':
+        return Colors.purple.shade500; // Ungu
+      case 'tagihan':
+        return Colors.red.shade600; // Merah
+      case 'hiburan':
+        return Colors.teal.shade500; // Hijau Tosca
+      case 'kesehatan':
+        return Colors.pink.shade400; // Merah Muda
+      case 'pendidikan':
+        return Colors.indigo.shade500; // Nila/Biru Dongker
+      case 'investasi':
+        return Colors.cyan.shade600; // Cyan
+      case 'gaji':
+        return AppColors.primaryGreen; // Hijau Utama
+      case 'bonus':
+        return Colors.amber.shade600; // Kuning Emas
+      default:
+      // Palette fallback super kontras untuk kategori baru (custom)
+        final List<Color> fallbackPalette = [
+          const Color(0xFF607D8B), // Blue Grey
+          const Color(0xFF795548), // Brown
+          const Color(0xFFE040FB), // Purple Accent
+          const Color(0xFF00E5FF), // Cyan Accent
+          const Color(0xFFFF5252), // Red Accent
+          const Color(0xFFCDDC39), // Lime
+        ];
+        int hash = categoryName.hashCode.abs();
+        return fallbackPalette[hash % fallbackPalette.length];
+    }
   }
 
   DateTime _getStartDate() {
@@ -237,6 +257,69 @@ class _ReportScreenState extends State<ReportScreen> {
     catch (e) { return dateString; }
   }
 
+  void _showTopNotification(BuildContext context, String message, {bool isError = false}) {
+    final overlay = Overlay.of(context);
+    OverlayEntry? overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: -100, end: 0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(0, value),
+              child: child,
+            );
+          },
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(16),
+            color: isError ? const Color(0xFFE63946) : const Color(0xFF00AA5B),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isError ? Icons.close : Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (overlayEntry != null && overlayEntry!.mounted) {
+        overlayEntry!.remove();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -408,13 +491,25 @@ class _ReportScreenState extends State<ReportScreen> {
                 Text("Belum ada data transaksi (${_getFilterTitleText()}).", style: const TextStyle(color: Colors.grey))
               else
                 ..._topTransactions.map((tx) {
-                  return TransactionItem(
-                    title: tx['category'] ?? 'Lainnya',
-                    subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
-                    amount: '- ${_formatCurrency(tx['amount'])}',
-                    bgIconColor: Colors.red.withValues(alpha: 0.1),
-                    icon: FontAwesomeIcons.bagShopping,
-                    amountColor: barRed,
+                  return GestureDetector(
+                    onTap: () async {
+                      final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
+                      if (result != null) {
+                        _fetchReportData();
+                        if (mounted) {
+                          String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
+                          _showTopNotification(context, msg, isError: msg.contains('Dihapus'));
+                        }
+                      }
+                    },
+                    child: TransactionItem(
+                      title: tx['category'] ?? 'Lainnya',
+                      subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
+                      amount: '- ${_formatCurrency(tx['amount'])}',
+                      bgIconColor: Colors.red.withValues(alpha: 0.1),
+                      icon: FontAwesomeIcons.bagShopping,
+                      amountColor: barRed,
+                    ),
                   );
                 }),
 
