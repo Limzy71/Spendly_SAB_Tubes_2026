@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart'; // <-- Package baru kita
 
 class ExportService {
   static void _showTopNotification(BuildContext context, String message, {bool isError = false, bool isInfo = false}) {
@@ -77,7 +77,7 @@ class ExportService {
 
   static Future<void> exportTransactionsToCSV(BuildContext context) async {
     if (context.mounted) {
-      _showTopNotification(context, 'Menyiapkan file CSV...', isInfo: true);
+      _showTopNotification(context, 'Membuka menu penyimpanan...', isInfo: true);
     }
 
     try {
@@ -100,16 +100,21 @@ class ExportService {
 
       String csvData = const ListToCsvConverter().convert(rows);
 
+      // 1. Simpan sementara di Cache aplikasi
       final Directory tempDir = await getTemporaryDirectory();
-      final String path = "${tempDir.path}/Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.csv";
-      final File file = File(path);
-      await file.writeAsString(csvData);
+      final String fileName = "Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.csv";
+      final String tempPath = "${tempDir.path}/$fileName";
+      final File tempFile = File(tempPath);
+      await tempFile.writeAsString(csvData);
 
-      if (context.mounted) {
-        _showTopNotification(context, 'CSV siap dibagikan! (${rawData.length} data)');
+      // 2. Munculkan dialog "Save As" bawaan HP
+      final params = SaveFileDialogParams(sourceFilePath: tempFile.path, fileName: fileName);
+      final finalPath = await FlutterFileDialog.saveFile(params: params);
+
+      // 3. Tampilkan notifikasi jika sukses
+      if (finalPath != null && context.mounted) {
+        _showTopNotification(context, '✅ File CSV berhasil disimpan!');
       }
-
-      await Share.shareXFiles([XFile(path)], text: 'Laporan Keuangan Spendly (CSV)');
 
     } catch (e) {
       if (context.mounted) {
@@ -120,7 +125,7 @@ class ExportService {
 
   static Future<void> exportTransactionsToPDF(BuildContext context) async {
     if (context.mounted) {
-      _showTopNotification(context, 'Menyiapkan file PDF...', isInfo: true);
+      _showTopNotification(context, 'Membuka menu penyimpanan...', isInfo: true);
     }
 
     try {
@@ -164,16 +169,21 @@ class ExportService {
         ),
       );
 
+      // 1. Simpan sementara di Cache aplikasi
       final Directory tempDir = await getTemporaryDirectory();
-      final String path = "${tempDir.path}/Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.pdf";
-      final File file = File(path);
-      await file.writeAsBytes(await pdf.save());
+      final String fileName = "Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.pdf";
+      final String tempPath = "${tempDir.path}/$fileName";
+      final File tempFile = File(tempPath);
+      await tempFile.writeAsBytes(await pdf.save());
 
-      if (context.mounted) {
-        _showTopNotification(context, 'PDF siap dibagikan! (${rawData.length} data)');
+      // 2. Munculkan dialog "Save As" bawaan HP
+      final params = SaveFileDialogParams(sourceFilePath: tempFile.path, fileName: fileName);
+      final finalPath = await FlutterFileDialog.saveFile(params: params);
+
+      // 3. Tampilkan notifikasi jika sukses
+      if (finalPath != null && context.mounted) {
+        _showTopNotification(context, '✅ File PDF berhasil disimpan!');
       }
-
-      await Share.shareXFiles([XFile(path)], text: 'Laporan Keuangan Spendly (PDF)');
 
     } catch (e) {
       if (context.mounted) {
