@@ -3,12 +3,11 @@ import 'package:csv/csv.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ExportService {
-
   static void _showTopNotification(BuildContext context, String message, {bool isError = false, bool isInfo = false}) {
     final overlay = Overlay.of(context);
     OverlayEntry? overlayEntry;
@@ -46,7 +45,7 @@ class ExportService {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                    decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
                     child: Icon(icon, color: Colors.white, size: 16),
                   ),
                   const SizedBox(width: 12),
@@ -67,34 +66,16 @@ class ExportService {
     });
   }
 
-  static Future<bool> _requestPermission(BuildContext context) async {
-    if (await Permission.manageExternalStorage.isDenied) {
-      await Permission.manageExternalStorage.request();
-    }
-    if (await Permission.storage.isDenied) {
-      await Permission.storage.request();
-    }
-
-    if (await Permission.manageExternalStorage.isGranted || await Permission.storage.isGranted) {
-      return true;
-    } else {
-      if (context.mounted) {
-        _showTopNotification(context, 'Izin penyimpanan ditolak!', isError: true);
-      }
-      return false;
-    }
-  }
-
   static Future<List<Map<String, dynamic>>> _fetchDataFromSupabase() async {
     final supabase = Supabase.instance.client;
-    final response = await supabase.from('transactions').select().order('transaction_date', ascending: false);
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    final response = await supabase.from('transactions').select().eq('user_id', userId).order('transaction_date', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
   static Future<void> exportTransactionsToCSV(BuildContext context) async {
-    bool hasPermission = await _requestPermission(context);
-    if (!hasPermission) return;
-
     if (context.mounted) {
       _showTopNotification(context, 'Menyiapkan file CSV...', isInfo: true);
     }
@@ -119,15 +100,13 @@ class ExportService {
 
       String csvData = const ListToCsvConverter().convert(rows);
 
-      final Directory downloadDir = Directory('/storage/emulated/0/Download');
-      if (!await downloadDir.exists()) await downloadDir.create(recursive: true);
-
-      final String path = "${downloadDir.path}/Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.csv";
+      final Directory tempDir = await getTemporaryDirectory();
+      final String path = "${tempDir.path}/Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.csv";
       final File file = File(path);
       await file.writeAsString(csvData);
 
       if (context.mounted) {
-        _showTopNotification(context, 'CSV tersimpan di folder Download! (${rawData.length} data)');
+        _showTopNotification(context, 'CSV siap dibagikan! (${rawData.length} data)');
       }
 
       await Share.shareXFiles([XFile(path)], text: 'Laporan Keuangan Spendly (CSV)');
@@ -140,9 +119,6 @@ class ExportService {
   }
 
   static Future<void> exportTransactionsToPDF(BuildContext context) async {
-    bool hasPermission = await _requestPermission(context);
-    if (!hasPermission) return;
-
     if (context.mounted) {
       _showTopNotification(context, 'Menyiapkan file PDF...', isInfo: true);
     }
@@ -188,15 +164,13 @@ class ExportService {
         ),
       );
 
-      final Directory downloadDir = Directory('/storage/emulated/0/Download');
-      if (!await downloadDir.exists()) await downloadDir.create(recursive: true);
-
-      final String path = "${downloadDir.path}/Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.pdf";
+      final Directory tempDir = await getTemporaryDirectory();
+      final String path = "${tempDir.path}/Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.pdf";
       final File file = File(path);
       await file.writeAsBytes(await pdf.save());
 
       if (context.mounted) {
-        _showTopNotification(context, 'PDF tersimpan di folder Download! (${rawData.length} data)');
+        _showTopNotification(context, 'PDF siap dibagikan! (${rawData.length} data)');
       }
 
       await Share.shareXFiles([XFile(path)], text: 'Laporan Keuangan Spendly (PDF)');
