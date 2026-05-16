@@ -423,24 +423,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('DATA & SINKRONISASI'),
+
+            // --- BAGIAN CADANGKAN & SINKRONISASI (DIUBAH JADI BOTTOM SHEET) ---
             _buildListTile(
                 icon: FontAwesomeIcons.cloudArrowUp,
                 title: 'Cadangkan & Sinkronisasi',
-                subtitle: 'Terhubung ke Google Drive',
-                trailing: ElevatedButton(
-                    onPressed: () async {
-                      await DriveSyncService.backupToDrive(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryGreen,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                        minimumSize: const Size(0, 32)
+                subtitle: 'Amankan data ke Google Drive',
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Theme.of(context).cardColor,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                     ),
-                    child: const Text('Sinkron', style: TextStyle(fontSize: 12, color: Colors.white))
-                )
+                    builder: (BuildContext sheetContext) {
+                      Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+                      return SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                                child: Text(
+                                  'Google Drive Sync',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: sheetTextColor),
+                                ),
+                              ),
+                              ListTile(
+                                leading: const FaIcon(FontAwesomeIcons.cloudArrowUp, color: Colors.green),
+                                title: Text('Cadangkan Data', style: TextStyle(color: sheetTextColor)),
+                                subtitle: const Text('Simpan seluruh data ke Google Drive'),
+                                onTap: () async {
+                                  Navigator.pop(sheetContext);
+                                  await DriveSyncService.backupToDrive(context);
+                                },
+                              ),
+                              ListTile(
+                                leading: const FaIcon(FontAwesomeIcons.cloudArrowDown, color: Colors.blue),
+                                title: Text('Sinkronisasi Data', style: TextStyle(color: sheetTextColor)),
+                                subtitle: const Text('Pulihkan data dari Google Drive ke HP'),
+                                onTap: () async {
+                                  Navigator.pop(sheetContext);
+                                  await DriveSyncService.restoreFromDrive(context);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
             ),
+
+            // --- BAGIAN EKSPOR DATA (TIDAK DIUBAH SAMA SEKALI) ---
             _buildListTile(
                 icon: FontAwesomeIcons.fileExport,
                 title: 'Ekspor Data (.csv, .pdf)',
