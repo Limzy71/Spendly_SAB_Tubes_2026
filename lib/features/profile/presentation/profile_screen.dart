@@ -43,6 +43,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _isPinEnabled = prefs.getBool('is_pin_enabled') ?? false;
       _isBiometricEnabled = prefs.getBool('is_biometric_enabled') ?? false;
+
+      // MENGAMBIL FOTO PROFIL YANG TERSIMPAN DI PENYIMPANAN LOKAL
+      _profileImagePath = prefs.getString('profile_image_path');
     });
   }
 
@@ -301,8 +304,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               builder: (context) => const UpdateProfileScreen(),
                             );
+
                             if (newPath != null) {
+                              // 1. Ubah UI sementara biar kelihatan responsif
                               setState(() => _profileImagePath = newPath);
+
+                              // 2. Tampilkan notifikasi proses
+                              _showTopNotification(context, 'Mengunggah foto ke database...', isWarning: true);
+
+                              try {
+                                final user = Supabase.instance.client.auth.currentUser;
+                                if (user == null) return;
+
+                                final File file = File(newPath);
+                                final String fileExtension = newPath.split('.').last;
+                                final String fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+
+                                // 3. Unggah file ke bucket 'avatars' di Supabase
+                                await Supabase.instance.client.storage
+                                    .from('avatars')
+                                    .upload(fileName, file);
+
+                                // 4. Dapatkan URL Publik dari gambar yang baru diunggah
+                                final String imageUrl = Supabase.instance.client.storage
+                                    .from('avatars')
+                                    .getPublicUrl(fileName);
+
+                                // 5. Simpan URL gambar ke User Metadata agar bisa dibaca dari layar manapun
+                                await Supabase.instance.client.auth.updateUser(
+                                  UserAttributes(data: {'avatar_url': imageUrl}),
+                                );
+
+                                // 6. Tetap simpan secara lokal agar cepat dimuat
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.setString('profile_image_path', newPath);
+
+                                if (context.mounted) {
+                                  _showTopNotification(context, '✅ Foto profil berhasil disimpan ke database!');
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  _showTopNotification(context, '❌ Gagal mengunggah foto: $e', isError: true);
+                                }
+                              }
                             }
                           },
                           child: Container(
@@ -540,11 +584,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             _buildSectionTitle('BANTUAN & INFO'),
 
-            // --- BAGIAN PUSAT BANTUAN (DIUBAH ONTAP-NYA DI SINI) ---
+            // --- BAGIAN PUSAT BANTUAN ---
             _buildListTile(
                 icon: FontAwesomeIcons.circleQuestion,
                 title: 'Pusat Bantuan (FAQ)',
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey), // Mengubah icon panah menjadi seragam
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
                   Navigator.push(
                     context,
