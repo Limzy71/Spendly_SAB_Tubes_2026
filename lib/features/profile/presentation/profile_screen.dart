@@ -12,6 +12,7 @@ import '../../../theme/app_colors.dart';
 import '../logic/theme_cubit.dart';
 import '../logic/export_service.dart';
 import '../logic/drive_sync_service.dart';
+import 'faq_screen.dart'; // <-- IMPORT HALAMAN FAQ DITAMBAHKAN DI SINI
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -424,7 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('DATA & SINKRONISASI'),
 
-            // --- BAGIAN CADANGKAN & SINKRONISASI (DIUBAH JADI BOTTOM SHEET) ---
+            // --- BAGIAN CADANGKAN & SINKRONISASI ---
             _buildListTile(
                 icon: FontAwesomeIcons.cloudArrowUp,
                 title: 'Cadangkan & Sinkronisasi',
@@ -480,7 +481,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
             ),
 
-// --- BAGIAN EKSPOR DATA ---
+            // --- BAGIAN EKSPOR DATA ---
             _buildListTile(
                 icon: FontAwesomeIcons.fileExport,
                 title: 'Ekspor Data (.csv, .pdf)',
@@ -492,7 +493,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                     ),
-                    // PERBAIKAN: Gunakan sheetContext di sini
                     builder: (BuildContext sheetContext) {
                       Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
                       return SafeArea(
@@ -536,9 +536,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
             ),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
+
             _buildSectionTitle('BANTUAN & INFO'),
-            _buildListTile(icon: FontAwesomeIcons.circleQuestion, title: 'Pusat Bantuan (FAQ)', trailing: const FaIcon(FontAwesomeIcons.arrowUpRightFromSquare, color: Colors.grey, size: 16), onTap: () {}),
+
+            // --- BAGIAN PUSAT BANTUAN (DIUBAH ONTAP-NYA DI SINI) ---
+            _buildListTile(
+                icon: FontAwesomeIcons.circleQuestion,
+                title: 'Pusat Bantuan (FAQ)',
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey), // Mengubah icon panah menjadi seragam
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const FaqScreen()),
+                  );
+                }
+            ),
+
             _buildListTile(icon: FontAwesomeIcons.circleInfo, title: 'Tentang Spendly', subtitle: 'v1.0.0 (Kebijakan Privasi, Layanan)', trailing: const Icon(Icons.chevron_right, color: Colors.grey), onTap: () {}),
+
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('ZONA BERBAHAYA', color: Colors.redAccent),
             ListTile(
