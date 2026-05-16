@@ -480,19 +480,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
             ),
 
-            // --- BAGIAN EKSPOR DATA (TIDAK DIUBAH SAMA SEKALI) ---
+// --- BAGIAN EKSPOR DATA ---
             _buildListTile(
                 icon: FontAwesomeIcons.fileExport,
                 title: 'Ekspor Data (.csv, .pdf)',
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
                   showModalBottomSheet(
-                    context: context,
+                    context: context, // Ini Context layar utama (tidak mati)
                     backgroundColor: Theme.of(context).cardColor,
                     shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                     ),
-                    builder: (BuildContext context) {
+                    // PERBAIKAN: Gunakan sheetContext di sini
+                    builder: (BuildContext sheetContext) {
                       Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
                       return SafeArea(
                         child: Padding(
@@ -513,8 +514,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 title: Text('Ekspor sebagai CSV', style: TextStyle(color: sheetTextColor)),
                                 subtitle: const Text('Cocok untuk Excel / Spreadsheet'),
                                 onTap: () async {
-                                  Navigator.pop(context);
-                                  await ExportService.exportTransactionsToCSV(context);
+                                  Navigator.pop(sheetContext); // Tutup pop-up pakai sheetContext
+                                  await ExportService.exportTransactionsToCSV(context); // Ekspor pakai context utama
                                 },
                               ),
                               ListTile(
@@ -522,8 +523,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 title: Text('Ekspor sebagai PDF', style: TextStyle(color: sheetTextColor)),
                                 subtitle: const Text('Format rapi, siap untuk dicetak'),
                                 onTap: () async {
-                                  Navigator.pop(context);
-                                  await ExportService.exportTransactionsToPDF(context);
+                                  Navigator.pop(sheetContext); // Tutup pop-up pakai sheetContext
+                                  await ExportService.exportTransactionsToPDF(context); // Ekspor pakai context utama
                                 },
                               ),
                             ],
