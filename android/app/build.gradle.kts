@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.spendly"
+    namespace = "com.penacode.spendly"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

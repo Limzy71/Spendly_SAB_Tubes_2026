@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Tambahan Import
 import '../../../theme/app_colors.dart';
 import 'register_screen.dart';
 
@@ -10,18 +11,46 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // GlobalKey untuk validasi form
   final _formKey = GlobalKey<FormState>();
-
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
+  bool _isLoading = false; // Tambahan untuk efek loading
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // --- FUNGSI LOGIN KE SUPABASE ---
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      // Jika berhasil, AuthGate di main.dart otomatis memindahkan user ke Dashboard!
+    } on AuthException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message), backgroundColor: Colors.red),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Terjadi kesalahan tidak terduga'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -37,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             child: Form(
-              key: _formKey, // Pasang kunci form di sini
+              key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -51,20 +80,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 40),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Spendly',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
-                  ),
+                  const Text('Spendly', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
                   const SizedBox(height: 40),
-                  Text(
-                    'Selamat Datang Kembali',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
-                  ),
+                  Text('Selamat Datang Kembali', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 8),
                   const Text('Masuk untuk melanjutkan pencatatan', style: TextStyle(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 40),
 
-                  // Input Email
                   _buildTextField(
                     controller: _emailController,
                     hintText: 'Alamat Email',
@@ -74,7 +96,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Input Password
                   _buildTextField(
                     controller: _passwordController,
                     hintText: 'Kata Sandi',
@@ -94,26 +115,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Tombol Masuk
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // Validasi sebelum login
-                        if (_formKey.currentState!.validate()) {
-                          // TODO: Proses Login
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Memproses Masuk...')),
-                          );
-                        }
-                      },
+                      onPressed: _isLoading ? null : _signIn, // Panggil fungsi login
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
-                      child: const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: _isLoading
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -123,15 +137,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text('Belum punya akun? ', style: TextStyle(color: Colors.grey, fontSize: 14)),
                       GestureDetector(
                         onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                          );
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
                         },
-                        child: const Text(
-                          'Daftar',
-                          style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
+                        child: const Text('Daftar', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ],
                   ),
@@ -159,7 +167,6 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: controller,
       obscureText: isPassword && !isVisible,
       keyboardType: keyboardType,
-      maxLength: 50,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       validator: (value) {
         if (value == null || value.trim().isEmpty) return '$hintText tidak boleh kosong';
@@ -167,25 +174,21 @@ class _LoginScreenState extends State<LoginScreen> {
           final bool emailValid = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value);
           if (!emailValid) return 'Format email tidak valid';
         }
-        if (isPassword && value.length < 8) return 'Minimal 8 karakter';
+        if (isPassword && value.length < 6) return 'Minimal 6 karakter';
         return null;
       },
       decoration: InputDecoration(
         counterText: "",
         prefixIcon: Icon(icon, color: Colors.grey.shade500, size: 22),
         suffixIcon: isPassword
-            ? IconButton(
-          icon: Icon(isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey.shade500, size: 20),
-          onPressed: onVisibilityToggle,
-        )
+            ? IconButton(icon: Icon(isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey.shade500, size: 20), onPressed: onVisibilityToggle)
             : null,
         hintText: hintText,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         filled: true,
-        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.primaryGreen, width: 1.5)),
         errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 1)),
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),

@@ -39,7 +39,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final walletResponse = await supabase.from('wallets').select();
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
       for (var w in walletResponse) {
         walletData[w['id'] as int] = {
@@ -51,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final txResponse = await supabase
           .from('transactions')
           .select()
+          .eq('user_id', userId)
           .order('transaction_date', ascending: false)
           .order('created_at', ascending: false);
 
@@ -262,7 +266,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String note = tx['note'] ?? '';
     String title = isTransfer ? "Transfer" : (tx['category'] ?? "Lainnya");
 
-    // PERBAIKAN: Menggunakan Garis Vertikal ( | )
     String walletNameStr = tx['wallet_name'] != null ? "  |  ${tx['wallet_name']}" : "";
     String subtitle = "${_formatDate(tx['transaction_date'] ?? "")}$walletNameStr";
 

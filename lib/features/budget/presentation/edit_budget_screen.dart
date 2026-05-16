@@ -6,7 +6,7 @@ import '../../../theme/app_colors.dart';
 class EditBudgetScreen extends StatefulWidget {
   final String category;
   final int currentLimit;
-  final dynamic icon; // PERBAIKAN: Diubah ke dynamic untuk menerima FaIconData
+  final dynamic icon;
   final Color iconColor;
 
   const EditBudgetScreen({
@@ -24,7 +24,6 @@ class EditBudgetScreen extends StatefulWidget {
 class _EditBudgetScreenState extends State<EditBudgetScreen> {
   final supabase = Supabase.instance.client;
   bool _isLoading = false;
-  // State untuk riwayat anggaran
   List<Map<String, dynamic>> _budgetHistory = [];
   bool _isLoadingHistory = true;
   late TextEditingController _limitController;
@@ -57,14 +56,17 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     return formatted;
   }
 
-  // Fungsi mengambil riwayat limit anggaran berdasarkan periode bulan
   Future<void> _fetchBudgetHistory() async {
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final response = await supabase
           .from('budgets')
           .select()
+          .eq('user_id', userId)
           .ilike('category', widget.category.trim())
-          .order('period_month', ascending: false); // Urutkan dari bulan terbaru
+          .order('period_month', ascending: false);
 
       if (mounted) {
         setState(() {
@@ -83,6 +85,9 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final cleanLimit = _limitController.text.replaceAll(RegExp(r'[^0-9]'), '');
       final newLimitAmount = int.parse(cleanLimit);
 
@@ -97,6 +102,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
         'limit_amount': newLimitAmount,
         'category': newCategoryName
       })
+          .eq('user_id', userId)
           .ilike('category', widget.category.trim())
           .eq('period_month', periodMonth);
 
@@ -104,14 +110,11 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
         await supabase
             .from('transactions')
             .update({'category': newCategoryName})
+            .eq('user_id', userId)
             .ilike('category', widget.category.trim());
       }
 
       if (mounted) {
-        // 1. Hapus atau beri komentar pada Navigator.pop agar tetap di halaman ini
-        // Navigator.pop(context, true);
-
-        // 2. Panggil fungsi fetch untuk me-refresh list riwayat secara real-time
         _fetchBudgetHistory();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -155,11 +158,15 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
 
     setState(() => _isLoading = true);
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final periodMonth = DateTime(DateTime.now().year, DateTime.now().month, 1).toIso8601String().split('T')[0];
 
       await supabase
           .from('budgets')
           .delete()
+          .eq('user_id', userId)
           .eq('category', widget.category)
           .eq('period_month', periodMonth);
 
@@ -300,15 +307,12 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
               ),
             ),
 
-            // --- KODE TOMBOL SIMPAN KAMU BERADA DI ATAS SINI ---
-
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 16),
             Text('Riwayat Anggaran', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 16),
 
-            // Menampilkan loading, teks kosong, atau list transaksi
             _isLoadingHistory
                 ? const Center(child: CircularProgressIndicator())
                 : _budgetHistory.isEmpty
@@ -320,7 +324,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
               itemBuilder: (context, index) {
                 final budget = _budgetHistory[index];
 
-                // Format nominal limit anggaran
                 final limit = budget['limit_amount'] as int;
                 String formattedLimit = '';
                 int count = 0;
@@ -331,7 +334,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                   count++;
                 }
 
-                // Ambil periode bulan (Misal: 2026-05-01)
                 final periodStr = budget['period_month'].toString().split('T')[0];
 
                 return Container(
@@ -344,20 +346,14 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                   ),
                   child: Row(
                     children: [
-                      // ===================================================================
-                      // PERBAIKAN 1 & 2: Menggunakan icon kategori yang sesuai & konsisten
-                      // ===================================================================
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          // Gunakan parameter warna dan ikon dari widget utama (makanan)
                             color: widget.iconColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10)
                         ),
-                        // Gunakan FaIcon untuk menampilkan widget.icon (utensils)
                         child: FaIcon(widget.icon, color: widget.iconColor, size: 24),
                       ),
-                      // ===================================================================
 
                       const SizedBox(width: 16),
                       Expanded(

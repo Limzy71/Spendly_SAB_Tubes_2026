@@ -85,8 +85,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   Future<void> _fetchWallets() async {
     try {
-      final walletResponse = await supabase.from('wallets').select().order('id');
-      final txResponse = await supabase.from('transactions').select();
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
+      final txResponse = await supabase.from('transactions').select().eq('user_id', userId);
 
       List<Map<String, dynamic>> processedWallets = [];
 
@@ -316,6 +319,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final cleanAmount = _amountController.text.replaceAll('.', '');
       final amount = int.parse(cleanAmount);
 
@@ -336,7 +342,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         'transaction_date': selectedDate.toIso8601String().split('T')[0],
         'note': _noteController.text.isEmpty ? null : _noteController.text,
         'image_path': finalImageUrl,
-      }).eq('id', widget.transaction['id']);
+      }).eq('id', widget.transaction['id']).eq('user_id', userId);
 
       if (mounted) {
         Navigator.pop(context, true);
@@ -352,7 +358,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   Future<void> _deleteTransaction() async {
     setState(() => _isLoading = true);
     try {
-      await supabase.from('transactions').delete().eq('id', widget.transaction['id']);
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      await supabase.from('transactions').delete().eq('id', widget.transaction['id']).eq('user_id', userId);
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Dihapus')));

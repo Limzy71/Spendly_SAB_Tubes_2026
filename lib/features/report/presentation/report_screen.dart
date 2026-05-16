@@ -147,9 +147,13 @@ class _ReportScreenState extends State<ReportScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final txResponse = await supabase
           .from('transactions')
           .select()
+          .eq('user_id', userId)
           .neq('category', 'Transfer')
           .order('amount', ascending: false);
 
@@ -508,12 +512,11 @@ class _ReportScreenState extends State<ReportScreen> {
     }
 
     return SizedBox(
-      height: 220, // Agak ditinggikan sedikit
+      height: 220,
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
           maxY: maxVal * 1.2,
-          // PERBAIKAN 1: Tambah Tooltip saat di-tap
           barTouchData: BarTouchData(
             enabled: true,
             touchTooltipData: BarTouchTooltipData(
@@ -539,7 +542,6 @@ class _ReportScreenState extends State<ReportScreen> {
                 },
               ),
             ),
-            // PERBAIKAN 2: Tambahkan skala (Y-Axis) di sebelah kiri
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -560,7 +562,6 @@ class _ReportScreenState extends State<ReportScreen> {
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          // PERBAIKAN 3: Tambahkan garis bantu (Grid) horizontal
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,

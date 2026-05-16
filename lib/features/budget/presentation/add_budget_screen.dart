@@ -35,6 +35,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
       final cleanLimit = _limitController.text.replaceAll('.', '');
       final limitAmount = int.parse(cleanLimit);
 
@@ -44,6 +47,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final List<dynamic> existingBudgets = await supabase
           .from('budgets')
           .select()
+          .eq('user_id', userId)
           .eq('category', selectedCategory!)
           .eq('period_month', periodMonth);
 
@@ -57,12 +61,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         await supabase
             .from('budgets')
             .update({'limit_amount': finalLimit})
-            .eq('id', existingBudget['id']);
+            .eq('id', existingBudget['id'])
+            .eq('user_id', userId);
       } else {
         await supabase.from('budgets').insert({
           'category': selectedCategory,
           'limit_amount': limitAmount,
           'period_month': periodMonth,
+          'user_id': userId,
         });
       }
 

@@ -21,7 +21,6 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _transactions = [];
 
-  // PERBAIKAN: Menambahkan filter 'Tahun Ini' dan 'Kustom'
   String _selectedTimeFilter = 'Bulan Ini';
   final List<String> _timeFilters = ['Hari Ini', 'Minggu Ini', 'Bulan Ini', 'Tahun Ini', 'Semua Waktu'];
   DateTimeRange? _customDateRange;
@@ -70,7 +69,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final walletResponse = await supabase.from('wallets').select();
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
       for (var w in walletResponse) {
         walletData[w['id'] as int] = {'name': w['name'].toString()};
@@ -79,13 +81,13 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       final txResponse = await supabase
           .from('transactions')
           .select()
+          .eq('user_id', userId)
           .order('transaction_date', ascending: false)
           .order('created_at', ascending: false);
 
       List<Map<String, dynamic>> displayTx = [];
       Set<int> processedIds = {};
 
-      // Konfigurasi rentang tanggal
       DateTime now = DateTime.now();
       DateTime? startDate;
       DateTime? endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
@@ -103,7 +105,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         startDate = _customDateRange!.start;
         endDate = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
       } else {
-        startDate = null; // Semua Waktu
+        startDate = null;
         endDate = null;
       }
 
@@ -120,7 +122,6 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         if (widget.filterType == 'income' && (isExpense || category.toLowerCase() == 'transfer')) continue;
         if (widget.filterType == 'expense' && (!isExpense || category.toLowerCase() == 'transfer')) continue;
 
-        // Terapkan filter tanggal
         if (startDate != null && endDate != null) {
           if (txDate.isBefore(startDate) || txDate.isAfter(endDate)) {
             continue;
@@ -192,7 +193,6 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       appBar: SubAppBar(title: _getAppBarTitle()),
       body: Column(
         children: [
-          // Bagian Chips Filter Waktu
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -223,7 +223,6 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                     ),
                   );
                 }),
-                // Tombol Kustom Tanggal (Ikon Kalender)
                 GestureDetector(
                   onTap: _pickCustomDateRange,
                   child: Container(
