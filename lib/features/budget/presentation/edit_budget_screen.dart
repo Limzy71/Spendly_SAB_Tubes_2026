@@ -24,6 +24,8 @@ class EditBudgetScreen extends StatefulWidget {
 class _EditBudgetScreenState extends State<EditBudgetScreen> {
   final supabase = Supabase.instance.client;
   bool _isLoading = false;
+  // Tambahkan variabel ini untuk melacak apakah data sudah pernah disimpan/diubah
+  bool _isDataModified = false;
   List<Map<String, dynamic>> _budgetHistory = [];
   bool _isLoadingHistory = true;
   late TextEditingController _limitController;
@@ -115,6 +117,12 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       }
 
       if (mounted) {
+        // --- Tambahkan setState ini ---
+        setState(() {
+          _isDataModified = true;
+        });
+        // ------------------------------
+
         _fetchBudgetHistory();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -202,7 +210,8 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.pop(context),
+          // --- Ubah bagian onPressed menjadi seperti ini ---
+          onPressed: () => Navigator.pop(context, _isDataModified),
         ),
         actions: [
           IconButton(
