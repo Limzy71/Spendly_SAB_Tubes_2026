@@ -4,9 +4,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:csv/csv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-// --- KELAS BANTUAN UNTUK AUTENTIKASI HTTP ---
-// Google Drive API membutuhkan header autentikasi yang valid.
 class GoogleAuthClient extends http.BaseClient {
   final Map<String, String> _headers;
   final http.Client _client = http.Client();
@@ -20,74 +20,152 @@ class GoogleAuthClient extends http.BaseClient {
 }
 
 class DriveSyncService {
-  // Meminta akses khusus (Scope) agar aplikasi diizinkan membaca & menulis file di Drive
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      drive.DriveApi.driveFileScope,
-    ],
+    scopes: [drive.DriveApi.driveFileScope],
   );
+
+  static void _showTopNotification(BuildContext context, String message, {bool isError = false, bool isWarning = false, bool isInfo = false}) {
+    final overlay = Overlay.of(context);
+    OverlayEntry? overlayEntry;
+
+    Color bgColor = const Color(0xFF00AA5B);
+    IconData icon = Icons.check;
+
+    if (isError) {
+      bgColor = const Color(0xFFE63946);
+      icon = Icons.close;
+    } else if (isWarning) {
+      bgColor = Colors.orange.shade600;
+      icon = Icons.warning_amber_rounded;
+    } else if (isInfo) {
+      bgColor = Colors.blue.shade500;
+      icon = Icons.info_outline;
+    }
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: -100, end: 0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.translate(offset: Offset(0, value), child: child);
+          },
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(16),
+            color: bgColor,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                    child: Icon(icon, color: Colors.white, size: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (overlayEntry != null && overlayEntry!.mounted) overlayEntry!.remove();
+    });
+  }
+
+  static Future<List<Map<String, dynamic>>> _fetchDataFromSupabase() async {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    if (userId == null) return [];
+
+    final response = await supabase
+        .from('transactions')
+        .select()
+        .eq('user_id', userId)
+        .order('transaction_date', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  static Future<File> _createBackupCsvFile() async {
+    final rawData = await _fetchDataFromSupabase();
+
+    List<List<dynamic>> rows = [
+      ["Tanggal", "Kategori", "Tipe", "Nominal", "Catatan"],
+    ];
+
+    for (var item in rawData) {
+      String tipeTransaksi = (item['is_expense'] == true) ? 'Pengeluaran' : 'Pemasukan';
+      rows.add([
+        item['transaction_date'] ?? '-',
+        item['category'] ?? '-',
+        tipeTransaksi,
+        item['amount'] ?? 0,
+        item['note'] ?? '-',
+      ]);
+    }
+
+    String csvData = const ListToCsvConverter().convert(rows);
+
+    final Directory dir = await getApplicationDocumentsDirectory();
+    final String filePath = '${dir.path}/Spendly_Backup_${DateTime.now().millisecondsSinceEpoch}.csv';
+
+    // TYPO DIPERBAIKI DI SINI: File(filePath) bukan File(path)
+    final File file = File(filePath);
+    await file.writeAsString(csvData);
+
+    return file;
+  }
 
   static Future<void> backupToDrive(BuildContext context) async {
     try {
-      // 1. Meminta pengguna untuk Login menggunakan Akun Google
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) {
-        // Jika pengguna menekan tombol "Batal" saat pop-up akun Google muncul
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Proses backup dibatalkan.'), backgroundColor: Colors.orange)
-          );
+          _showTopNotification(context, 'Proses backup dibatalkan.', isWarning: true);
         }
         return;
       }
 
-      // 2. Mendapatkan Token Autentikasi
       final authHeaders = await account.authHeaders;
       final authenticateClient = GoogleAuthClient(authHeaders);
       final driveApi = drive.DriveApi(authenticateClient);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mengunggah data ke Google Drive...'))
-        );
+        _showTopNotification(context, 'Menyiapkan & Mengunggah data ke Google Drive...', isInfo: true);
       }
 
-      // 3. Menyiapkan File Data yang akan di-backup
-      // CATATAN: Ini adalah contoh membuat file teks sementara untuk diunggah.
-      // Nantinya, arahkan 'File' ini ke file SQLite lokal (jika ada) atau file CSV dari ExportService.
-      final Directory dir = await getApplicationDocumentsDirectory();
-      final String filePath = '${dir.path}/Spendly_Backup_${DateTime.now().millisecondsSinceEpoch}.txt';
-      final File backupFile = File(filePath);
-
-      // Mengisi file dengan data (Bisa diganti dengan logika ekspor database sesungguhnya)
-      await backupFile.writeAsString("Ini adalah data backup Spendly pada tanggal ${DateTime.now().toString()}");
-
-      // 4. Konfigurasi Metadata File di Google Drive
+      final File backupFile = await _createBackupCsvFile();
       final driveFile = drive.File();
-      driveFile.name = backupFile.path.split('/').last; // Mengambil nama file
+      driveFile.name = backupFile.path.split('/').last;
 
-      // 5. Proses Unggah (Upload) File ke Drive
       final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
       await driveApi.files.create(driveFile, uploadMedia: media);
 
-      // 6. Beri Notifikasi Sukses
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Backup ke Google Drive berhasil!'), backgroundColor: Colors.green)
-        );
+        _showTopNotification(context, 'Backup ke Google Drive berhasil!');
       }
 
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal backup: $e'), backgroundColor: Colors.red)
-        );
+        _showTopNotification(context, 'Gagal backup: $e', isError: true);
       }
-      print("Error Drive Sync: $e");
     }
   }
 
-  // Opsi Logout dari Google (Bisa disambungkan ke tombol Logout aplikasi)
   static Future<void> disconnectGoogle() async {
     await _googleSignIn.disconnect();
   }

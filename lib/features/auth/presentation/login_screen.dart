@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Tambahan Import
+import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../theme/app_colors.dart';
 import 'register_screen.dart';
 
@@ -15,7 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
-  bool _isLoading = false; // Tambahan untuk efek loading
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -24,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // --- FUNGSI LOGIN KE SUPABASE ---
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -35,7 +35,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Jika berhasil, AuthGate di main.dart otomatis memindahkan user ke Dashboard!
     } on AuthException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +92,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     isDark: isDark,
+                    inputFormatters: [
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        return TextEditingValue(
+                          text: newValue.text.toLowerCase(),
+                          selection: newValue.selection,
+                        );
+                      }),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
@@ -118,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _signIn, // Panggil fungsi login
+                      onPressed: _isLoading ? null : _signIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -162,11 +169,13 @@ class _LoginScreenState extends State<LoginScreen> {
     VoidCallback? onVisibilityToggle,
     TextInputType keyboardType = TextInputType.text,
     required bool isDark,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !isVisible,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       validator: (value) {
         if (value == null || value.trim().isEmpty) return '$hintText tidak boleh kosong';
@@ -174,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final bool emailValid = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value);
           if (!emailValid) return 'Format email tidak valid';
         }
-        if (isPassword && value.length < 6) return 'Minimal 6 karakter';
+        if (isPassword && value.length < 8) return 'Minimal 8 karakter';
         return null;
       },
       decoration: InputDecoration(
