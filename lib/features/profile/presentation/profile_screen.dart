@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
+import 'package:intl/intl.dart';
 
 import 'change_password_screen.dart';
 import 'widgets/update_profile_screen.dart';
@@ -14,6 +15,9 @@ import '../logic/export_service.dart';
 import '../logic/drive_sync_service.dart';
 import 'faq_screen.dart';
 import 'about_screen.dart';
+import '../../main_layout/presentation/main_navigation.dart';
+import '../../../../main.dart';
+import '../../../../widgets/custom_notification.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isPinEnabled = false;
   bool _isBiometricEnabled = false;
   String? _profileImagePath;
+  String _userName = 'Pengguna Spendly';
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
   bool _isBillReminderEnabled = true;
@@ -36,91 +41,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadSecuritySettings();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null && user.userMetadata != null) {
+      setState(() {
+        _userName = user.userMetadata!['full_name'] ?? 'Pengguna Spendly';
+      });
+    }
   }
 
   Future<void> _loadSecuritySettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final user = Supabase.instance.client.auth.currentUser;
+    final String? supabaseAvatarUrl = user?.userMetadata?['avatar_url'];
+
     setState(() {
       _isPinEnabled = prefs.getBool('is_pin_enabled') ?? false;
       _isBiometricEnabled = prefs.getBool('is_biometric_enabled') ?? false;
 
-      // MENGAMBIL FOTO PROFIL YANG TERSIMPAN DI PENYIMPANAN LOKAL
-      _profileImagePath = prefs.getString('profile_image_path');
+      if (supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty) {
+        _profileImagePath = supabaseAvatarUrl;
+      } else {
+        _profileImagePath = prefs.getString('profile_image_path');
+      }
+
+      final int savedHour = prefs.getInt('reminder_hour') ?? 20;
+      final int savedMinute = prefs.getInt('reminder_minute') ?? 0;
+      _reminderTime = TimeOfDay(hour: savedHour, minute: savedMinute);
+      _isBillReminderEnabled = prefs.getBool('bill_reminder_enabled') ?? true;
     });
   }
 
-  void _showTopNotification(BuildContext context, String message, {bool isError = false, bool isWarning = false}) {
-    final overlay = Overlay.of(context);
-    OverlayEntry? overlayEntry;
+  void _showEditNameDialog() {
+    TextEditingController nameController = TextEditingController(text: _userName);
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    Color bgColor = const Color(0xFF00AA5B);
-    IconData icon = Icons.check;
-
-    if (isError) {
-      bgColor = const Color(0xFFE63946);
-      icon = Icons.close;
-    } else if (isWarning) {
-      bgColor = Colors.orange.shade600;
-      icon = Icons.warning_amber_rounded;
-    }
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 16,
-        right: 16,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: -100, end: 0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutBack,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(0, value),
-              child: child,
-            );
-          },
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(16),
-            color: bgColor,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      icon,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      message,
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text("Ubah Nama", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
+        content: TextField(
+          controller: nameController,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          decoration: InputDecoration(
+            hintText: "Masukkan nama baru",
+            hintStyle: const TextStyle(color: Colors.grey),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
           ),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal", style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isNotEmpty) {
+                Navigator.pop(context);
+                setState(() => _userName = nameController.text.trim());
+                await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': nameController.text.trim()}));
+                if (mounted) {
+                  CustomNotification.show(context, 'Nama berhasil diubah!');
+                  Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (context, animation1, animation2) => const MainNavigation(), transitionDuration: Duration.zero));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+            child: const Text("Simpan", style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
-
-    overlay.insert(overlayEntry);
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry != null && overlayEntry!.mounted) {
-        overlayEntry!.remove();
-      }
-    });
   }
 
   Future<void> _togglePin(bool value) async {
@@ -128,7 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final savedPin = prefs.getString('user_pin');
 
     if (value == true && (savedPin == null || savedPin.isEmpty)) {
-      _showTopNotification(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
+      CustomNotification.show(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
       Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen())).then((_) {
         _loadSecuritySettings();
       });
@@ -146,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _toggleBiometric(bool value) async {
     if (value == true && !_isPinEnabled) {
-      _showTopNotification(context, 'Aktifkan PIN Keamanan terlebih dahulu!', isWarning: true);
+      CustomNotification.show(context, 'Aktifkan PIN Keamanan terlebih dahulu!', isWarning: true);
       return;
     }
 
@@ -158,7 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final bool canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
 
         if (!canAuthenticate) {
-          _showTopNotification(context, 'Perangkat tidak mendukung biometrik.', isError: true);
+          CustomNotification.show(context, 'Perangkat tidak mendukung biometrik.', isError: true);
           return;
         }
 
@@ -169,12 +163,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (didAuthenticate) {
           await prefs.setBool('is_biometric_enabled', true);
           setState(() => _isBiometricEnabled = true);
-          _showTopNotification(context, 'Biometrik berhasil diaktifkan!');
+          CustomNotification.show(context, 'Biometrik berhasil diaktifkan!');
         } else {
           setState(() => _isBiometricEnabled = false);
         }
       } catch (e) {
-        _showTopNotification(context, 'Gagal verifikasi biometrik', isError: true);
+        CustomNotification.show(context, 'Gagal verifikasi biometrik', isError: true);
       }
     } else {
       await prefs.setBool('is_biometric_enabled', false);
@@ -197,6 +191,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (picked != null && picked != _reminderTime) {
       setState(() => _reminderTime = picked);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('reminder_hour', picked.hour);
+      await prefs.setInt('reminder_minute', picked.minute);
+
+      await NotificationHelper.scheduleDailyNotification(picked.hour, picked.minute);
+      if (mounted) CustomNotification.show(context, 'Pengingat harian disimpan!');
     }
   }
 
@@ -234,14 +234,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text("Hapus Seluruh Data?", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-          content: const Text("Tindakan ini tidak dapat dibatalkan. Semua catatan transaksi Anda akan terhapus."),
+          content: const Text("Tindakan ini tidak dapat dibatalkan. Semua catatan transaksi dan dompet Anda di database akan terhapus permanen."),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text("Batal", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                Navigator.pop(context);
+                CustomNotification.show(context, 'Sedang menghapus seluruh data...', isWarning: true);
+
+                try {
+                  final userId = Supabase.instance.client.auth.currentUser?.id;
+                  if (userId != null) {
+                    await Supabase.instance.client.from('transactions').delete().eq('user_id', userId);
+                    await Supabase.instance.client.from('wallets').delete().eq('user_id', userId);
+
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('profile_image_path');
+
+                    await Supabase.instance.client.auth.signOut();
+                  }
+                } catch (e) {
+                  if (mounted) CustomNotification.show(context, 'Gagal menghapus data: $e', isError: true);
+                }
+              },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text("Hapus Permanen", style: TextStyle(color: Colors.white)),
             ),
@@ -257,7 +275,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
     final user = Supabase.instance.client.auth.currentUser;
     final userEmail = user?.email ?? 'Email tidak ditemukan';
-    final userName = user?.userMetadata?['full_name'] ?? 'Pengguna Spendly';
+
+    ImageProvider? imageProvider;
+    if (_profileImagePath != null && _profileImagePath!.isNotEmpty) {
+      if (_profileImagePath!.startsWith('http')) {
+        imageProvider = NetworkImage(_profileImagePath!);
+      } else {
+        imageProvider = FileImage(File(_profileImagePath!));
+      }
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -283,10 +309,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircleAvatar(
                           radius: 40,
                           backgroundColor: Colors.grey.shade300,
-                          backgroundImage: _profileImagePath != null
-                              ? FileImage(File(_profileImagePath!)) as ImageProvider
-                              : null,
-                          child: _profileImagePath == null
+                          backgroundImage: imageProvider,
+                          child: imageProvider == null
                               ? const Icon(Icons.person, size: 45, color: Colors.white)
                               : null,
                         ),
@@ -306,11 +330,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
 
                             if (newPath != null) {
-                              // 1. Ubah UI sementara biar kelihatan responsif
                               setState(() => _profileImagePath = newPath);
 
-                              // 2. Tampilkan notifikasi proses
-                              _showTopNotification(context, 'Mengunggah foto ke database...', isWarning: true);
+                              CustomNotification.show(context, 'Sedang menyimpan foto...', isWarning: true);
 
                               try {
                                 final user = Supabase.instance.client.auth.currentUser;
@@ -320,31 +342,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 final String fileExtension = newPath.split('.').last;
                                 final String fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
 
-                                // 3. Unggah file ke bucket 'avatars' di Supabase
                                 await Supabase.instance.client.storage
                                     .from('avatars')
                                     .upload(fileName, file);
 
-                                // 4. Dapatkan URL Publik dari gambar yang baru diunggah
                                 final String imageUrl = Supabase.instance.client.storage
                                     .from('avatars')
                                     .getPublicUrl(fileName);
 
-                                // 5. Simpan URL gambar ke User Metadata agar bisa dibaca dari layar manapun
                                 await Supabase.instance.client.auth.updateUser(
                                   UserAttributes(data: {'avatar_url': imageUrl}),
                                 );
 
-                                // 6. Tetap simpan secara lokal agar cepat dimuat
                                 final prefs = await SharedPreferences.getInstance();
                                 await prefs.setString('profile_image_path', newPath);
 
                                 if (context.mounted) {
-                                  _showTopNotification(context, '✅ Foto profil berhasil disimpan ke database!');
+                                  CustomNotification.show(context, 'Foto profil berhasil diperbarui!');
+                                  Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (context, animation1, animation2) => const MainNavigation(), transitionDuration: Duration.zero));
                                 }
                               } catch (e) {
                                 if (context.mounted) {
-                                  _showTopNotification(context, '❌ Gagal mengunggah foto: $e', isError: true);
+                                  CustomNotification.show(context, 'Gagal menyimpan foto: $e', isError: true);
                                 }
                               }
                             }
@@ -363,7 +382,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(userName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(_userName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _showEditNameDialog,
+                        child: Icon(Icons.edit, size: 16, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(userEmail, style: const TextStyle(fontSize: 14, color: Colors.grey)),
                 ],
@@ -428,8 +457,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   InkWell(
-                    onTap: () {
-                      setState(() => _isBillReminderEnabled = !_isBillReminderEnabled);
+                    onTap: () async {
+                      final newValue = !_isBillReminderEnabled;
+                      setState(() => _isBillReminderEnabled = newValue);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('bill_reminder_enabled', newValue);
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -469,8 +501,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('DATA & SINKRONISASI'),
-
-            // --- BAGIAN CADANGKAN & SINKRONISASI ---
             _buildListTile(
                 icon: FontAwesomeIcons.cloudArrowUp,
                 title: 'Cadangkan & Sinkronisasi',
@@ -514,7 +544,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 subtitle: const Text('Pulihkan data dari Google Drive ke HP'),
                                 onTap: () async {
                                   Navigator.pop(sheetContext);
-                                  await DriveSyncService.restoreFromDrive(context);
                                 },
                               ),
                             ],
@@ -525,66 +554,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 }
             ),
-
-            // --- BAGIAN EKSPOR DATA ---
             _buildListTile(
                 icon: FontAwesomeIcons.fileExport,
                 title: 'Ekspor Data (.csv, .pdf)',
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
+                  int selectedFilter = 0;
+
                   showModalBottomSheet(
-                    context: context, // Ini Context layar utama (tidak mati)
+                    context: context,
                     backgroundColor: Theme.of(context).cardColor,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
                     builder: (BuildContext sheetContext) {
                       Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
-                      return SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                                child: Text(
-                                  'Pilih Format Ekspor',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: sheetTextColor),
+                      return StatefulBuilder(
+                          builder: (BuildContext context, StateSetter setSheetState) {
+                            return SafeArea(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                                      child: Text('Pilih Format Ekspor', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: sheetTextColor)),
+                                    ),
+
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                                      child: Row(
+                                        children: [
+                                          ChoiceChip(
+                                            label: const Text('Semua Waktu'),
+                                            selected: selectedFilter == 0,
+                                            selectedColor: AppColors.primaryGreen.withValues(alpha: 0.2),
+                                            onSelected: (val) => setSheetState(() => selectedFilter = 0),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          ChoiceChip(
+                                            label: const Text('Bulan Ini'),
+                                            selected: selectedFilter == 1,
+                                            selectedColor: AppColors.primaryGreen.withValues(alpha: 0.2),
+                                            onSelected: (val) => setSheetState(() => selectedFilter = 1),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Divider(),
+
+                                    ListTile(
+                                      leading: const FaIcon(FontAwesomeIcons.fileCsv, color: Colors.green),
+                                      title: Text('Ekspor sebagai CSV', style: TextStyle(color: sheetTextColor)),
+                                      subtitle: const Text('Cocok untuk Excel / Spreadsheet'),
+                                      onTap: () async {
+                                        Navigator.pop(sheetContext);
+                                        await ExportService.exportTransactionsToCSV(context, selectedFilter);
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const FaIcon(FontAwesomeIcons.filePdf, color: Colors.red),
+                                      title: Text('Ekspor sebagai PDF', style: TextStyle(color: sheetTextColor)),
+                                      subtitle: const Text('Format rapi, siap untuk dicetak'),
+                                      onTap: () async {
+                                        Navigator.pop(sheetContext);
+                                        await ExportService.exportTransactionsToPDF(context, selectedFilter);
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
-                              ListTile(
-                                leading: const FaIcon(FontAwesomeIcons.fileCsv, color: Colors.green),
-                                title: Text('Ekspor sebagai CSV', style: TextStyle(color: sheetTextColor)),
-                                subtitle: const Text('Cocok untuk Excel / Spreadsheet'),
-                                onTap: () async {
-                                  Navigator.pop(sheetContext); // Tutup pop-up pakai sheetContext
-                                  await ExportService.exportTransactionsToCSV(context); // Ekspor pakai context utama
-                                },
-                              ),
-                              ListTile(
-                                leading: const FaIcon(FontAwesomeIcons.filePdf, color: Colors.red),
-                                title: Text('Ekspor sebagai PDF', style: TextStyle(color: sheetTextColor)),
-                                subtitle: const Text('Format rapi, siap untuk dicetak'),
-                                onTap: () async {
-                                  Navigator.pop(sheetContext); // Tutup pop-up pakai sheetContext
-                                  await ExportService.exportTransactionsToPDF(context); // Ekspor pakai context utama
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                            );
+                          }
                       );
                     },
                   );
                 }
             ),
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
-
             _buildSectionTitle('BANTUAN & INFO'),
-
-            // --- BAGIAN PUSAT BANTUAN ---
             _buildListTile(
                 icon: FontAwesomeIcons.circleQuestion,
                 title: 'Pusat Bantuan (FAQ)',
@@ -596,7 +644,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 }
             ),
-
             _buildListTile(
                 icon: FontAwesomeIcons.circleInfo,
                 title: 'Tentang Spendly',
@@ -609,7 +656,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 }
             ),
-
             const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
             _buildSectionTitle('ZONA BERBAHAYA', color: Colors.redAccent),
             ListTile(

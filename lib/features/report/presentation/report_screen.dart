@@ -8,6 +8,8 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/transaction_item.dart';
 import '../../budget/presentation/budget_screen.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/category_helper.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -31,8 +33,9 @@ class _ReportScreenState extends State<ReportScreen> {
   List<Map<String, dynamic>> _topTransactions = [];
   Map<String, double> _categoryPercentages = {};
 
-  List<double> _monthlyIncome = List.filled(12, 0.0);
-  List<double> _monthlyExpense = List.filled(12, 0.0);
+  List<double> _chartIncome = [];
+  List<double> _chartExpense = [];
+  List<String> _chartLabels = [];
 
   @override
   void initState() {
@@ -41,74 +44,11 @@ class _ReportScreenState extends State<ReportScreen> {
     _fetchReportData();
   }
 
-  // LOGIKA WARNA DIPERBARUI: Warna Tetap (Hardcoded) yang sangat kontras
-  Color _getColorForCategory(String categoryName) {
-    switch (categoryName.toLowerCase()) {
-      case 'makanan':
-        return Colors.orange.shade600; // Oranye
-      case 'transportasi':
-        return Colors.blue.shade600; // Biru
-      case 'belanja':
-        return Colors.purple.shade500; // Ungu
-      case 'tagihan':
-        return Colors.red.shade600; // Merah
-      case 'hiburan':
-        return Colors.teal.shade500; // Hijau Tosca
-      case 'kesehatan':
-        return Colors.pink.shade400; // Merah Muda
-      case 'pendidikan':
-        return Colors.indigo.shade500; // Nila/Biru Dongker
-      case 'investasi':
-        return Colors.cyan.shade600; // Cyan
-      case 'gaji':
-        return AppColors.primaryGreen; // Hijau Utama
-      case 'bonus':
-        return Colors.amber.shade600; // Kuning Emas
-      default:
-      // Palette fallback super kontras untuk kategori baru (custom)
-        final List<Color> fallbackPalette = [
-          const Color(0xFF607D8B), // Blue Grey
-          const Color(0xFF795548), // Brown
-          const Color(0xFFE040FB), // Purple Accent
-          const Color(0xFF00E5FF), // Cyan Accent
-          const Color(0xFFFF5252), // Red Accent
-          const Color(0xFFCDDC39), // Lime
-        ];
-        int hash = categoryName.hashCode.abs();
-        return fallbackPalette[hash % fallbackPalette.length];
-    }
-  }
-
-  DateTime _getStartDate() {
-    DateTime now = DateTime.now();
-    if (selectedFilter == 'Kustom' && _customDateRange != null) {
-      return _customDateRange!.start;
-    } else if (selectedFilter == 'Harian') {
-      return DateTime(now.year, now.month, now.day);
-    } else if (selectedFilter == 'Mingguan') {
-      return now.subtract(Duration(days: now.weekday - 1));
-    } else if (selectedFilter == 'Tahunan') {
-      return DateTime(now.year, 1, 1);
-    }
-    return DateTime(now.year, now.month, 1);
-  }
-
-  DateTime _getEndDate() {
-    DateTime now = DateTime.now();
-    if (selectedFilter == 'Kustom' && _customDateRange != null) {
-      return DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
-    } else if (selectedFilter == 'Harian') {
-      return DateTime(now.year, now.month, now.day, 23, 59, 59);
-    } else if (selectedFilter == 'Tahunan') {
-      return DateTime(now.year, 12, 31, 23, 59, 59);
-    }
-    return DateTime(now.year, now.month, now.day, 23, 59, 59);
-  }
-
   String _getFilterTitleText() {
     if (selectedFilter == 'Kustom' && _customDateRange != null) {
       return "${DateFormat('dd MMM', 'id').format(_customDateRange!.start)} - ${DateFormat('dd MMM yyyy', 'id').format(_customDateRange!.end)}";
     }
+    if (selectedFilter == 'Mingguan') return '7 Hari Terakhir';
     return selectedFilter;
   }
 
@@ -174,36 +114,121 @@ class _ReportScreenState extends State<ReportScreen> {
           .from('transactions')
           .select()
           .eq('user_id', userId)
-          .neq('category', 'Transfer')
-          .order('amount', ascending: false);
+          .neq('category', 'Transfer');
 
-      DateTime startDate = _getStartDate();
-      DateTime endDate = _getEndDate();
+      DateTime startDate = DateTime.now();
+      DateTime endDate = DateTime.now();
+      DateTime now = DateTime.now();
+
+      List<double> tempChartIncome = [];
+      List<double> tempChartExpense = [];
+      List<String> tempChartLabels = [];
+      List<DateTime> last7Days = [];
+
+      if (selectedFilter == 'Kustom' && _customDateRange != null) {
+        startDate = _customDateRange!.start;
+        endDate = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+      } else if (selectedFilter == 'Harian') {
+        startDate = DateTime(now.year, now.month, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      } else if (selectedFilter == 'Mingguan') {
+        for (int i = 6; i >= 0; i--) {
+          last7Days.add(now.subtract(Duration(days: i)));
+        }
+        startDate = DateTime(last7Days.first.year, last7Days.first.month, last7Days.first.day);
+        endDate = DateTime(last7Days.last.year, last7Days.last.month, last7Days.last.day, 23, 59, 59);
+      } else if (selectedFilter == 'Tahunan') {
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+      } else {
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      }
+
+      if (selectedFilter == 'Tahunan') {
+        tempChartIncome = List.filled(12, 0.0);
+        tempChartExpense = List.filled(12, 0.0);
+        tempChartLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        for (var tx in txResponse) {
+          DateTime txDate = DateTime.parse(tx['transaction_date']);
+          if (txDate.year == startDate.year) {
+            int amount = tx['amount'] as int;
+            if (tx['is_expense'] == true) tempChartExpense[txDate.month - 1] += amount;
+            else tempChartIncome[txDate.month - 1] += amount;
+          }
+        }
+      } else if (selectedFilter == 'Mingguan') {
+        tempChartIncome = List.filled(7, 0.0);
+        tempChartExpense = List.filled(7, 0.0);
+        List<String> dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+        for (var date in last7Days) {
+          tempChartLabels.add(dayNames[date.weekday - 1]);
+        }
+
+        for (var tx in txResponse) {
+          DateTime txDate = DateTime.parse(tx['transaction_date']);
+          if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
+            int amount = tx['amount'] as int;
+            int dayIdx = -1;
+            for (int i = 0; i < 7; i++) {
+              if (txDate.year == last7Days[i].year && txDate.month == last7Days[i].month && txDate.day == last7Days[i].day) {
+                dayIdx = i;
+                break;
+              }
+            }
+            if (dayIdx != -1) {
+              if (tx['is_expense'] == true) tempChartExpense[dayIdx] += amount;
+              else tempChartIncome[dayIdx] += amount;
+            }
+          }
+        }
+      } else {
+        int days = endDate.difference(startDate).inDays + 1;
+        int segments = (days / 7).ceil();
+        if (segments == 0) segments = 1;
+
+        tempChartIncome = List.filled(segments, 0.0);
+        tempChartExpense = List.filled(segments, 0.0);
+
+        for (int i = 0; i < segments; i++) {
+          int startDay = (i * 7) + 1;
+          int endDay = (i * 7) + 7;
+          if (endDay > days) endDay = days;
+
+          if (startDay == endDay) {
+            tempChartLabels.add('$startDay');
+          } else {
+            tempChartLabels.add('$startDay-$endDay');
+          }
+        }
+
+        for (var tx in txResponse) {
+          DateTime txDate = DateTime.parse(tx['transaction_date']);
+          if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
+            int amount = tx['amount'] as int;
+            int diffDays = txDate.difference(startDate).inDays;
+            int segIdx = diffDays ~/ 7;
+            if (segIdx >= segments) segIdx = segments - 1;
+            if (segIdx < 0) segIdx = 0;
+
+            if (tx['is_expense'] == true) tempChartExpense[segIdx] += amount;
+            else tempChartIncome[segIdx] += amount;
+          }
+        }
+      }
 
       int tempFilteredExpense = 0;
       Map<String, int> categoryTotals = {};
       int totalExpenseForPie = 0;
-
-      List<double> tempIncome = List.filled(12, 0.0);
-      List<double> tempExpense = List.filled(12, 0.0);
       List<Map<String, dynamic>> tempTopTx = [];
 
       for (var tx in txResponse) {
-        int amount = tx['amount'] as int;
-        bool isExpense = tx['is_expense'] as bool;
-        String category = tx['category']?.toString() ?? 'Lainnya';
         DateTime txDate = DateTime.parse(tx['transaction_date']);
-
-        if (txDate.year == DateTime.now().year) {
-          if (isExpense) {
-            tempExpense[txDate.month - 1] += amount;
-          } else {
-            tempIncome[txDate.month - 1] += amount;
-          }
-        }
-
-        if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
-            txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
+        if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
+          int amount = tx['amount'] as int;
+          bool isExpense = tx['is_expense'] as bool;
+          String category = tx['category']?.toString() ?? 'Lainnya';
 
           if (isExpense) {
             tempFilteredExpense += amount;
@@ -214,10 +239,18 @@ class _ReportScreenState extends State<ReportScreen> {
             } else {
               categoryTotals[category] = amount;
             }
+          }
+        }
+      }
 
-            if (tempTopTx.length < 3) {
-              tempTopTx.add(tx);
-            }
+      List<Map<String, dynamic>> sortedTxResponse = List<Map<String, dynamic>>.from(txResponse)
+        ..sort((a, b) => (b['amount'] as int).compareTo(a['amount'] as int));
+
+      for (var tx in sortedTxResponse) {
+        DateTime txDate = DateTime.parse(tx['transaction_date']);
+        if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
+          if (tx['is_expense'] == true && tempTopTx.length < 3) {
+            tempTopTx.add(tx);
           }
         }
       }
@@ -235,8 +268,9 @@ class _ReportScreenState extends State<ReportScreen> {
       if (mounted) {
         setState(() {
           _filteredExpense = tempFilteredExpense;
-          _monthlyIncome = tempIncome;
-          _monthlyExpense = tempExpense;
+          _chartIncome = tempChartIncome;
+          _chartExpense = tempChartExpense;
+          _chartLabels = tempChartLabels;
           _categoryPercentages = tempCategoryPercentages;
           _topTransactions = tempTopTx;
           _isLoading = false;
@@ -245,7 +279,7 @@ class _ReportScreenState extends State<ReportScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat laporan: $e')));
+        CustomNotification.show(context, 'Gagal memuat laporan: $e', isError: true);
       }
     }
   }
@@ -255,69 +289,6 @@ class _ReportScreenState extends State<ReportScreen> {
   String _formatDate(String dateString) {
     try { return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(dateString)); }
     catch (e) { return dateString; }
-  }
-
-  void _showTopNotification(BuildContext context, String message, {bool isError = false}) {
-    final overlay = Overlay.of(context);
-    OverlayEntry? overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 16,
-        right: 16,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: -100, end: 0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutBack,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(0, value),
-              child: child,
-            );
-          },
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(16),
-            color: isError ? const Color(0xFFE63946) : const Color(0xFF00AA5B),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isError ? Icons.close : Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      message,
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(overlayEntry);
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry != null && overlayEntry!.mounted) {
-        overlayEntry!.remove();
-      }
-    });
   }
 
   @override
@@ -436,7 +407,8 @@ class _ReportScreenState extends State<ReportScreen> {
                       _buildPieChart(textColor),
                       const SizedBox(height: 24),
                       ..._categoryPercentages.entries.map((entry) {
-                        Color color = _getColorForCategory(entry.key);
+                        // SEKARANG DRY: Warna legend mengambil dari Helper Pusat
+                        Color color = CategoryHelper.getColor(entry.key);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
                           child: _buildPieLegendItem(color, entry.key, '${entry.value.toStringAsFixed(1)}%', textColor),
@@ -458,7 +430,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: Text('Tren Pemasukan vs\nPengeluaran Tahun Ini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.3, color: textColor))),
+                        Expanded(child: Text('Tren Pemasukan vs\nPengeluaran ${_getFilterTitleText()}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.3, color: textColor))),
                         Row(
                           children: [
                             const CircleAvatar(radius: 4, backgroundColor: AppColors.primaryGreen),
@@ -491,23 +463,21 @@ class _ReportScreenState extends State<ReportScreen> {
                 Text("Belum ada data transaksi (${_getFilterTitleText()}).", style: const TextStyle(color: Colors.grey))
               else
                 ..._topTransactions.map((tx) {
+                  final catName = tx['category'] ?? 'Lainnya';
                   return GestureDetector(
                     onTap: () async {
                       final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
                       if (result != null) {
                         _fetchReportData();
-                        if (mounted) {
-                          String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-                          _showTopNotification(context, msg, isError: msg.contains('Dihapus'));
-                        }
                       }
                     },
                     child: TransactionItem(
-                      title: tx['category'] ?? 'Lainnya',
+                      title: catName,
                       subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
                       amount: '- ${_formatCurrency(tx['amount'])}',
-                      bgIconColor: Colors.red.withValues(alpha: 0.1),
-                      icon: FontAwesomeIcons.bagShopping,
+                      // SEKARANG DRY & DINAMIS: Mengikuti warna dan ikon kategori aslinya dari pusat helper
+                      bgIconColor: CategoryHelper.getColor(catName).withValues(alpha: 0.1),
+                      icon: CategoryHelper.getIcon(catName),
                       amountColor: barRed,
                     ),
                   );
@@ -526,7 +496,8 @@ class _ReportScreenState extends State<ReportScreen> {
     _categoryPercentages.forEach((key, value) {
       sections.add(
           PieChartSectionData(
-            color: _getColorForCategory(key),
+            // SEKARANG DRY: Warna chart pie mengambil dari Helper Pusat
+            color: CategoryHelper.getColor(key),
             value: value,
             title: '',
             radius: 20,
@@ -585,25 +556,20 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _buildBarChart(Color textColor, bool isDark) {
     double maxVal = 0;
-    for (int i = 0; i < 12; i++) {
-      if (_monthlyIncome[i] > maxVal) maxVal = _monthlyIncome[i];
-      if (_monthlyExpense[i] > maxVal) maxVal = _monthlyExpense[i];
+    for (int i = 0; i < _chartIncome.length; i++) {
+      if (_chartIncome[i] > maxVal) maxVal = _chartIncome[i];
+      if (_chartExpense[i] > maxVal) maxVal = _chartExpense[i];
     }
     if (maxVal == 0) maxVal = 100000;
 
-    int currentMonth = DateTime.now().month;
     List<BarChartGroupData> barGroups = [];
-
-    for (int i = 4; i >= 0; i--) {
-      int monthIdx = currentMonth - 1 - i;
-      if (monthIdx >= 0 && monthIdx < 12) {
-        barGroups.add(
-            BarChartGroupData(x: monthIdx, barRods: [
-              BarChartRodData(toY: _monthlyIncome[monthIdx], color: AppColors.primaryGreen, width: 8, borderRadius: BorderRadius.circular(2)),
-              BarChartRodData(toY: _monthlyExpense[monthIdx], color: barRed, width: 8, borderRadius: BorderRadius.circular(2))
-            ])
-        );
-      }
+    for (int i = 0; i < _chartLabels.length; i++) {
+      barGroups.add(
+          BarChartGroupData(x: i, barRods: [
+            BarChartRodData(toY: _chartIncome[i], color: AppColors.primaryGreen, width: 8, borderRadius: BorderRadius.circular(2)),
+            BarChartRodData(toY: _chartExpense[i], color: barRed, width: 8, borderRadius: BorderRadius.circular(2))
+          ])
+      );
     }
 
     return SizedBox(
@@ -630,10 +596,9 @@ class _ReportScreenState extends State<ReportScreen> {
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (double value, TitleMeta meta) {
-                  const style = TextStyle(color: Colors.grey, fontSize: 11);
-                  List<String> months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-                  String text = (value >= 0 && value < 12) ? months[value.toInt()] : '';
-                  return SideTitleWidget(meta: meta, space: 8, child: Text(text, style: style));
+                  int idx = value.toInt();
+                  String text = (idx >= 0 && idx < _chartLabels.length) ? _chartLabels[idx] : '';
+                  return SideTitleWidget(meta: meta, space: 8, child: Text(text, style: const TextStyle(color: Colors.grey, fontSize: 11)));
                 },
               ),
             ),

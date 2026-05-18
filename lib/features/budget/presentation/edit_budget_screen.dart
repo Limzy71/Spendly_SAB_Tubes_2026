@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart';
 import '../../../theme/app_colors.dart';
+import '../../../../widgets/custom_notification.dart';
 
 class EditBudgetScreen extends StatefulWidget {
   final String category;
@@ -24,10 +26,11 @@ class EditBudgetScreen extends StatefulWidget {
 class _EditBudgetScreenState extends State<EditBudgetScreen> {
   final supabase = Supabase.instance.client;
   bool _isLoading = false;
-  // Tambahkan variabel ini untuk melacak apakah data sudah pernah disimpan/diubah
   bool _isDataModified = false;
-  List<Map<String, dynamic>> _budgetHistory = [];
+
+  List<Map<String, dynamic>> _transactionHistory = [];
   bool _isLoadingHistory = true;
+
   late TextEditingController _limitController;
   late TextEditingController _categoryController;
 
@@ -37,7 +40,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     _categoryController = TextEditingController(text: widget.category);
     String formattedInitial = _formatNumber(widget.currentLimit.toString());
     _limitController = TextEditingController(text: formattedInitial);
-    _fetchBudgetHistory();
+    _fetchTransactionHistory();
   }
 
   @override
@@ -48,31 +51,26 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   }
 
   String _formatNumber(String s) {
-    String formatted = '';
-    int count = 0;
-    for (int i = s.length - 1; i >= 0; i--) {
-      if (count != 0 && count % 3 == 0) formatted = '.$formatted';
-      formatted = s[i] + formatted;
-      count++;
-    }
-    return formatted;
+    String digits = s.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '0';
+    return NumberFormat.decimalPattern('id').format(int.parse(digits));
   }
 
-  Future<void> _fetchBudgetHistory() async {
+  Future<void> _fetchTransactionHistory() async {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
       final response = await supabase
-          .from('budgets')
+          .from('transactions')
           .select()
           .eq('user_id', userId)
           .ilike('category', widget.category.trim())
-          .order('period_month', ascending: false);
+          .order('transaction_date', ascending: false);
 
       if (mounted) {
         setState(() {
-          _budgetHistory = List<Map<String, dynamic>>.from(response);
+          _transactionHistory = List<Map<String, dynamic>>.from(response);
           _isLoadingHistory = false;
         });
       }
@@ -117,26 +115,17 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       }
 
       if (mounted) {
-        // --- Tambahkan setState ini ---
         setState(() {
           _isDataModified = true;
         });
-        // ------------------------------
 
-        _fetchBudgetHistory();
+        _fetchTransactionHistory();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Anggaran berhasil diperbarui!'),
-            backgroundColor: AppColors.primaryGreen,
-          ),
-        );
+        CustomNotification.show(context, 'Anggaran berhasil diperbarui!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memperbarui: $e')),
-        );
+        CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -180,15 +169,11 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Anggaran berhasil dihapus!')),
-        );
+        CustomNotification.show(context, 'Anggaran berhasil dihapus!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menghapus: $e')),
-        );
+        CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -210,7 +195,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
-          // --- Ubah bagian onPressed menjadi seperti ini ---
           onPressed: () => Navigator.pop(context, _isDataModified),
         ),
         actions: [
@@ -241,6 +225,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _categoryController,
+                      textCapitalization: TextCapitalization.words,
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
@@ -319,31 +304,30 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 16),
-            Text('Riwayat Anggaran', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+            Text('Riwayat Transaksi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 16),
 
             _isLoadingHistory
                 ? const Center(child: CircularProgressIndicator())
-                : _budgetHistory.isEmpty
-                ? Center(child: Text('Belum ada riwayat anggaran.', style: TextStyle(color: Colors.grey[600])))
+                : _transactionHistory.isEmpty
+                ? Center(child: Text('Belum ada riwayat transaksi.', style: TextStyle(color: Colors.grey[600])))
                 : ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _budgetHistory.length,
+              itemCount: _transactionHistory.length,
               itemBuilder: (context, index) {
-                final budget = _budgetHistory[index];
+                final tx = _transactionHistory[index];
 
-                final limit = budget['limit_amount'] as int;
-                String formattedLimit = '';
-                int count = 0;
-                String s = limit.toString();
-                for (int i = s.length - 1; i >= 0; i--) {
-                  if (count != 0 && count % 3 == 0) formattedLimit = '.$formattedLimit';
-                  formattedLimit = s[i] + formattedLimit;
-                  count++;
-                }
+                final amount = tx['amount'] as int;
+                final isExpense = tx['is_expense'] as bool;
+                final note = tx['note']?.toString() ?? '';
+                final txDate = tx['transaction_date'].toString().split('T')[0];
 
-                final periodStr = budget['period_month'].toString().split('T')[0];
+                // SEKARANG DRY: Memakai NumberFormat standar intl
+                String formattedAmount = NumberFormat.decimalPattern('id').format(amount);
+
+                final amountColor = isExpense ? Colors.red : AppColors.primaryGreen;
+                final sign = isExpense ? '-' : '+';
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -351,14 +335,14 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                   decoration: BoxDecoration(
                     color: cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                    boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                            color: widget.iconColor.withOpacity(0.1),
+                            color: widget.iconColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10)
                         ),
                         child: FaIcon(widget.icon, color: widget.iconColor, size: 24),
@@ -369,13 +353,13 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(budget['category']?.toString() ?? widget.category, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+                            Text(note.isNotEmpty ? note : widget.category, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
                             const SizedBox(height: 4),
-                            Text('Periode: $periodStr', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                            Text(txDate, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                           ],
                         ),
                       ),
-                      Text('Rp $formattedLimit', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen, fontSize: 14)),
+                      Text('$sign Rp $formattedAmount', style: TextStyle(fontWeight: FontWeight.bold, color: amountColor, fontSize: 14)),
                     ],
                   ),
                 );

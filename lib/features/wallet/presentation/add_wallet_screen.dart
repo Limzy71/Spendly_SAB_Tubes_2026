@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/wallet_helper.dart';
 
 class AddWalletScreen extends StatefulWidget {
   const AddWalletScreen({Key? key}) : super(key: key);
@@ -23,24 +25,20 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   List<String> _existingWallets = [];
 
-  List<Map<String, dynamic>> walletTemplates = [
-    {'name': 'Uang Tunai', 'icon': FontAwesomeIcons.moneyBillWave, 'icon_id': 'money', 'color': AppColors.primaryGreen},
-    {'name': 'BCA', 'icon': FontAwesomeIcons.buildingColumns, 'icon_id': 'bank', 'color': Colors.indigo},
-    {'name': 'Mandiri', 'icon': FontAwesomeIcons.buildingColumns, 'icon_id': 'bank', 'color': Colors.blue.shade800},
-    {'name': 'GoPay', 'icon': FontAwesomeIcons.wallet, 'icon_id': 'wallet', 'color': Colors.blue},
-    {'name': 'DANA', 'icon': FontAwesomeIcons.wallet, 'icon_id': 'wallet', 'color': Colors.orange},
-    {'name': 'OVO', 'icon': FontAwesomeIcons.wallet, 'icon_id': 'wallet', 'color': Colors.purple},
-    {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'icon_id': 'add', 'color': Colors.grey},
+  // SEKARANG DRY: Hanya menyimpan info struktural, visual diserahkan ke WalletHelper
+  List<Map<String, String>> walletTemplates = [
+    {'name': 'Uang Tunai', 'icon_id': 'money'},
+    {'name': 'BCA', 'icon_id': 'bank'},
+    {'name': 'Mandiri', 'icon_id': 'bank'},
+    {'name': 'GoPay', 'icon_id': 'wallet'},
+    {'name': 'DANA', 'icon_id': 'wallet'},
+    {'name': 'OVO', 'icon_id': 'wallet'},
+    {'name': 'Baru', 'icon_id': 'add'},
   ];
 
-  final List<Map<String, dynamic>> dialogIcons = [
-    {'id': 'money', 'icon': FontAwesomeIcons.moneyBillWave, 'color': AppColors.primaryGreen},
-    {'id': 'bank', 'icon': FontAwesomeIcons.buildingColumns, 'color': Colors.indigo},
-    {'id': 'wallet', 'icon': FontAwesomeIcons.wallet, 'color': Colors.orange},
-    {'id': 'card', 'icon': FontAwesomeIcons.creditCard, 'color': Colors.purple},
-    {'id': 'savings', 'icon': FontAwesomeIcons.piggyBank, 'color': Colors.teal},
-    {'id': 'crypto', 'icon': FontAwesomeIcons.bitcoin, 'color': Colors.amber.shade600},
-    {'id': 'business', 'icon': FontAwesomeIcons.store, 'color': Colors.blue},
+  // SEKARANG DRY: Hanya butuh ID string untuk dicocokkan ke kamus pusat
+  final List<String> dialogIcons = [
+    'money', 'bank', 'wallet', 'card', 'savings', 'crypto', 'business'
   ];
 
   @override
@@ -71,9 +69,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   void _showAddWalletDialog() {
     TextEditingController nameController = TextEditingController();
-    String tempIconId = dialogIcons[0]['id'];
-    dynamic tempIcon = dialogIcons[0]['icon'];
-    Color tempColor = dialogIcons[0]['color'];
+    String tempIconId = dialogIcons[0];
 
     showDialog(
       context: context,
@@ -90,10 +86,14 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                   children: [
                     TextField(
                       controller: nameController,
+                      textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
                         hintText: 'Cth: ShopeePay',
                         focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
                       ),
+                      onChanged: (value) {
+                        setStateDialog(() {});
+                      },
                     ),
                     const SizedBox(height: 20),
                     const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -101,22 +101,25 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                     Wrap(
                       spacing: 12,
                       runSpacing: 12,
-                      children: dialogIcons.map((item) {
-                        bool isSelected = tempIconId == item['id'];
+                      children: dialogIcons.map((iconId) {
+                        bool isSelected = tempIconId == iconId;
+
+                        // SEKARANG DRY: Meminta aset dari WalletHelper pusat
+                        dynamic currentIcon = WalletHelper.getIcon(iconId, '');
+                        Color currentColor = WalletHelper.getColor(nameController.text.isNotEmpty ? nameController.text : iconId);
+
                         return GestureDetector(
                           onTap: () => setStateDialog(() {
-                            tempIconId = item['id'];
-                            tempIcon = item['icon'];
-                            tempColor = item['color'];
+                            tempIconId = iconId;
                           }),
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isSelected ? item['color'].withValues(alpha: 0.2) : Colors.transparent,
+                              color: isSelected ? currentColor.withValues(alpha: 0.2) : Colors.transparent,
                               shape: BoxShape.circle,
-                              border: Border.all(color: isSelected ? item['color'] : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                              border: Border.all(color: isSelected ? currentColor : Colors.grey.shade300, width: isSelected ? 2 : 1),
                             ),
-                            child: FaIcon(item['icon'], color: isSelected ? item['color'] : Colors.grey, size: 20),
+                            child: FaIcon(currentIcon, color: isSelected ? currentColor : Colors.grey, size: 20),
                           ),
                         );
                       }).toList(),
@@ -129,15 +132,13 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   onPressed: () {
-                    if (nameController.text.isNotEmpty) {
+                    if (nameController.text.trim().isNotEmpty) {
                       setState(() {
                         walletTemplates.insert(walletTemplates.length - 1, {
-                          'name': nameController.text,
-                          'icon': tempIcon,
+                          'name': nameController.text.trim(),
                           'icon_id': tempIconId,
-                          'color': tempColor,
                         });
-                        selectedWalletName = nameController.text;
+                        selectedWalletName = nameController.text.trim();
                         selectedIconId = tempIconId;
                       });
                       Navigator.pop(ctx);
@@ -155,12 +156,12 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   Future<void> _saveWallet() async {
     if (selectedWalletName.isEmpty || selectedWalletName == 'Baru') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Silakan pilih atau buat dompet terlebih dahulu!')));
+      CustomNotification.show(context, 'Silakan pilih atau buat dompet terlebih dahulu!', isWarning: true);
       return;
     }
 
     if (_existingWallets.contains(selectedWalletName.toLowerCase())) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Dompet "$selectedWalletName" sudah ada di daftar Anda!')));
+      CustomNotification.show(context, 'Dompet "$selectedWalletName" sudah ada di daftar Anda!', isWarning: true);
       return;
     }
 
@@ -184,11 +185,11 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       });
 
       if (mounted) {
+        CustomNotification.show(context, 'Dompet berhasil ditambahkan!');
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dompet berhasil ditambahkan!')));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));
+      if (mounted) CustomNotification.show(context, 'Gagal menyimpan: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -220,7 +221,12 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
               alignment: WrapAlignment.start,
               children: walletTemplates.map((template) {
                 bool isNew = template['name'] == 'Baru';
-                return _buildWalletItem(template['icon'], template['name'], template['color'], template['icon_id'], isDark, cardColor, itemWidth, isNew: isNew);
+
+                // SEKARANG DRY: Mintakan aset visual langsung ke WalletHelper pusat
+                dynamic iconData = isNew ? FontAwesomeIcons.plus : WalletHelper.getIcon(template['icon_id'], template['name']!);
+                Color colorData = isNew ? Colors.grey : WalletHelper.getColor(template['name']!);
+
+                return _buildWalletItem(iconData, template['name']!, colorData, template['icon_id']!, isDark, cardColor, itemWidth, isNew: isNew);
               }).toList(),
             ),
             const SizedBox(height: 32),

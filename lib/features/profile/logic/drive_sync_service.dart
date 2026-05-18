@@ -6,6 +6,7 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../widgets/custom_notification.dart';
 
 class GoogleAuthClient extends http.BaseClient {
   final Map<String, String> _headers;
@@ -24,9 +25,6 @@ class DriveSyncService {
     scopes: [drive.DriveApi.driveFileScope],
   );
 
-  // =====================================================================
-  // 1. FUNGSI AMBIL SEMUA TABEL DARI SUPABASE
-  // =====================================================================
   static Future<Map<String, dynamic>> _fetchAllSupabaseData() async {
     final supabase = Supabase.instance.client;
 
@@ -41,18 +39,13 @@ class DriveSyncService {
     };
   }
 
-  // =====================================================================
-  // 2. FUNGSI CADANGKAN (BACKUP ALL TABLES TO DRIVE)
-  // =====================================================================
   static Future<void> backupToDrive(BuildContext context) async {
     try {
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) return;
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Membaca seluruh data database...'))
-        );
+        CustomNotification.show(context, 'Membaca seluruh data database...', isWarning: true);
       }
 
       final allData = await _fetchAllSupabaseData();
@@ -71,38 +64,30 @@ class DriveSyncService {
       driveFile.mimeType = "application/json";
 
       final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
-      await driveApi.files.create(driveFile, uploadMedia: media);
+      await driveFile.name != null ? driveApi.files.create(driveFile, uploadMedia: media) : null;
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Semua tabel berhasil dicadangkan ke Google Drive!'), backgroundColor: Colors.green)
-        );
+        CustomNotification.show(context, 'Semua data berhasil dicadangkan ke Google Drive!');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Gagal mencadangkan: $e'), backgroundColor: Colors.red));
+        CustomNotification.show(context, 'Gagal mencadangkan data: $e', isError: true);
       }
     }
   }
 
-  // =====================================================================
-  // 3. FUNGSI PULIHKAN (RESTORE DATA FROM DRIVE TO SUPABASE)
-  // =====================================================================
   static Future<void> restoreFromDrive(BuildContext context) async {
     try {
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) return;
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mencari daftar cadangan di Google Drive...'))
-        );
+        CustomNotification.show(context, 'Mencari daftar cadangan di Google Drive...', isWarning: true);
       }
 
       final authHeaders = await account.authHeaders;
       final driveApi = drive.DriveApi(GoogleAuthClient(authHeaders));
 
-      // Ambil hingga 10 file cadangan terbaru
       final fileList = await driveApi.files.list(
         q: "name contains 'Spendly_Full_Backup' and trashed = false",
         orderBy: "createdTime desc",
@@ -111,14 +96,11 @@ class DriveSyncService {
 
       if (fileList.files == null || fileList.files!.isEmpty) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('⚠️ Tidak ditemukan file cadangan di Drive Anda.'), backgroundColor: Colors.orange)
-          );
+          CustomNotification.show(context, 'Tidak ditemukan file cadangan di Drive Anda.', isWarning: true);
         }
         return;
       }
 
-      // --- TAMPILKAN POP-UP PILIHAN FILE KE PENGGUNA ---
       if (!context.mounted) return;
 
       final drive.File? selectedFile = await showDialog<drive.File>(
@@ -129,14 +111,12 @@ class DriveSyncService {
             title: const Text('Pilih File Pemulihan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             content: SizedBox(
               width: double.maxFinite,
-              height: 300, // Dibatasi agar bisa di-scroll
+              height: 300,
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: fileList.files!.length,
                 itemBuilder: (context, index) {
                   final file = fileList.files![index];
-
-                  // Format tanggal pembuatan agar enak dibaca
                   final date = file.createdTime?.toLocal();
                   final dateString = date != null ? "${date.day}-${date.month}-${date.year} (${date.hour}:${date.minute.toString().padLeft(2, '0')})" : "-";
 
@@ -148,10 +128,7 @@ class DriveSyncService {
                       leading: const Icon(Icons.backup, color: Colors.blue),
                       title: Text(file.name ?? 'File Cadangan', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text('Dibuat: $dateString', style: const TextStyle(fontSize: 12)),
-                      onTap: () {
-                        // Kirim file yang dipilih kembali ke fungsi utama
-                        Navigator.pop(dialogContext, file);
-                      },
+                      onTap: () => Navigator.pop(dialogContext, file),
                     ),
                   );
                 },
@@ -159,7 +136,7 @@ class DriveSyncService {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext, null), // Batal
+                onPressed: () => Navigator.pop(dialogContext, null),
                 child: const Text('Batal', style: TextStyle(color: Colors.grey)),
               ),
             ],
@@ -167,21 +144,14 @@ class DriveSyncService {
         },
       );
 
-      // Jika pengguna menekan "Batal" atau tap di luar pop-up
-      if (selectedFile == null) {
-        return;
-      }
+      if (selectedFile == null) return;
 
-      // --- LANJUTKAN PROSES DOWNLOAD FILE YANG DIPILIH ---
       final String fileId = selectedFile.id!;
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mengunduh dan menyinkronkan data...'))
-        );
+        CustomNotification.show(context, 'Mengunduh dan menyinkronkan data...', isWarning: true);
       }
 
-      // Perbaikan 'media' menjadi 'fullMedia' ada di baris ini:
       final drive.Media response = await driveApi.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
 
       List<int> dataBytes = [];
@@ -194,7 +164,6 @@ class DriveSyncService {
 
       final supabase = Supabase.instance.client;
 
-      // Masukkan kembali data ke masing-masing tabel menggunakan .upsert()
       if (backupData['wallets'] != null) {
         await supabase.from('wallets').upsert(List<Map<String, dynamic>>.from(backupData['wallets']));
       }
@@ -206,13 +175,11 @@ class DriveSyncService {
       }
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Pemulihan & Sinkronisasi data berhasil selesai!'), backgroundColor: Colors.green)
-        );
+        CustomNotification.show(context, 'Pemulihan & Sinkronisasi data berhasil selesai!');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Gagal sinkronisasi balik: $e'), backgroundColor: Colors.red));
+        CustomNotification.show(context, 'Gagal sinkronisasi data balik: $e', isError: true);
       }
     }
   }

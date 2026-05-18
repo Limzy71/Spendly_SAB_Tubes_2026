@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main_layout/presentation/main_navigation.dart';
+import 'login_screen.dart';
 
 class PasscodeScreen extends StatefulWidget {
   const PasscodeScreen({super.key});
@@ -40,7 +42,6 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
 
       if (!canAuthenticate) return;
 
-      // PARAMETER YANG BIKIN ERROR SUDAH DIHAPUS, HANYA PAKAI LOCALIZED REASON
       final bool didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Pindai sidik jari / wajah Anda untuk masuk',
       );
@@ -52,7 +53,7 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
         );
       }
     } catch (e) {
-      // Abaikan jika error / batal, user tetap bisa pakai PIN
+      // Abaikan jika error / batal
     }
   }
 
@@ -100,6 +101,46 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
         );
       }
     }
+  }
+
+  void _handleForgotPin() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Lupa PIN?", style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text("Untuk mereset PIN, Anda akan dikeluarkan dari aplikasi. Semua pengaturan keamanan akan dihapus. Anda harus masuk kembali dengan email dan kata sandi Anda."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('user_pin');
+                await prefs.setBool('is_pin_enabled', false);
+                await prefs.setBool('is_biometric_enabled', false);
+
+                await Supabase.instance.client.auth.signOut();
+
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text("Reset & Keluar", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -165,12 +206,6 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
                 const SizedBox(height: 32),
                 _buildNumpad(),
                 const SizedBox(height: 24),
-
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Butuh bantuan? Hubungi Support'),
-                ),
-                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -193,7 +228,7 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              TextButton(onPressed: () {}, child: const Text('Lupa?', style: TextStyle(color: Colors.grey, fontSize: 16))),
+              TextButton(onPressed: _handleForgotPin, child: const Text('Lupa?', style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold))),
               _numButton('0'),
               IconButton(onPressed: _onDeletePressed, icon: const Icon(Icons.backspace_outlined, color: Colors.black54), iconSize: 28),
             ],

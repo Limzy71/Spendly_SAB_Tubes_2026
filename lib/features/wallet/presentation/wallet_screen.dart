@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import 'add_wallet_screen.dart';
+import '../../../widgets/custom_notification.dart';
+import '../../../widgets/wallet_helper.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({Key? key}) : super(key: key);
@@ -71,9 +73,10 @@ class _WalletScreenState extends State<WalletScreen> {
           'id': wId,
           'name': wName,
           'balance': currentBal,
-          'subtitle': _getSubtitleForWallet(wName),
-          'icon': _getIconFromDbString(iconName, wName),
-          'color': _getColorForWallet(wName),
+          // SEKARANG DRY: Memanggil parsing kecerdasan buatan dari WalletHelper pusat
+          'subtitle': WalletHelper.getSubtitle(wName),
+          'icon': WalletHelper.getIcon(iconName, wName),
+          'color': WalletHelper.getColor(wName),
         });
       }
 
@@ -89,18 +92,27 @@ class _WalletScreenState extends State<WalletScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengambil data: $e')));
+        CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
       }
     }
   }
 
   Future<void> _processTransfer() async {
     if (selectedFromAccountId == null || selectedToAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih dompet asal dan tujuan!')));
+      CustomNotification.show(context, 'Pilih dompet asal dan tujuan!', isWarning: true);
       return;
     }
     if (_amountController.text.isEmpty || _amountController.text == '0') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nominal wajib diisi!')));
+      CustomNotification.show(context, 'Nominal wajib diisi!', isWarning: true);
+      return;
+    }
+
+    final cleanAmount = _amountController.text.replaceAll('.', '');
+    final amount = int.parse(cleanAmount);
+
+    final fromWallet = _wallets.firstWhere((w) => w['id'] == selectedFromAccountId);
+    if (amount > fromWallet['balance']) {
+      CustomNotification.show(context, 'Gagal: Saldo dompet asal tidak mencukupi!', isError: true);
       return;
     }
 
@@ -110,8 +122,6 @@ class _WalletScreenState extends State<WalletScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final cleanAmount = _amountController.text.replaceAll('.', '');
-      final amount = int.parse(cleanAmount);
       final today = DateTime.now().toIso8601String().split('T')[0];
       final note = _noteController.text.isNotEmpty ? _noteController.text : 'Transfer Internal';
 
@@ -136,13 +146,13 @@ class _WalletScreenState extends State<WalletScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer Berhasil!')));
+        CustomNotification.show(context, 'Transfer Berhasil!');
         _amountController.clear();
         _noteController.clear();
         _fetchWalletData();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Transfer gagal: $e')));
+      if (mounted) CustomNotification.show(context, 'Transfer gagal: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isTransferring = false);
     }
@@ -150,7 +160,22 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Future<void> _deleteWallet(int id, String name) async {
     if (_wallets.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak bisa menghapus satu-satunya dompet!')));
+      CustomNotification.show(context, 'Tidak bisa menghapus satu-satunya dompet!', isWarning: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final txCheck = await supabase.from('transactions').select('id').eq('wallet_id', id);
+      setState(() => _isLoading = false);
+
+      if (txCheck.isNotEmpty) {
+        CustomNotification.show(context, 'Gagal: Dompet masih memiliki riwayat transaksi!', isError: true);
+        return;
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      CustomNotification.show(context, 'Gagal mengecek data: $e', isError: true);
       return;
     }
 
@@ -158,7 +183,7 @@ class _WalletScreenState extends State<WalletScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Dompet?'),
-        content: Text('Anda yakin ingin menghapus dompet "$name"?\n\nCatatan: Jika ada transaksi yang terkait dengan dompet ini, mungkin akan terjadi error pada riwayat Anda.'),
+        content: Text('Anda yakin ingin menghapus dompet "$name"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -175,11 +200,11 @@ class _WalletScreenState extends State<WalletScreen> {
       try {
         await supabase.from('wallets').delete().eq('id', id);
         _fetchWalletData();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dompet berhasil dihapus.')));
+        if (mounted) CustomNotification.show(context, 'Dompet berhasil dihapus.');
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menghapus dompet (Pastikan dompet kosong dari transaksi): $e')));
+          CustomNotification.show(context, 'Gagal menghapus dompet: $e', isError: true);
         }
       }
     }
@@ -223,6 +248,7 @@ class _WalletScreenState extends State<WalletScreen> {
               const Text('NAMA DOMPET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
               TextField(
                 controller: editNameController,
+                textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
                 ),
@@ -267,11 +293,11 @@ class _WalletScreenState extends State<WalletScreen> {
                       }).eq('id', wallet['id']);
 
                       _fetchWalletData();
-                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dompet berhasil diperbarui!')));
+                      if (mounted) CustomNotification.show(context, 'Dompet berhasil diperbarui!');
                     } catch (e) {
                       if (mounted) {
                         setState(() => _isLoading = false);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memperbarui: $e')));
+                        CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
                       }
                     }
                   },
@@ -340,44 +366,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
   String _formatCurrency(int amount) {
     return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
-  }
-
-  dynamic _getIconFromDbString(String? iconName, String walletName) {
-    switch (iconName) {
-      case 'money': return FontAwesomeIcons.moneyBillWave;
-      case 'bank': return FontAwesomeIcons.buildingColumns;
-      case 'wallet': return FontAwesomeIcons.wallet;
-      case 'card': return FontAwesomeIcons.creditCard;
-      case 'savings': return FontAwesomeIcons.piggyBank;
-      case 'crypto': return FontAwesomeIcons.bitcoin;
-      case 'business': return FontAwesomeIcons.store;
-      case 'investment': return FontAwesomeIcons.arrowTrendUp;
-      case 'safe': return FontAwesomeIcons.vault;
-      case 'online': return FontAwesomeIcons.globe;
-      default:
-        String lower = walletName.toLowerCase();
-        if (lower.contains('tunai')) return FontAwesomeIcons.moneyBillWave;
-        if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana') || lower.contains('shopee')) return FontAwesomeIcons.wallet;
-        return FontAwesomeIcons.buildingColumns;
-    }
-  }
-
-  Color _getColorForWallet(String name) {
-    String lower = name.toLowerCase();
-    if (lower.contains('tunai')) return AppColors.primaryGreen;
-    if (lower.contains('bca') || lower.contains('mandiri') || lower.contains('bri')) return Colors.indigo;
-    if (lower.contains('gopay')) return Colors.blue;
-    if (lower.contains('ovo')) return Colors.purple;
-    if (lower.contains('dana') || lower.contains('shopee')) return Colors.orange;
-    if (lower.contains('kripto') || lower.contains('crypto')) return Colors.amber.shade600;
-    return Colors.teal;
-  }
-
-  String _getSubtitleForWallet(String name) {
-    String lower = name.toLowerCase();
-    if (lower.contains('tunai')) return 'Fisik';
-    if (lower.contains('gopay') || lower.contains('ovo') || lower.contains('dana') || lower.contains('shopee')) return 'E-Wallet';
-    return 'Bank / Lainnya';
   }
 
   @override
@@ -579,6 +567,7 @@ class _WalletScreenState extends State<WalletScreen> {
               TextFormField(
                 controller: _noteController,
                 maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
                 style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                 decoration: InputDecoration(
                   hintText: 'Tambah keterangan (opsional)...',

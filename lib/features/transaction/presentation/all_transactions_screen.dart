@@ -3,9 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 import 'edit_transaction_screen.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/category_helper.dart';
 
 class AllTransactionsScreen extends StatefulWidget {
   final String filterType;
@@ -25,11 +28,22 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   final List<String> _timeFilters = ['Hari Ini', 'Minggu Ini', 'Bulan Ini', 'Tahun Ini', 'Semua Waktu'];
   DateTimeRange? _customDateRange;
 
+  Map<String, String> _customIcons = {};
+
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('id', null);
     _fetchAllTransactions();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickCustomDateRange() async {
@@ -71,6 +85,13 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+      Map<String, String> tempIcons = {};
+      for (String cat in customCats) {
+        tempIcons[cat.toLowerCase()] = prefs.getString('custom_budget_icon_$cat') ?? 'star';
+      }
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
@@ -159,6 +180,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
       if (mounted) {
         setState(() {
+          _customIcons = tempIcons;
           _transactions = displayTx;
           _isLoading = false;
         });
@@ -166,7 +188,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+        CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
       }
     }
   }
@@ -184,141 +206,120 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     return 'Semua Transaksi';
   }
 
-  void _showTopNotification(BuildContext context, String message, {bool isError = false}) {
-    final overlay = Overlay.of(context);
-    OverlayEntry? overlayEntry;
+  @override
+  Widget build(BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 16,
-        right: 16,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: -100, end: 0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutBack,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(0, value),
-              child: child,
-            );
-          },
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(16),
-            color: isError ? const Color(0xFFE63946) : const Color(0xFF00AA5B),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    final filteredList = _transactions.where((tx) {
+      if (_searchQuery.isEmpty) return true;
+      final note = (tx['note'] ?? '').toString().toLowerCase();
+      final cat = (tx['category'] ?? '').toString().toLowerCase();
+      final q = _searchQuery.toLowerCase();
+      return note.contains(q) || cat.contains(q);
+    }).toList();
+
+    return Scaffold(
+      appBar: SubAppBar(title: _getAppBarTitle()),
+      body: Column(
+        children: [
+          Theme(
+            data: Theme.of(context).copyWith(
+              scrollbarTheme: ScrollbarThemeData(
+                thumbColor: WidgetStateProperty.all(Colors.transparent),
+                trackColor: WidgetStateProperty.all(Colors.transparent),
+              ),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isError ? Icons.close : Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      message,
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
+                  ..._timeFilters.map((filter) {
+                    bool isSelected = _selectedTimeFilter == filter;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedTimeFilter = filter);
+                        _fetchAllTransactions();
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          filter,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  GestureDetector(
+                    onTap: _pickCustomDateRange,
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedTimeFilter == 'Kustom' ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          FaIcon(
+                              FontAwesomeIcons.calendarDays,
+                              size: 14,
+                              color: _selectedTimeFilter == 'Kustom' ? Colors.white : (isDark ? Colors.white70 : Colors.black87)
+                          ),
+                          if (_selectedTimeFilter == 'Kustom') ...[
+                            const SizedBox(width: 6),
+                            const Text('Kustom', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))
+                          ]
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ),
-      ),
-    );
 
-    overlay.insert(overlayEntry);
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry != null && overlayEntry!.mounted) {
-        overlayEntry!.remove();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
-
-    return Scaffold(
-      appBar: SubAppBar(title: _getAppBarTitle()),
-      body: Column(
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                ..._timeFilters.map((filter) {
-                  bool isSelected = _selectedTimeFilter == filter;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedTimeFilter = filter);
-                      _fetchAllTransactions();
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        filter,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                GestureDetector(
-                  onTap: _pickCustomDateRange,
-                  child: Container(
-                    margin: const EdgeInsets.only(left: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _selectedTimeFilter == 'Kustom' ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        FaIcon(
-                            FontAwesomeIcons.calendarDays,
-                            size: 14,
-                            color: _selectedTimeFilter == 'Kustom' ? Colors.white : (isDark ? Colors.white70 : Colors.black87)
-                        ),
-                        if (_selectedTimeFilter == 'Kustom') ...[
-                          const SizedBox(width: 6),
-                          const Text('Kustom', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))
-                        ]
-                      ],
-                    ),
-                  ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: TextField(
+              controller: _searchController,
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
+                hintText: 'Cari catatan atau kategori...',
+                hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                filled: true,
+                fillColor: isDark ? Colors.white12 : Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-              ],
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
             ),
           ),
 
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
-                : _transactions.isEmpty
+                : filteredList.isEmpty
                 ? Center(child: Text(
+              _searchQuery.isNotEmpty ? "Tidak ada transaksi yang cocok." :
               widget.filterType == 'income' ? "Belum ada pemasukan di periode ini." :
               widget.filterType == 'expense' ? "Belum ada pengeluaran di periode ini." :
               "Belum ada riwayat transaksi di periode ini.",
@@ -327,9 +328,9 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                 : ListView.builder(
               physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
-              itemCount: _transactions.length,
+              itemCount: filteredList.length,
               itemBuilder: (context, index) {
-                final tx = _transactions[index];
+                final tx = filteredList[index];
                 return _buildTransactionItem(tx, textColor, isDark);
               },
             ),
@@ -346,7 +347,9 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
     Color bgIconColor = amountColor.withValues(alpha: 0.1);
 
-    dynamic icon = isTransfer ? FontAwesomeIcons.rightLeft : _getIconForCategory(tx['category']);
+    dynamic icon = isTransfer
+        ? FontAwesomeIcons.rightLeft
+        : CategoryHelper.getIcon(tx['category'] ?? '', customIcons: _customIcons);
 
     String note = tx['note'] ?? '';
     String title = isTransfer ? "Transfer" : (tx['category'] ?? "Lainnya");
@@ -357,12 +360,17 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
     return InkWell(
       onTap: () async {
+        if (isTransfer) {
+          CustomNotification.show(context, 'Transaksi Transfer tidak dapat diedit. Silakan hapus dan buat ulang jika terjadi kesalahan.', isWarning: true);
+          return;
+        }
+
         final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
         if (result != null) {
           _fetchAllTransactions();
           if (mounted) {
             String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-            _showTopNotification(context, msg, isError: msg.contains('Dihapus'));
+            CustomNotification.show(context, msg, isError: msg.contains('Dihapus'));
           }
         }
       },
@@ -406,20 +414,5 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         ),
       ),
     );
-  }
-
-  dynamic _getIconForCategory(String? category) {
-    if (category == null) return FontAwesomeIcons.fileInvoice;
-    switch (category.toLowerCase()) {
-      case 'makanan': return FontAwesomeIcons.utensils;
-      case 'transportasi': return FontAwesomeIcons.car;
-      case 'belanja': return FontAwesomeIcons.bagShopping;
-      case 'gaji': return FontAwesomeIcons.moneyBillWave;
-      case 'bonus': return FontAwesomeIcons.gift;
-      case 'investasi': return FontAwesomeIcons.arrowTrendUp;
-      case 'tagihan': return FontAwesomeIcons.fileInvoiceDollar;
-      case 'hiburan': return FontAwesomeIcons.film;
-      default: return FontAwesomeIcons.boxArchive;
-    }
   }
 }

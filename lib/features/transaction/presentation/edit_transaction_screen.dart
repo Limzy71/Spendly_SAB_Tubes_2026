@@ -4,8 +4,11 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import '../../../theme/app_colors.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/category_helper.dart';
 
 class EditTransactionScreen extends StatefulWidget {
   final Map<String, dynamic> transaction;
@@ -69,10 +72,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     int amount = widget.transaction['amount'] ?? 0;
     _amountController.text = NumberFormat.decimalPattern('id').format(amount);
 
-    List<Map<String, dynamic>> targetList = isExpense ? expenseCategories : incomeCategories;
-    if (!targetList.any((c) => c['name'] == selectedCategory)) {
-      targetList.insert(0, {'name': selectedCategory, 'icon': FontAwesomeIcons.boxArchive, 'color': Colors.orange});
-    }
+    _loadCustomCategories();
   }
 
   @override
@@ -81,6 +81,87 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     _noteController.dispose();
     _amountFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCustomCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+
+    setState(() {
+      for (String catName in customCats) {
+        bool existsInExpense = expenseCategories.any((c) => c['name'] == catName);
+        bool existsInIncome = incomeCategories.any((c) => c['name'] == catName);
+
+        if (!existsInExpense && !existsInIncome) {
+          String iconId = prefs.getString('custom_budget_icon_$catName') ?? 'star';
+          var newCat = {
+            'name': catName,
+            'icon': CategoryHelper.getCustomIconById(iconId),
+            'color': AppColors.primaryGreen,
+          };
+          expenseCategories.insert(expenseCategories.length - 1, newCat);
+          incomeCategories.insert(incomeCategories.length - 1, newCat);
+        }
+      }
+
+      List<Map<String, dynamic>> targetList = isExpense ? expenseCategories : incomeCategories;
+      if (!targetList.any((c) => c['name'] == selectedCategory)) {
+        targetList.insert(0, {
+          'name': selectedCategory,
+          'icon': CategoryHelper.getIcon(selectedCategory),
+          'color': CategoryHelper.getColor(selectedCategory),
+        });
+      }
+    });
+  }
+
+  // --- FITUR BARU: HAPUS KATEGORI ---
+  void _confirmDeleteCategory(String catName) {
+    List<Map<String, dynamic>> currentList = isExpense ? expenseCategories : incomeCategories;
+
+    // Validasi: Harus tersisa minimal 1 kategori utama di luar tombol 'Baru'
+    if (currentList.length <= 2) {
+      CustomNotification.show(context, 'Minimal harus ada 1 kategori tersisa!', isWarning: true);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Kategori?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Apakah Anda yakin ingin menghapus kategori "$catName" dari daftar?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+
+              setState(() {
+                expenseCategories.removeWhere((c) => c['name'] == catName);
+                incomeCategories.removeWhere((c) => c['name'] == catName);
+
+                if (selectedCategory == catName) {
+                  selectedCategory = isExpense ? expenseCategories[0]['name'] : incomeCategories[0]['name'];
+                }
+              });
+
+              final prefs = await SharedPreferences.getInstance();
+              List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+              if (customCats.contains(catName)) {
+                customCats.remove(catName);
+                await prefs.setStringList('custom_budget_categories', customCats);
+                await prefs.remove('custom_budget_icon_$catName');
+              }
+
+              if (mounted) CustomNotification.show(context, 'Kategori berhasil dihapus!');
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _fetchWallets() async {
@@ -159,14 +240,28 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   void _showAddCategoryDialog() {
     TextEditingController catController = TextEditingController();
-    dynamic selectedIcon = FontAwesomeIcons.star;
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final List<dynamic> availableIcons = [
-      FontAwesomeIcons.star, FontAwesomeIcons.mugHot, FontAwesomeIcons.plane, FontAwesomeIcons.house,
-      FontAwesomeIcons.hospital, FontAwesomeIcons.graduationCap, FontAwesomeIcons.paw, FontAwesomeIcons.gamepad,
-      FontAwesomeIcons.shirt, FontAwesomeIcons.laptop, FontAwesomeIcons.film, FontAwesomeIcons.train,
-      FontAwesomeIcons.building, FontAwesomeIcons.coins, FontAwesomeIcons.piggyBank
+    final List<Map<String, dynamic>> availableIcons = [
+      {'id': 'star', 'icon': FontAwesomeIcons.star},
+      {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
+      {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+      {'id': 'house', 'icon': FontAwesomeIcons.house},
+      {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
+      {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
+      {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+      {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
+      {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+      {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
+      {'id': 'film', 'icon': FontAwesomeIcons.film},
+      {'id': 'train', 'icon': FontAwesomeIcons.train},
+      {'id': 'building', 'icon': FontAwesomeIcons.building},
+      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
+      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
     ];
+
+    String tempIconId = availableIcons[0]['id'];
+    dynamic tempIcon = availableIcons[0]['icon'];
 
     showDialog(
       context: context,
@@ -174,8 +269,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         return StatefulBuilder(
             builder: (context, setStateDialog) {
               return AlertDialog(
+                backgroundColor: Theme.of(context).cardColor,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                title: const Text('Kategori Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                title: Text('Kategori Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -183,8 +279,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     children: [
                       TextField(
                         controller: catController,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                         decoration: const InputDecoration(
                           hintText: 'Contoh: Hadiah',
+                          hintStyle: TextStyle(color: Colors.grey),
                           focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
                         ),
                       ),
@@ -194,10 +292,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
-                        children: availableIcons.map((icon) {
-                          bool isSelected = selectedIcon == icon;
+                        children: availableIcons.map((item) {
+                          bool isSelected = tempIconId == item['id'];
                           return GestureDetector(
-                            onTap: () => setStateDialog(() => selectedIcon = icon),
+                            onTap: () => setStateDialog(() {
+                              tempIconId = item['id'];
+                              tempIcon = item['icon'];
+                            }),
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
@@ -205,7 +306,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                 shape: BoxShape.circle,
                                 border: Border.all(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300, width: isSelected ? 2 : 1),
                               ),
-                              child: FaIcon(icon, color: isSelected ? AppColors.primaryGreen : Colors.grey, size: 20),
+                              child: FaIcon(item['icon'], color: isSelected ? AppColors.primaryGreen : Colors.grey, size: 20),
                             ),
                           );
                         }).toList(),
@@ -220,20 +321,36 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                         backgroundColor: AppColors.primaryGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
                     ),
-                    onPressed: () {
-                      if (catController.text.isNotEmpty) {
+                    onPressed: () async {
+                      if (catController.text.trim().isNotEmpty) {
+                        String newCatName = catController.text.trim();
+
+                        final prefs = await SharedPreferences.getInstance();
+                        List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+
+                        if (!customCats.contains(newCatName)) {
+                          customCats.add(newCatName);
+                          await prefs.setStringList('custom_budget_categories', customCats);
+                          await prefs.setString('custom_budget_icon_$newCatName', tempIconId);
+                        }
+
                         setState(() {
                           var newCategory = {
-                            'name': catController.text,
-                            'icon': selectedIcon,
-                            'color': AppColors.primaryGreen,
+                            'name': newCatName,
+                            'icon': tempIcon,
+                            'color': isExpense ? Colors.redAccent : AppColors.primaryGreen,
                           };
+
                           if (isExpense) {
-                            expenseCategories.insert(expenseCategories.length - 1, newCategory);
+                            if (!expenseCategories.any((c) => c['name'] == newCatName)) {
+                              expenseCategories.insert(expenseCategories.length - 1, newCategory);
+                            }
                           } else {
-                            incomeCategories.insert(incomeCategories.length - 1, newCategory);
+                            if (!incomeCategories.any((c) => c['name'] == newCatName)) {
+                              incomeCategories.insert(incomeCategories.length - 1, newCategory);
+                            }
                           }
-                          selectedCategory = catController.text;
+                          selectedCategory = newCatName;
                         });
                         Navigator.pop(ctx);
                       }
@@ -307,12 +424,12 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   Future<void> _updateTransaction() async {
     if (_amountController.text.isEmpty || _amountController.text == '0') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nominal wajib diisi')));
+      CustomNotification.show(context, 'Nominal wajib diisi', isWarning: true);
       return;
     }
 
     if (selectedWalletId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih dompet terlebih dahulu')));
+      CustomNotification.show(context, 'Pilih dompet terlebih dahulu', isWarning: true);
       return;
     }
 
@@ -345,11 +462,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }).eq('id', widget.transaction['id']).eq('user_id', userId);
 
       if (mounted) {
-        // MENGIRIM PESAN SUKSES KE HALAMAN PEMANGGIL SEBAGAI STRING
         Navigator.pop(context, 'Transaksi Berhasil Diperbarui!');
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memperbarui: $e')));
+      if (mounted) CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -364,11 +480,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       await supabase.from('transactions').delete().eq('id', widget.transaction['id']).eq('user_id', userId);
 
       if (mounted) {
-        // MENGIRIM PESAN SUKSES KE HALAMAN PEMANGGIL SEBAGAI STRING
         Navigator.pop(context, 'Transaksi Berhasil Dihapus!');
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menghapus: $e')));
+      if (mounted) CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -459,6 +574,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                             controller: _amountController,
                             focusNode: _amountFocusNode,
                             keyboardType: TextInputType.number,
+                            textCapitalization: TextCapitalization.sentences,
                             style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
                             cursorColor: AppColors.primaryGreen,
                             decoration: InputDecoration(border: InputBorder.none, hintText: "0", hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)),
@@ -479,7 +595,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             ),
             const SizedBox(height: 20),
 
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('KATEGORI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+            const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Text('KATEGORI (Tekan Tahan untuk Hapus)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))
+            ),
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -564,6 +683,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     TextField(
                       controller: _noteController,
                       maxLines: 2,
+                      textInputAction: TextInputAction.done,
                       style: TextStyle(color: textColor),
                       decoration: InputDecoration(hintText: "Beli apa hari ini?", hintStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white30 : Colors.grey), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none),
                     ),
@@ -658,6 +778,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           _showAddCategoryDialog();
         } else {
           setState(() => selectedCategory = label);
+        }
+      },
+      onLongPress: () {
+        if (!isNew) {
+          _confirmDeleteCategory(label);
         }
       },
       child: SizedBox(
