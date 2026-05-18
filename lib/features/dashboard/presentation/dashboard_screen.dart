@@ -3,9 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../transaction/presentation/all_transactions_screen.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/category_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,6 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _ewalletBalance = 0;
 
   List<Map<String, dynamic>> _recentTransactions = [];
+  Map<String, String> _customIcons = {};
 
   @override
   void initState() {
@@ -41,6 +45,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+      Map<String, String> tempIcons = {};
+      for (String cat in customCats) {
+        tempIcons[cat.toLowerCase()] = prefs.getString('custom_budget_icon_$cat') ?? 'star';
+      }
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
@@ -137,6 +148,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (mounted) {
         setState(() {
+          _customIcons = tempIcons;
           _totalIncome = tempIncome;
           _totalExpense = tempExpense;
           _totalBalance = grandTotal;
@@ -150,7 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+        CustomNotification.show(context, 'Gagal: $e', isError: true);
       }
     }
   }
@@ -171,74 +183,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) { return dateString; }
   }
 
-  void _showTopNotification(BuildContext context, String message, {bool isError = false}) {
-    final overlay = Overlay.of(context);
-    OverlayEntry? overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 16,
-        right: 16,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: -100, end: 0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutBack,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(0, value),
-              child: child,
-            );
-          },
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(16),
-            color: isError ? const Color(0xFFE63946) : const Color(0xFF00AA5B),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isError ? Icons.close : Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      message,
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(overlayEntry);
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry != null && overlayEntry!.mounted) {
-        overlayEntry!.remove();
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     bool hasTransactions = _recentTransactions.isNotEmpty;
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+
+    final user = Supabase.instance.client.auth.currentUser;
+    final userName = user?.userMetadata?['full_name'] ?? 'Pengguna';
 
     return Scaffold(
       body: RefreshIndicator(
@@ -259,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 const SizedBox(height: 16),
                 const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                Text("Budi Santoso", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
+                Text(userName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
                 const SizedBox(height: 16),
                 _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
                 const SizedBox(height: 20),
@@ -324,7 +276,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
     Color bgIconColor = amountColor.withValues(alpha: 0.1);
 
-    dynamic icon = isTransfer ? FontAwesomeIcons.rightLeft : _getIconForCategory(tx['category']);
+    dynamic icon = isTransfer
+        ? FontAwesomeIcons.rightLeft
+        : CategoryHelper.getIcon(tx['category'] ?? '', customIcons: _customIcons);
 
     String note = tx['note'] ?? '';
     String title = isTransfer ? "Transfer" : (tx['category'] ?? "Lainnya");
@@ -336,12 +290,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return InkWell(
       onTap: () async {
+        if (isTransfer) {
+          CustomNotification.show(context, 'Transaksi Transfer tidak dapat diedit. Silakan hapus dan buat ulang jika terjadi kesalahan.', isWarning: true);
+          return;
+        }
+
         final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
         if (result != null) {
           _fetchDashboardData();
           if (mounted) {
             String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-            _showTopNotification(context, msg, isError: msg.contains('Dihapus'));
+            CustomNotification.show(context, msg, isError: msg.contains('Dihapus'));
           }
         }
       },
@@ -387,26 +346,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  dynamic _getIconForCategory(String? category) {
-    if (category == null) return FontAwesomeIcons.fileInvoice;
-    switch (category.toLowerCase()) {
-      case 'makanan': return FontAwesomeIcons.utensils;
-      case 'transportasi': return FontAwesomeIcons.car;
-      case 'belanja': return FontAwesomeIcons.bagShopping;
-      case 'gaji': return FontAwesomeIcons.moneyBillWave;
-      case 'bonus': return FontAwesomeIcons.gift;
-      case 'investasi': return FontAwesomeIcons.arrowTrendUp;
-      case 'tagihan': return FontAwesomeIcons.fileInvoiceDollar;
-      case 'hiburan': return FontAwesomeIcons.film;
-      default: return FontAwesomeIcons.boxArchive;
-    }
-  }
-
   Widget _buildEmptyState(BuildContext context, Color primaryGreen) { return Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 40), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Theme.of(context).cardColor, shape: BoxShape.circle), child: FaIcon(FontAwesomeIcons.fileInvoice, size: 48, color: primaryGreen.withValues(alpha: 0.5))), const SizedBox(height: 24), Text("Belum ada transaksi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)), const SizedBox(height: 8), const Text("Catat pengeluaran dan pemasukan\npertamamu hari ini!", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5))],)); }
 
   Widget _buildBalanceCard(BuildContext context, Color primaryColor, bool hasData) { return Container(width: double.infinity, padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10, offset: const Offset(0, 4))]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("Total Saldo", style: TextStyle(color: Colors.grey, fontSize: 14)), FaIcon(FontAwesomeIcons.wallet, color: primaryColor, size: 24)]), const SizedBox(height: 4), Text(_formatCurrency(_totalBalance), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _totalBalance < 0 ? Colors.red : Theme.of(context).textTheme.bodyLarge?.color)), const SizedBox(height: 20), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: _buildMiniWalletCard(context, "Tunai", _formatShortCurrency(_tunaiBalance))), const SizedBox(width: 8), Expanded(child: _buildMiniWalletCard(context, "Bank", _formatShortCurrency(_bankBalance))), const SizedBox(width: 8), Expanded(child: _buildMiniWalletCard(context, "E-Wallet", _formatShortCurrency(_ewalletBalance)))])])); }
 
-  Widget _buildMiniWalletCard(BuildContext context, String name, String value) { return Container(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), decoration: BoxDecoration(color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE6F7ED), borderRadius: BorderRadius.circular(12)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54, fontSize: 11)), const SizedBox(height: 4), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)))],)); }
+  Widget _buildMiniWalletCard(BuildContext context, String name, String value) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE6F7ED),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(name, style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 11)),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildSummaryCard(BuildContext context, {required String title, required String amount, required Color indicatorColor, required dynamic icon, required Color iconBgColor}) { return Container(decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)), child: ClipRRect(borderRadius: BorderRadius.circular(12), child: IntrinsicHeight(child: Row(children: [Container(width: 4, color: indicatorColor), Expanded(child: Padding(padding: const EdgeInsets.all(12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle), child: FaIcon(icon, size: 12, color: indicatorColor)), const SizedBox(width: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]), const SizedBox(height: 8), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(amount, style: TextStyle(color: indicatorColor, fontWeight: FontWeight.bold, fontSize: 16)))],),),),],),),),); }
 }

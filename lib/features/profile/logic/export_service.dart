@@ -5,83 +5,53 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart'; // <-- Package baru kita
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:intl/intl.dart'; // <--- DI-DRY: Menggunakan sistem intl pusat
+import '../../../widgets/custom_notification.dart';
 
 class ExportService {
-  static void _showTopNotification(BuildContext context, String message, {bool isError = false, bool isInfo = false}) {
-    final overlay = Overlay.of(context);
-    OverlayEntry? overlayEntry;
-
-    Color bgColor = const Color(0xFF00AA5B);
-    IconData icon = Icons.check;
-
-    if (isError) {
-      bgColor = const Color(0xFFE63946);
-      icon = Icons.close;
-    } else if (isInfo) {
-      bgColor = Colors.blue.shade500;
-      icon = Icons.info_outline;
-    }
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 16,
-        right: 16,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: -100, end: 0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutBack,
-          builder: (context, value, child) {
-            return Transform.translate(offset: Offset(0, value), child: child);
-          },
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(16),
-            color: bgColor,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-                    child: Icon(icon, color: Colors.white, size: 16),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry != null && overlayEntry!.mounted) overlayEntry!.remove();
-    });
-  }
-
-  static Future<List<Map<String, dynamic>>> _fetchDataFromSupabase() async {
+  static Future<List<Map<String, dynamic>>> _fetchDataFromSupabase(int filterMode) async {
     final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
-    final response = await supabase.from('transactions').select().eq('user_id', userId).order('transaction_date', ascending: false);
+    var query = supabase.from('transactions').select().eq('user_id', userId);
+
+    if (filterMode == 1) {
+      final now = DateTime.now();
+      final firstDay = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
+      final lastDay = DateTime(now.year, now.month + 1, 0).toIso8601String().split('T')[0];
+      query = query.gte('transaction_date', firstDay).lte('transaction_date', lastDay);
+    }
+
+    final response = await query.order('transaction_date', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
-  static Future<void> exportTransactionsToCSV(BuildContext context) async {
-    if (context.mounted) {
-      _showTopNotification(context, 'Membuka menu penyimpanan...', isInfo: true);
+  // Helper untuk format mata uang seragam
+  static String _formatCurrency(int amount) {
+    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+  }
+
+  // Helper untuk format tanggal laporan yang rapi
+  static String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '-';
+    try {
+      return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(dateStr));
+    } catch (e) {
+      return dateStr;
     }
+  }
+
+  static Future<void> exportTransactionsToCSV(BuildContext context, int filterMode) async {
+    if (context.mounted) CustomNotification.show(context, 'Membuka menu penyimpanan...', isWarning: true);
 
     try {
-      final rawData = await _fetchDataFromSupabase();
+      final rawData = await _fetchDataFromSupabase(filterMode);
+      if (rawData.isEmpty) {
+        if (context.mounted) CustomNotification.show(context, 'Tidak ada data di periode ini', isError: true);
+        return;
+      }
 
       List<List<dynamic>> rows = [
         ["Tanggal", "Kategori", "Tipe", "Nominal", "Catatan"],
@@ -89,60 +59,59 @@ class ExportService {
 
       for (var item in rawData) {
         String tipeTransaksi = (item['is_expense'] == true) ? 'Pengeluaran' : 'Pemasukan';
+        int amount = item['amount'] as int? ?? 0;
+
         rows.add([
-          item['transaction_date'] ?? '-',
+          _formatDate(item['transaction_date']),
           item['category'] ?? '-',
           tipeTransaksi,
-          item['amount'] ?? 0,
+          _formatCurrency(amount), // <--- SEKARANG RAPI: Rp 50.000
           item['note'] ?? '-',
         ]);
       }
 
       String csvData = const ListToCsvConverter().convert(rows);
-
-      // 1. Simpan sementara di Cache aplikasi
       final Directory tempDir = await getTemporaryDirectory();
       final String fileName = "Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.csv";
       final String tempPath = "${tempDir.path}/$fileName";
       final File tempFile = File(tempPath);
       await tempFile.writeAsString(csvData);
 
-      // 2. Munculkan dialog "Save As" bawaan HP
       final params = SaveFileDialogParams(sourceFilePath: tempFile.path, fileName: fileName);
       final finalPath = await FlutterFileDialog.saveFile(params: params);
 
-      // 3. Tampilkan notifikasi jika sukses
       if (finalPath != null && context.mounted) {
-        _showTopNotification(context, '✅ File CSV berhasil disimpan!');
+        CustomNotification.show(context, 'File CSV berhasil disimpan!');
       }
-
     } catch (e) {
-      if (context.mounted) {
-        _showTopNotification(context, 'Gagal CSV: $e', isError: true);
-      }
+      if (context.mounted) CustomNotification.show(context, 'Gagal memproses CSV: $e', isError: true);
     }
   }
 
-  static Future<void> exportTransactionsToPDF(BuildContext context) async {
-    if (context.mounted) {
-      _showTopNotification(context, 'Membuka menu penyimpanan...', isInfo: true);
-    }
+  static Future<void> exportTransactionsToPDF(BuildContext context, int filterMode) async {
+    if (context.mounted) CustomNotification.show(context, 'Membuka menu penyimpanan...', isWarning: true);
 
     try {
-      final rawData = await _fetchDataFromSupabase();
-      final pdf = pw.Document();
+      final rawData = await _fetchDataFromSupabase(filterMode);
+      if (rawData.isEmpty) {
+        if (context.mounted) CustomNotification.show(context, 'Tidak ada data di periode ini', isError: true);
+        return;
+      }
 
+      final pdf = pw.Document();
       final List<List<String>> tableData = [
         ['Tanggal', 'Kategori', 'Tipe', 'Nominal', 'Catatan'],
       ];
 
       for (var item in rawData) {
         String tipeTransaksi = (item['is_expense'] == true) ? 'Pengeluaran' : 'Pemasukan';
+        int amount = item['amount'] as int? ?? 0;
+
         tableData.add([
-          item['transaction_date']?.toString() ?? '-',
+          _formatDate(item['transaction_date']?.toString()),
           item['category']?.toString() ?? '-',
           tipeTransaksi,
-          'Rp ${item['amount']?.toString() ?? '0'}',
+          _formatCurrency(amount), // <--- SEKARANG RAPI: Rp 50.000
           item['note']?.toString() ?? '-',
         ]);
       }
@@ -154,7 +123,7 @@ class ExportService {
             return [
               pw.Text('Laporan Transaksi Spendly', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 10),
-              pw.Text('Dicetak pada: ${DateTime.now().toString().split(' ')[0]}'),
+              pw.Text('Dicetak pada: ${DateFormat('dd MMMM yyyy', 'id').format(DateTime.now())}'),
               pw.Text('Total Transaksi: ${rawData.length}'),
               pw.SizedBox(height: 20),
               pw.TableHelper.fromTextArray(
@@ -169,26 +138,20 @@ class ExportService {
         ),
       );
 
-      // 1. Simpan sementara di Cache aplikasi
       final Directory tempDir = await getTemporaryDirectory();
       final String fileName = "Spendly_Report_${DateTime.now().millisecondsSinceEpoch}.pdf";
       final String tempPath = "${tempDir.path}/$fileName";
       final File tempFile = File(tempPath);
       await tempFile.writeAsBytes(await pdf.save());
 
-      // 2. Munculkan dialog "Save As" bawaan HP
       final params = SaveFileDialogParams(sourceFilePath: tempFile.path, fileName: fileName);
       final finalPath = await FlutterFileDialog.saveFile(params: params);
 
-      // 3. Tampilkan notifikasi jika sukses
       if (finalPath != null && context.mounted) {
-        _showTopNotification(context, '✅ File PDF berhasil disimpan!');
+        CustomNotification.show(context, 'File PDF berhasil disimpan!');
       }
-
     } catch (e) {
-      if (context.mounted) {
-        _showTopNotification(context, 'Gagal PDF: $e', isError: true);
-      }
+      if (context.mounted) CustomNotification.show(context, 'Gagal memproses PDF: $e', isError: true);
     }
   }
 }

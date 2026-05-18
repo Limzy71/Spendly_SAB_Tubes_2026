@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'add_budget_screen.dart';
 import 'edit_budget_screen.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/category_helper.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({Key? key}) : super(key: key);
@@ -21,6 +24,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   int _totalBudgetLimit = 0;
   int _totalBudgetSpent = 0;
   List<Map<String, dynamic>> _budgets = [];
+  Map<String, String> _customIcons = {};
 
   @override
   void initState() {
@@ -34,6 +38,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+      Map<String, String> tempIcons = {};
+      for (String cat in customCats) {
+        tempIcons[cat.toLowerCase()] = prefs.getString('custom_budget_icon_$cat') ?? 'star';
+      }
 
       final DateTime now = DateTime.now();
       final String currentPeriodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
@@ -56,24 +67,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       int tempTotalLimit = 0;
       int tempTotalSpent = 0;
-
-      final allTransactions = await supabase.from('transactions').select().eq('user_id', userId);
-
-      int totalIncome = 0;
-      int totalExpense = 0;
-
-      for (var tx in allTransactions) {
-        int amount = tx['amount'] as int;
-        bool isExpense = tx['is_expense'] as bool;
-
-        if (isExpense) {
-          totalExpense += amount;
-        } else {
-          totalIncome += amount;
-        }
-      }
-
-      int currentTotalBalance = totalIncome - totalExpense;
 
       Map<String, Map<String, dynamic>> accumulatedBudgets = {};
 
@@ -120,9 +113,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       if (mounted) {
         setState(() {
-          // PERBAIKAN 1: Gunakan tempTotalLimit, bukan currentTotalBalance
+          _customIcons = tempIcons;
           _totalBudgetLimit = tempTotalLimit;
-
           _totalBudgetSpent = tempTotalSpent;
           _budgets = processedBudgets;
           _isLoading = false;
@@ -131,57 +123,14 @@ class _BudgetScreenState extends State<BudgetScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal mengambil data anggaran: $e')));
+        CustomNotification.show(context, 'Gagal mengambil data anggaran: $e', isError: true);
       }
     }
-  }
-
-  String _formatCurrency(int amount) {
-    if (amount >= 1000000) {
-      return 'Rp ${(amount / 1000000).toStringAsFixed(1).replaceAll('.0', '')}Jt';
-    } else if (amount >= 1000) {
-      return 'Rp ${(amount / 1000).toInt()}k';
-    }
-    return NumberFormat.currency(
-        locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
   String _formatFullCurrency(int amount) {
     return NumberFormat.currency(
         locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
-  }
-
-  dynamic _getIconForCategory(String category) {
-    String cat = category.toLowerCase();
-
-    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum')) {
-      return FontAwesomeIcons.utensils;
-    } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir')) {
-      return FontAwesomeIcons.car;
-    } else if (cat.contains('belanja') || cat.contains('shop') || cat.contains('kebutuhan')) {
-      return FontAwesomeIcons.bagShopping;
-    } else if (cat.contains('hiburan') || cat.contains('nonton') || cat.contains('game') || cat.contains('main')) {
-      return FontAwesomeIcons.film;
-    }
-
-    return FontAwesomeIcons.boxArchive;
-  }
-
-  Color _getColorForCategory(String category) {
-    String cat = category.toLowerCase();
-
-    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum')) {
-      return Colors.redAccent;
-    } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir')) {
-      return AppColors.primaryGreen;
-    } else if (cat.contains('belanja') || cat.contains('shop') || cat.contains('kebutuhan')) {
-      return Colors.purple;
-    } else if (cat.contains('hiburan') || cat.contains('nonton') || cat.contains('game') || cat.contains('main')) {
-      return Colors.blue;
-    }
-
-    return Colors.orange;
   }
 
   @override
@@ -351,8 +300,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     cardColor,
                     textColor,
                     isDark,
-                    _getIconForCategory(budget['category']),
-                    _getColorForCategory(budget['category']),
+                    // SEKARANG DRY: Memanggil pencocokan warna & ikon pintar pusat
+                    CategoryHelper.getIcon(budget['category'], customIcons: _customIcons),
+                    CategoryHelper.getColor(budget['category'], customIcons: _customIcons),
                     budget['category'],
                     _formatFullCurrency(budget['spent']),
                     _formatFullCurrency(budget['limit']),
@@ -399,7 +349,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final bool isWarning = percentage >= 0.80;
     final Color progressColor = isWarning ? Colors.red : AppColors.primaryGreen;
 
-    // Menghitung nominal kelebihan (overbudget)
     final bool isOverbudget = percentage > 1.0;
     final int excessAmount = isOverbudget ? ((percentage - 1.0) * rawLimit).round() : 0;
 
@@ -474,16 +423,11 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 minHeight: 8,
               ),
             ),
-
-            // ===================================================================
-            // REVISI 3: PERSENTASE DI KIRI, OVERBUDGET DI KANAN
-            // ===================================================================
             if (isOverbudget) ...[
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Teks persentase di sebelah kiri
                   Text(
                       '${(percentage * 100).toInt()}% Terpakai',
                       style: const TextStyle(
@@ -492,18 +436,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           fontWeight: FontWeight.bold
                       )
                   ),
-                  // Teks nominal overbudget di sebelah kanan
                   Text(
                       'Overbudget ${_formatFullCurrency(excessAmount)}',
                       style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 12,
+                        color: Colors.red,
+                        fontSize: 12,
                       )
                   ),
                 ],
               ),
             ]
-            // ===================================================================
           ],
         ),
       ),

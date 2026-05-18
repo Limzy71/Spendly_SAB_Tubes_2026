@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/category_helper.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   const AddBudgetScreen({Key? key}) : super(key: key);
@@ -19,16 +22,161 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   bool _isLoading = false;
   final TextEditingController _limitController = TextEditingController(text: "2.000.000");
 
-  final List<Map<String, dynamic>> categories = [
+  List<Map<String, dynamic>> categories = [
     {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.orange},
     {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': Colors.green},
     {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': Colors.blue},
     {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple},
+    {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomCategories();
+  }
+
+  Future<void> _loadCustomCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+
+    setState(() {
+      for (String catName in customCats) {
+        if (!categories.any((c) => c['name'] == catName)) {
+          String iconId = prefs.getString('custom_budget_icon_$catName') ?? 'star';
+          categories.insert(categories.length - 1, {
+            'name': catName,
+            // SEKARANG DRY: Memanggil kamus penerjemah ikon dari pusat
+            'icon': CategoryHelper.getCustomIconById(iconId),
+            'color': AppColors.primaryGreen,
+          });
+        }
+      }
+    });
+  }
+
+  void _showAddCategoryDialog() {
+    TextEditingController catController = TextEditingController();
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final List<Map<String, dynamic>> availableIcons = [
+      {'id': 'star', 'icon': FontAwesomeIcons.star},
+      {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
+      {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+      {'id': 'house', 'icon': FontAwesomeIcons.house},
+      {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
+      {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
+      {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+      {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
+      {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+      {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
+      {'id': 'film', 'icon': FontAwesomeIcons.film},
+      {'id': 'train', 'icon': FontAwesomeIcons.train},
+      {'id': 'building', 'icon': FontAwesomeIcons.building},
+      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
+      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
+    ];
+
+    String tempIconId = availableIcons[0]['id'];
+    dynamic tempIcon = availableIcons[0]['icon'];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return AlertDialog(
+                backgroundColor: Theme.of(context).cardColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: Text('Kategori Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: catController,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                        decoration: const InputDecoration(
+                          hintText: 'Contoh: Edukasi',
+                          hintStyle: TextStyle(color: Colors.grey),
+                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: availableIcons.map((item) {
+                          bool isSelected = tempIconId == item['id'];
+                          return GestureDetector(
+                            onTap: () => setStateDialog(() {
+                              tempIconId = item['id'];
+                              tempIcon = item['icon'];
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.2) : Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                              ),
+                              child: FaIcon(item['icon'], color: isSelected ? AppColors.primaryGreen : Colors.grey, size: 20),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+                    ),
+                    onPressed: () async {
+                      if (catController.text.trim().isNotEmpty) {
+                        String newCatName = catController.text.trim();
+
+                        final prefs = await SharedPreferences.getInstance();
+                        List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+
+                        if (!customCats.contains(newCatName)) {
+                          customCats.add(newCatName);
+                          await prefs.setStringList('custom_budget_categories', customCats);
+                          await prefs.setString('custom_budget_icon_$newCatName', tempIconId);
+                        }
+
+                        setState(() {
+                          if (!categories.any((c) => c['name'] == newCatName)) {
+                            categories.insert(categories.length - 1, {
+                              'name': newCatName,
+                              'icon': tempIcon,
+                              'color': AppColors.primaryGreen,
+                            });
+                          }
+                          selectedCategory = newCatName;
+                        });
+                        Navigator.pop(ctx);
+                      }
+                    },
+                    child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              );
+            }
+        );
+      },
+    );
+  }
 
   Future<void> _saveBudget() async {
     if (selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Silakan pilih kategori terlebih dahulu')));
+      CustomNotification.show(context, 'Silakan pilih kategori terlebih dahulu', isWarning: true);
       return;
     }
 
@@ -54,7 +202,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final Map<String, dynamic>? existingBudget =
       existingBudgets.isEmpty ? null : existingBudgets.first;
 
+      bool isNewBudget = true;
+
       if (existingBudget != null) {
+        isNewBudget = false;
         final int oldLimit = existingBudget['limit_amount'] as int;
         final int finalLimit = oldLimit + limitAmount;
 
@@ -74,11 +225,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anggaran berhasil diperbarui!')));
+        String msg = isNewBudget
+            ? 'Anggaran baru berhasil dibuat!'
+            : 'Batas anggaran berhasil ditambahkan!';
+        CustomNotification.show(context, msg);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));
+        CustomNotification.show(context, 'Gagal menyimpan: $e', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -160,8 +314,16 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               child: Column(
                 children: categories.map((cat) {
                   bool isSelected = selectedCategory == cat['name'];
+                  bool isNew = cat['name'] == 'Baru';
+
                   return ListTile(
-                    onTap: () => setState(() => selectedCategory = cat['name']),
+                    onTap: () {
+                      if (isNew) {
+                        _showAddCategoryDialog();
+                      } else {
+                        setState(() => selectedCategory = cat['name']);
+                      }
+                    },
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -171,9 +333,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       child: FaIcon(cat['icon'], color: cat['color'] == Colors.green ? AppColors.primaryGreen : cat['color'], size: 20),
                     ),
                     title: Text(cat['name'], style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
-                    trailing: isSelected
+                    trailing: isNew
+                        ? const Icon(Icons.chevron_right, color: Colors.grey)
+                        : (isSelected
                         ? const FaIcon(FontAwesomeIcons.circleCheck, color: AppColors.primaryGreen)
-                        : const FaIcon(FontAwesomeIcons.circle, color: Colors.grey),
+                        : const FaIcon(FontAwesomeIcons.circle, color: Colors.grey)),
                   );
                 }).toList(),
               ),

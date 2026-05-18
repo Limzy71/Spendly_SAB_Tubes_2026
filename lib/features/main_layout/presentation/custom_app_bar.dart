@@ -1,30 +1,58 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // <-- Tambahkan import Supabase
-import 'package:shared_preferences/shared_preferences.dart'; // <-- Tambahkan import SharedPreferences
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
+import '../../profile/presentation/notification_screen.dart';
 
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const CustomAppBar({super.key});
+class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
+  final VoidCallback? onProfileTap;
 
-  // Fungsi pembantu untuk mengambil data path/url foto profil terbaru
-  Future<String?> _getProfileImage() async {
-    // 1. Coba cek dari metadata Supabase terlebih dahulu
+  const CustomAppBar({super.key, this.onProfileTap});
+
+  @override
+  State<CustomAppBar> createState() => _CustomAppBarState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+class _CustomAppBarState extends State<CustomAppBar> {
+  String? _profileImagePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
     final user = Supabase.instance.client.auth.currentUser;
     final String? supabaseAvatarUrl = user?.userMetadata?['avatar_url'];
+
     if (supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty) {
-      return supabaseAvatarUrl;
+      if (mounted) setState(() => _profileImagePath = supabaseAvatarUrl);
+      return;
     }
 
-    // 2. Jika di Supabase belum ada (offline/gagal load), ambil dari lokal cache HP
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('profile_image_path');
+    final localPath = prefs.getString('profile_image_path');
+    if (mounted) setState(() => _profileImagePath = localPath);
   }
 
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    ImageProvider? imageProvider;
+    if (_profileImagePath != null && _profileImagePath!.isNotEmpty) {
+      if (_profileImagePath!.startsWith('http://') || _profileImagePath!.startsWith('https://')) {
+        imageProvider = NetworkImage(_profileImagePath!);
+      } else {
+        imageProvider = FileImage(File(_profileImagePath!));
+      }
+    }
 
     return AppBar(
       backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
@@ -32,33 +60,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       leadingWidth: 64,
       leading: Padding(
         padding: const EdgeInsets.only(left: 20.0, right: 10.0),
-        child: FutureBuilder<String?>(
-          future: _getProfileImage(),
-          builder: (context, snapshot) {
-            final imagePath = snapshot.data;
-
-            // Variabel penampung provider gambar
-            ImageProvider? imageProvider;
-
-            if (imagePath != null && imagePath.isNotEmpty) {
-              if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-                // Jika dari database berupa link URL internet
-                imageProvider = NetworkImage(imagePath);
-              } else {
-                // Jika dari local cache berupa path file HP
-                imageProvider = FileImage(File(imagePath));
-              }
-            }
-
-            return CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: imageProvider,
-              child: imageProvider == null
-                  ? const Icon(Icons.person, size: 20, color: Colors.white)
-                  : null,
-            );
-          },
+        child: GestureDetector(
+          onTap: widget.onProfileTap,
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: Colors.grey.shade300,
+            backgroundImage: imageProvider,
+            child: imageProvider == null
+                ? const Icon(Icons.person, size: 20, color: Colors.white)
+                : null,
+          ),
         ),
       ),
       title: const Text(
@@ -77,12 +88,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             size: 20,
             color: isDark ? Colors.white : Colors.black87,
           ),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NotificationScreen()),
+            );
+          },
         ),
       ],
     );
   }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

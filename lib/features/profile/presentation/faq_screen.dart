@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:url_launcher/url_launcher.dart'; // <-- Package untuk membuka aplikasi lain
-import '../../../theme/app_colors.dart'; // Sesuaikan path ini dengan lokasimu
+import 'package:url_launcher/url_launcher.dart';
+import '../../../theme/app_colors.dart';
+import '../../../../widgets/custom_notification.dart';
 
 class FaqScreen extends StatelessWidget {
   const FaqScreen({super.key});
@@ -11,7 +12,6 @@ class FaqScreen extends StatelessWidget {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
-    // Daftar Pertanyaan dan Jawaban resmi sesuai Perancangan Aplikasi Spendly
     final List<Map<String, String>> faqs = [
       {
         'question': 'Bagaimana cara cepat mencatat transaksi?',
@@ -40,6 +40,18 @@ class FaqScreen extends StatelessWidget {
       {
         'question': 'Bisakah saya mencetak laporan keuangan saya?',
         'answer': 'Tentu. Anda dapat menggunakan menu "Ekspor Data" di halaman Profil untuk mengunduh riwayat laporan keuangan Anda ke dalam format Excel (.csv) atau PDF, lalu menyimpannya di folder perangkat Anda.'
+      },
+      {
+        'question': 'Bagaimana cara mengubah atau menghapus transaksi yang salah?',
+        'answer': 'Cukup ketuk (tap) riwayat transaksi yang ingin diubah pada halaman Beranda atau Semua Transaksi. Anda akan masuk ke halaman Edit untuk menyesuaikan data, atau menekan ikon tempat sampah (Tongsampah) di pojok kanan atas untuk menghapusnya.'
+      },
+      {
+        'question': 'Bisakah saya membuat kategori transaksi dan dompet sendiri?',
+        'answer': 'Tentu! Anda bisa menekan tombol "Baru" dengan ikon Plus (+) saat memilih kategori atau dompet. Untuk menghapus kategori yang sudah Anda buat, cukup tekan dan tahan (Long Press) pada ikon kategori tersebut.'
+      },
+      {
+        'question': 'Apakah Spendly mendukung Mode Gelap (Dark Mode)?',
+        'answer': 'Ya! Anda dapat dengan mudah mengubah tampilan aplikasi menjadi Gelap (Dark) atau Terang (Light) melalui menu "Tema Aplikasi" yang berada di halaman Profil Anda.'
       },
     ];
 
@@ -100,7 +112,6 @@ class FaqScreen extends StatelessWidget {
             ),
           ),
 
-          // Bagian Bawah: Info Kontak Developer
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -121,32 +132,31 @@ class FaqScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // --- TOMBOL HUBUNGI KAMI YANG SUDAH BERFUNGSI ---
                 ElevatedButton.icon(
                   onPressed: () async {
-                    // 1. Tentukan alamat email tujuan
-                    const String emailTujuan = 'email.spendly@gmail.com'; // GANTI DENGAN EMAIL KAMU
+                    const String emailTujuan = 'email.spendly@gmail.com';
                     const String subjek = 'Bantuan Aplikasi Spendly';
 
-                    // 2. Format URL khusus untuk membuka email (mailto:)
                     final Uri emailUri = Uri.parse('mailto:$emailTujuan?subject=${Uri.encodeComponent(subjek)}');
 
-                    // 3. Coba buka aplikasi email
                     try {
                       if (await canLaunchUrl(emailUri)) {
                         await launchUrl(emailUri);
                       } else {
-                        // Jika di HP tidak ada aplikasi email sama sekali
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Tidak dapat menemukan aplikasi Email di perangkat ini.'), backgroundColor: Colors.orange)
+                          CustomNotification.show(
+                            context,
+                            'Tidak dapat menemukan aplikasi Email di perangkat ini.',
+                            isWarning: true,
                           );
                         }
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Terjadi kesalahan saat membuka aplikasi Email.'), backgroundColor: Colors.red)
+                        CustomNotification.show(
+                          context,
+                          'Terjadi kesalahan saat membuka aplikasi Email.',
+                          isError: true,
                         );
                       }
                     }

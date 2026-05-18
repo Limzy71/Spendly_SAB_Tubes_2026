@@ -44,7 +44,6 @@ class AboutScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 20),
-            // Logo Aplikasi
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -59,15 +58,13 @@ class AboutScreen extends StatelessWidget {
             Text('Versi 1.0.0', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
             const SizedBox(height: 30),
 
-            // Deskripsi Singkat
             Text(
-              'Spendly adalah aplikasi pencatatan keuangan cerdas yang membantu Anda mengelola pemasukan, pengeluaran, dan anggaran dengan mudah dan aman.',
+              'Spendly adalah aplikasi pencatatan keuangan cerdas yang membantu Anda mengelola pemasukan, pengeluaran, and anggaran dengan mudah dan aman.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, height: 1.5),
             ),
             const SizedBox(height: 40),
 
-            // Info Tim Pengembang (Tubes Kelompok 7)
             Align(
               alignment: Alignment.centerLeft,
               child: Text('TIM PENGEMBANG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2)),
@@ -84,7 +81,6 @@ class AboutScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    // ANGGOTA 1 (Kamu)
                     const Row(
                       children: [
                         FaIcon(FontAwesomeIcons.userGear, size: 18, color: AppColors.primaryGreen),
@@ -102,7 +98,6 @@ class AboutScreen extends StatelessWidget {
                     ),
                     const Divider(height: 24),
 
-                    // ANGGOTA 2
                     Row(
                       children: [
                         FaIcon(FontAwesomeIcons.laptopCode, size: 18, color: AppColors.primaryGreen),
@@ -120,7 +115,6 @@ class AboutScreen extends StatelessWidget {
                     ),
                     const Divider(height: 24),
 
-                    // ANGGOTA 3
                     const Row(
                       children: [
                         FaIcon(FontAwesomeIcons.userPen, size: 18, color: AppColors.primaryGreen),
@@ -138,7 +132,6 @@ class AboutScreen extends StatelessWidget {
                     ),
                     const Divider(height: 24),
 
-                    // IDENTITAS KELOMPOK (Pindah ke bawah agar jadi kesimpulan tim)
                     Row(
                       children: [
                         FaIcon(FontAwesomeIcons.graduationCap, size: 18, color: Colors.blue.shade400),
@@ -160,7 +153,6 @@ class AboutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // Info Legal
             Align(
               alignment: Alignment.centerLeft,
               child: Text('LEGAL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2)),

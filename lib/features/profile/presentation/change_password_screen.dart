@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <-- IMPORT MEMORI LOKAL
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
+import '../../../../widgets/custom_notification.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -11,77 +12,63 @@ class ChangePasswordScreen extends StatefulWidget {
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
-  // GlobalKey ini ibarat "Remote Control" untuk memvalidasi form serentak
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _oldPinController = TextEditingController();
   final TextEditingController _newPinController = TextEditingController();
   final TextEditingController _confirmPinController = TextEditingController();
 
-  // Status sensor mata (untuk menyembunyikan/menampilkan angka)
   bool _obscureOld = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
-  String? _savedPin; // Menyimpan PIN asli yang ditarik dari memori HP
-  bool _isFirstTimeSetup = false; // Penanda apakah user baru pertama kali bikin PIN
+  String? _savedPin;
+  bool _isFirstTimeSetup = false;
 
   @override
   void initState() {
     super.initState();
-    // Langsung cek memori HP saat halaman ini dibuka
     _loadExistingPin();
   }
 
-  // --- FUNGSI MENGAMBIL PIN LAMA ---
   Future<void> _loadExistingPin() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // Tarik PIN yang tersimpan
       _savedPin = prefs.getString('user_pin');
-      // Jika _savedPin bernilai null (kosong), berarti user belum pernah bikin PIN
       _isFirstTimeSetup = _savedPin == null;
     });
   }
 
-  // --- FUNGSI MENYIMPAN PIN BARU ---
   Future<void> _processChangePin() async {
-    // Jalankan validator yang ada di setiap TextFormField
     if (_formKey.currentState!.validate()) {
 
-      // Jika ini bukan pertama kali (user mau ganti PIN),
-      // Kita harus memastikan PIN LAMA yang dia ketik itu COCOK dengan PIN di memori HP!
       if (!_isFirstTimeSetup && _oldPinController.text != _savedPin) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN Lama yang Anda masukkan salah!'), backgroundColor: Colors.red),
-        );
-        return; // Hentikan proses, jangan simpan!
+        CustomNotification.show(context, 'PIN Lama yang Anda masukkan salah!', isError: true);
+        return;
       }
 
-      // Jika validasi sukses, buka memori HP
+      if (!_isFirstTimeSetup && _newPinController.text == _oldPinController.text) {
+        CustomNotification.show(context, 'PIN Baru tidak boleh sama dengan PIN Lama!', isWarning: true);
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      // Simpan PIN baru ke brankas memori
       await prefs.setString('user_pin', _newPinController.text);
-      // Otomatis aktifkan sakelar keamanan PIN
       await prefs.setBool('is_pin_enabled', true);
 
       if (mounted) {
-        // Berikan notifikasi sukses sesuai kondisi
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(_isFirstTimeSetup ? 'PIN berhasil dibuat!' : 'PIN berhasil diperbarui!'),
-              backgroundColor: AppColors.primaryGreen
-          ),
-        );
-        // Keluar dari halaman (kembali ke profil)
         Navigator.pop(context);
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            CustomNotification.show(context, _isFirstTimeSetup ? 'PIN berhasil dibuat!' : 'PIN berhasil diperbarui!');
+          }
+        });
       }
     }
   }
 
   @override
   void dispose() {
-    // Wajib menghapus controller agar tidak terjadi memory leak (HP lemot)
     _oldPinController.dispose();
     _newPinController.dispose();
     _confirmPinController.dispose();
@@ -95,7 +82,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        // Judul berubah dinamis: "Buat" atau "Ubah"
         title: Text(
           _isFirstTimeSetup ? 'Buat PIN Keamanan' : 'Ubah PIN Keamanan',
           style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold),
@@ -110,7 +96,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
-          key: _formKey, // Pasang remote control form di sini
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -120,8 +106,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: 24),
 
-              // LOGIKA UI: Sembunyikan field "PIN Lama" jika ini pertama kalinya buat PIN.
-              // Logikanya: Masa baru mau bikin PIN, disuruh masukin PIN lama? Kan gak masuk akal!
               if (!_isFirstTimeSetup) ...[
                 _buildFormLabel('PIN Lama', textColor),
                 _buildPinField(
@@ -144,7 +128,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 obscureText: _obscureNew,
                 onToggleVisibility: () => setState(() => _obscureNew = !_obscureNew),
                 validator: (value) {
-                  // Cek agar tidak boleh kosong dan harus genap 6 digit
                   if (value == null || value.isEmpty) return 'PIN baru wajib diisi';
                   if (value.length != 6) return 'PIN wajib 6 digit angka';
                   return null;
@@ -160,7 +143,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 onToggleVisibility: () => setState(() => _obscureConfirm = !_obscureConfirm),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Konfirmasi PIN wajib diisi';
-                  // Cek apakah PIN ketikan kedua ini cocok dengan ketikan pertama
                   if (value != _newPinController.text) return 'Konfirmasi PIN tidak cocok';
                   return null;
                 },
@@ -190,7 +172,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  // Widget pemanis untuk tulisan judul form di atas kolom input
   Widget _buildFormLabel(String label, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
@@ -198,8 +179,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  // Widget cetakan (template) untuk menggambar kotak input PIN
-  // Kita buat function ini agar tidak perlu menulis kode yang sama 3x
   Widget _buildPinField({
     required TextEditingController controller,
     required String hint,
@@ -209,13 +188,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }) {
     return TextFormField(
       controller: controller,
-      obscureText: obscureText, // Menentukan apakah teks disensor (titik-titik)
-      validator: validator, // Memasukkan aturan validasi
-      keyboardType: TextInputType.number, // Paksa keyboard yang muncul adalah numpad HP
-      maxLength: 6, // Maksimal 6 karakter
+      obscureText: obscureText,
+      validator: validator,
+      keyboardType: TextInputType.number,
+      maxLength: 6,
       style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, letterSpacing: 8, fontWeight: FontWeight.bold),
       decoration: InputDecoration(
-        counterText: "", // Menyembunyikan tulisan "0/6" di pojok kanan bawah
+        counterText: "",
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, letterSpacing: 0, fontWeight: FontWeight.normal),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -224,7 +203,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
         errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent, width: 2)),
-        // Tombol mata untuk melihat/menyembunyikan sandi
         suffixIcon: IconButton(icon: FaIcon(obscureText ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye, color: Colors.grey, size: 18), onPressed: onToggleVisibility),
       ),
     );
