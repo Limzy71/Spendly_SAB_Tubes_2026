@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../theme/app_colors.dart';
+import '../../../../widgets/custom_notification.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -41,26 +42,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         data: {'full_name': _nameController.text.trim()},
+        emailRedirectTo: 'io.supabase.spendly://login-callback',
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pendaftaran berhasil! Silakan masuk.'), backgroundColor: AppColors.primaryGreen),
-        );
+        CustomNotification.show(context, 'Pendaftaran berhasil! Silakan cek email Anda untuk verifikasi.');
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
       }
     } on AuthException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) CustomNotification.show(context, error.message, isError: true);
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Terjadi kesalahan tidak terduga'), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) CustomNotification.show(context, 'Terjadi kesalahan tidak terduga: $error', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -97,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Text('Kelola keuanganmu lebih rapi', style: TextStyle(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 40),
 
-                  _buildTextField(controller: _nameController, hintText: 'Nama Lengkap', icon: Icons.person_outline, isDark: isDark),
+                  _buildTextField(controller: _nameController, hintText: 'Nama Lengkap', icon: Icons.person_outline, isDark: isDark, textCapitalization: TextCapitalization.words), // <--- TAMBAH KAPITALISASI AUTO
                   const SizedBox(height: 16),
 
                   _buildTextField(
@@ -164,10 +156,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required TextEditingController controller, required String hintText, required IconData icon,
     bool isPassword = false, bool isVisible = false, VoidCallback? onVisibilityToggle,
     TextInputType keyboardType = TextInputType.text, required bool isDark, bool isConfirm = false,
-    List<TextInputFormatter>? inputFormatters,
+    List<TextInputFormatter>? inputFormatters, TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     return TextFormField(
       controller: controller, obscureText: isPassword && !isVisible, keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
       inputFormatters: inputFormatters,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       validator: (value) {
