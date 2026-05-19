@@ -19,6 +19,9 @@ import '../../main_layout/presentation/main_navigation.dart';
 import '../../../../main.dart';
 import '../../../../widgets/custom_notification.dart';
 
+// IMPORT HALAMAN LOGIN UNTUK REDIRECT SETELAH LOGOUT
+import '../../auth/presentation/login_screen.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -217,6 +220,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () async {
                 Navigator.pop(context);
                 await Supabase.instance.client.auth.signOut();
+
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text("Keluar", style: TextStyle(color: Colors.white)),
@@ -233,8 +244,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Hapus Seluruh Data?", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-          content: const Text("Tindakan ini tidak dapat dibatalkan. Semua catatan transaksi dan dompet Anda di database akan terhapus permanen."),
+          title: const Text("Reset Riwayat Transaksi", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          content: const Text("Tindakan ini akan menghapus semua riwayat transaksi Anda. Nama, foto profil, dan dompet akan tetap tersimpan. Lanjutkan?"),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -242,26 +253,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
-                CustomNotification.show(context, 'Sedang menghapus seluruh data...', isWarning: true);
+                Navigator.pop(context); // Tutup dialog
+                CustomNotification.show(context, 'Sedang menghapus riwayat transaksi...', isWarning: true);
 
                 try {
                   final userId = Supabase.instance.client.auth.currentUser?.id;
                   if (userId != null) {
+                    // Cukup hapus tabel transactions saja
                     await Supabase.instance.client.from('transactions').delete().eq('user_id', userId);
-                    await Supabase.instance.client.from('wallets').delete().eq('user_id', userId);
 
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.remove('profile_image_path');
-
-                    await Supabase.instance.client.auth.signOut();
+                    if (mounted) {
+                      CustomNotification.show(context, 'Data transaksi berhasil direset!');
+                      // Kembali ke halaman home/dashboard agar data ter-refresh
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MainNavigation()),
+                            (route) => false,
+                      );
+                    }
                   }
                 } catch (e) {
-                  if (mounted) CustomNotification.show(context, 'Gagal menghapus data: $e', isError: true);
+                  if (mounted) CustomNotification.show(context, 'Gagal mereset data: $e', isError: true);
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text("Hapus Permanen", style: TextStyle(color: Colors.white)),
+              child: const Text("Reset Sekarang", style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -462,6 +478,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       setState(() => _isBillReminderEnabled = newValue);
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setBool('bill_reminder_enabled', newValue);
+
+                      if (newValue) {
+                        CustomNotification.show(context, 'Pengingat tagihan diaktifkan');
+                      } else {
+                        CustomNotification.show(context, 'Pengingat tagihan dimatikan', isWarning: true);
+                      }
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

@@ -108,7 +108,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) return; // Akan dilompati langsung ke finally jika null
 
       final txResponse = await supabase
           .from('transactions')
@@ -152,7 +152,7 @@ class _ReportScreenState extends State<ReportScreen> {
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
           if (txDate.year == startDate.year) {
-            int amount = tx['amount'] as int;
+            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
             if (tx['is_expense'] == true) tempChartExpense[txDate.month - 1] += amount;
             else tempChartIncome[txDate.month - 1] += amount;
           }
@@ -169,7 +169,7 @@ class _ReportScreenState extends State<ReportScreen> {
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
           if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-            int amount = tx['amount'] as int;
+            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
             int dayIdx = -1;
             for (int i = 0; i < 7; i++) {
               if (txDate.year == last7Days[i].year && txDate.month == last7Days[i].month && txDate.day == last7Days[i].day) {
@@ -206,7 +206,7 @@ class _ReportScreenState extends State<ReportScreen> {
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
           if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-            int amount = tx['amount'] as int;
+            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
             int diffDays = txDate.difference(startDate).inDays;
             int segIdx = diffDays ~/ 7;
             if (segIdx >= segments) segIdx = segments - 1;
@@ -226,8 +226,8 @@ class _ReportScreenState extends State<ReportScreen> {
       for (var tx in txResponse) {
         DateTime txDate = DateTime.parse(tx['transaction_date']);
         if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-          int amount = tx['amount'] as int;
-          bool isExpense = tx['is_expense'] as bool;
+          int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+          bool isExpense = tx['is_expense'] == true;
           String category = tx['category']?.toString() ?? 'Lainnya';
 
           if (isExpense) {
@@ -244,7 +244,7 @@ class _ReportScreenState extends State<ReportScreen> {
       }
 
       List<Map<String, dynamic>> sortedTxResponse = List<Map<String, dynamic>>.from(txResponse)
-        ..sort((a, b) => (b['amount'] as int).compareTo(a['amount'] as int));
+        ..sort((a, b) => (int.tryParse(b['amount'].toString()) ?? 0).compareTo(int.tryParse(a['amount'].toString()) ?? 0));
 
       for (var tx in sortedTxResponse) {
         DateTime txDate = DateTime.parse(tx['transaction_date']);
@@ -273,14 +273,12 @@ class _ReportScreenState extends State<ReportScreen> {
           _chartLabels = tempChartLabels;
           _categoryPercentages = tempCategoryPercentages;
           _topTransactions = tempTopTx;
-          _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal memuat laporan: $e', isError: true);
-      }
+      if (mounted) CustomNotification.show(context, 'Gagal memuat laporan: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -407,7 +405,6 @@ class _ReportScreenState extends State<ReportScreen> {
                       _buildPieChart(textColor),
                       const SizedBox(height: 24),
                       ..._categoryPercentages.entries.map((entry) {
-                        // SEKARANG DRY: Warna legend mengambil dari Helper Pusat
                         Color color = CategoryHelper.getColor(entry.key);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
@@ -474,8 +471,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: TransactionItem(
                       title: catName,
                       subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
-                      amount: '- ${_formatCurrency(tx['amount'])}',
-                      // SEKARANG DRY & DINAMIS: Mengikuti warna dan ikon kategori aslinya dari pusat helper
+                      amount: '- ${_formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0)}',
                       bgIconColor: CategoryHelper.getColor(catName).withValues(alpha: 0.1),
                       icon: CategoryHelper.getIcon(catName),
                       amountColor: barRed,
@@ -496,7 +492,6 @@ class _ReportScreenState extends State<ReportScreen> {
     _categoryPercentages.forEach((key, value) {
       sections.add(
           PieChartSectionData(
-            // SEKARANG DRY: Warna chart pie mengambil dari Helper Pusat
             color: CategoryHelper.getColor(key),
             value: value,
             title: '',
