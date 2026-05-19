@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+// PERBAIKAN 1: Tambahkan alias "as g_auth" pada import ini
+import 'package:google_sign_in/google_sign_in.dart' as g_auth;
 import '../../../theme/app_colors.dart';
 import 'register_screen.dart';
 
@@ -45,6 +47,43 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Terjadi kesalahan tidak terduga'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // TODO: Masukkan Web Client ID dari Google Cloud Console di sini
+      const webClientId = 'MASUKKAN_WEB_CLIENT_ID_GCP_KAMU_DISINI.apps.googleusercontent.com';
+
+      // PERBAIKAN 2: Gunakan g_auth.GoogleSignIn
+      final g_auth.GoogleSignIn googleSignIn = g_auth.GoogleSignIn(serverClientId: webClientId);
+      final g_auth.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) throw 'Login Google dibatalkan.';
+
+      final g_auth.GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (accessToken == null || idToken == null) {
+        throw 'Token Autentikasi Google tidak ditemukan.';
+      }
+
+      await Supabase.instance.client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal login Google: $error'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -137,20 +176,37 @@ class _LoginScreenState extends State<LoginScreen> {
                           : const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+                  // --- GARIS PEMISAH "ATAU" ---
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Belum punya akun? ', style: TextStyle(color: Colors.grey, fontSize: 14)),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
-                        },
-                        child: const Text('Daftar', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('ATAU', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w500, fontSize: 14)),
                       ),
+                      Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
+
+                  // --- TOMBOL LOGIN GOOGLE ---
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _loginWithGoogle,
+                      icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.black87),
+                      label: Text('Sign in with Google', style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
