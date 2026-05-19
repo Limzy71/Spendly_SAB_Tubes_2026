@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// PERBAIKAN 1: Tambahkan alias "as g_auth" pada import ini
 import 'package:google_sign_in/google_sign_in.dart' as g_auth;
+
+// PATH IMPORT YANG BENAR SESUAI FOLDER PROJECT KAMU
 import '../../../theme/app_colors.dart';
 import 'register_screen.dart';
+import '../../main_layout/presentation/main_navigation.dart';
+import '../../../widgets/custom_notification.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,6 +40,14 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      if (mounted) {
+        CustomNotification.show(context, 'Login berhasil!');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        );
+      }
     } on AuthException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -58,10 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Masukkan Web Client ID dari Google Cloud Console di sini
+      // TODO: Pastikan Web Client ID sudah diisi
       const webClientId = 'MASUKKAN_WEB_CLIENT_ID_GCP_KAMU_DISINI.apps.googleusercontent.com';
 
-      // PERBAIKAN 2: Gunakan g_auth.GoogleSignIn
       final g_auth.GoogleSignIn googleSignIn = g_auth.GoogleSignIn(serverClientId: webClientId);
       final g_auth.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
@@ -80,6 +90,14 @@ class _LoginScreenState extends State<LoginScreen> {
         idToken: idToken,
         accessToken: accessToken,
       );
+
+      if (mounted) {
+        CustomNotification.show(context, 'Login Google berhasil!');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        );
+      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -131,14 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     isDark: isDark,
-                    inputFormatters: [
-                      TextInputFormatter.withFunction((oldValue, newValue) {
-                        return TextEditingValue(
-                          text: newValue.text.toLowerCase(),
-                          selection: newValue.selection,
-                        );
-                      }),
-                    ],
                   ),
                   const SizedBox(height: 16),
 
@@ -177,7 +187,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // --- GARIS PEMISAH "ATAU" ---
                   Row(
                     children: [
                       Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
@@ -190,7 +199,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // --- TOMBOL LOGIN GOOGLE ---
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -225,23 +233,12 @@ class _LoginScreenState extends State<LoginScreen> {
     VoidCallback? onVisibilityToggle,
     TextInputType keyboardType = TextInputType.text,
     required bool isDark,
-    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !isVisible,
       keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-      validator: (value) {
-        if (value == null || value.trim().isEmpty) return '$hintText tidak boleh kosong';
-        if (keyboardType == TextInputType.emailAddress) {
-          final bool emailValid = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value);
-          if (!emailValid) return 'Format email tidak valid';
-        }
-        if (isPassword && value.length < 8) return 'Minimal 8 karakter';
-        return null;
-      },
       decoration: InputDecoration(
         counterText: "",
         prefixIcon: Icon(icon, color: Colors.grey.shade500, size: 22),
@@ -255,8 +252,6 @@ class _LoginScreenState extends State<LoginScreen> {
         fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.primaryGreen, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 1)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
       ),
     );
   }

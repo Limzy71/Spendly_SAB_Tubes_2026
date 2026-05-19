@@ -44,7 +44,7 @@ class _WalletScreenState extends State<WalletScreen> {
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) return; // Langsung lompat ke finally
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
       final txResponse = await supabase.from('transactions').select().eq('user_id', userId);
@@ -53,17 +53,19 @@ class _WalletScreenState extends State<WalletScreen> {
       List<Map<String, dynamic>> processedWallets = [];
 
       for (var w in walletResponse) {
-        int wId = w['id'] as int;
+        int wId = int.tryParse(w['id'].toString()) ?? -1;
         String wName = w['name'].toString();
-        int currentBal = w['balance'] as int;
+        int currentBal = int.tryParse(w['balance'].toString()) ?? 0;
         String? iconName = w['icon_name']?.toString();
 
         for (var tx in txResponse) {
-          if (tx['wallet_id'] == wId) {
+          int txWalletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
+          if (txWalletId == wId) {
+            int txAmount = int.tryParse(tx['amount'].toString()) ?? 0;
             if (tx['is_expense'] == true) {
-              currentBal -= tx['amount'] as int;
+              currentBal -= txAmount;
             } else {
-              currentBal += tx['amount'] as int;
+              currentBal += txAmount;
             }
           }
         }
@@ -73,7 +75,6 @@ class _WalletScreenState extends State<WalletScreen> {
           'id': wId,
           'name': wName,
           'balance': currentBal,
-          // SEKARANG DRY: Memanggil parsing kecerdasan buatan dari WalletHelper pusat
           'subtitle': WalletHelper.getSubtitle(wName),
           'icon': WalletHelper.getIcon(iconName, wName),
           'color': WalletHelper.getColor(wName),
@@ -86,14 +87,12 @@ class _WalletScreenState extends State<WalletScreen> {
           _totalBalance = grandTotal;
           if (!_wallets.any((w) => w['id'] == selectedFromAccountId)) selectedFromAccountId = null;
           if (!_wallets.any((w) => w['id'] == selectedToAccountId)) selectedToAccountId = null;
-          _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
-      }
+      if (mounted) CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -108,7 +107,7 @@ class _WalletScreenState extends State<WalletScreen> {
     }
 
     final cleanAmount = _amountController.text.replaceAll('.', '');
-    final amount = int.parse(cleanAmount);
+    final amount = int.tryParse(cleanAmount) ?? 0;
 
     final fromWallet = _wallets.firstWhere((w) => w['id'] == selectedFromAccountId);
     if (amount > fromWallet['balance']) {
@@ -202,10 +201,9 @@ class _WalletScreenState extends State<WalletScreen> {
         _fetchWalletData();
         if (mounted) CustomNotification.show(context, 'Dompet berhasil dihapus.');
       } catch (e) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          CustomNotification.show(context, 'Gagal menghapus dompet: $e', isError: true);
-        }
+        if (mounted) CustomNotification.show(context, 'Gagal menghapus dompet: $e', isError: true);
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -282,9 +280,12 @@ class _WalletScreenState extends State<WalletScreen> {
                     Navigator.pop(ctx);
                     setState(() => _isLoading = true);
                     try {
-                      int newBalance = int.parse(editBalanceController.text.replaceAll('.', ''));
+                      int newBalance = int.tryParse(editBalanceController.text.replaceAll('.', '')) ?? 0;
 
-                      int totalTxEffect = wallet['balance'] - (await supabase.from('wallets').select('balance').eq('id', wallet['id']).single())['balance'] as int;
+                      final walletData = await supabase.from('wallets').select('balance').eq('id', wallet['id']).single();
+                      int dbBalance = int.tryParse(walletData['balance'].toString()) ?? 0;
+
+                      int totalTxEffect = (wallet['balance'] as int) - dbBalance;
                       int newBaseBalance = newBalance - totalTxEffect;
 
                       await supabase.from('wallets').update({
@@ -295,10 +296,9 @@ class _WalletScreenState extends State<WalletScreen> {
                       _fetchWalletData();
                       if (mounted) CustomNotification.show(context, 'Dompet berhasil diperbarui!');
                     } catch (e) {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
-                        CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
-                      }
+                      if (mounted) CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+                    } finally {
+                      if (mounted) setState(() => _isLoading = false);
                     }
                   },
                   child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
