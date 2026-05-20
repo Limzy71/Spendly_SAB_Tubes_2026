@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart' as g_auth;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// PATH IMPORT YANG BENAR SESUAI FOLDER PROJECT KAMU
 import '../../../theme/app_colors.dart';
 import 'register_screen.dart';
+import 'passcode_screen.dart';
 import '../../main_layout/presentation/main_navigation.dart';
 import '../../../widgets/custom_notification.dart';
 
@@ -30,6 +33,25 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _handlePostLoginNavigation() async {
+    if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    final bool isPinEnabled = prefs.getBool('is_pin_enabled') ?? false;
+    final String? storedPin = prefs.getString('user_pin');
+
+    if (isPinEnabled && storedPin != null && storedPin.isNotEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PasscodeScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+      );
+    }
+  }
+
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -42,23 +64,53 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
-        CustomNotification.show(context, 'Login berhasil!');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainNavigation()),
-        );
+        CustomNotification.show(context, 'Berhasil masuk!');
+        await _handlePostLoginNavigation();
       }
     } on AuthException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message), backgroundColor: Colors.red),
-        );
+        String errorMessage = 'Terjadi kesalahan saat masuk.';
+        final msg = error.message.toLowerCase();
+
+        if (msg.contains('invalid login credentials')) {
+          errorMessage = 'Email atau kata sandi yang Anda masukkan salah.';
+        } else if (msg.contains('email not confirmed')) {
+          errorMessage = 'Email belum diverifikasi. Silakan cek kotak masuk email Anda.';
+        } else if (msg.contains('rate limit')) {
+          errorMessage = 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+        } else {
+          errorMessage = error.message;
+        }
+
+        CustomNotification.show(context, errorMessage, isError: true);
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Terjadi kesalahan tidak terduga'), backgroundColor: Colors.red),
-        );
+        CustomNotification.show(context, 'Terjadi kendala jaringan atau sistem.', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      CustomNotification.show(context, 'Masukkan alamat email Anda terlebih dahulu.', isWarning: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (mounted) {
+        CustomNotification.show(context, 'Tautan pemulihan kata sandi telah dikirim ke email Anda.');
+      }
+    } catch (error) {
+      if (mounted) {
+        CustomNotification.show(context, 'Gagal mengirim tautan pemulihan.', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -69,20 +121,19 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Pastikan Web Client ID sudah diisi
-      const webClientId = 'MASUKKAN_WEB_CLIENT_ID_GCP_KAMU_DISINI.apps.googleusercontent.com';
+      const webClientId = '426102305894-du5esrcekmtabv211lefl2sipt1r2jpk.apps.googleusercontent.com';
 
       final g_auth.GoogleSignIn googleSignIn = g_auth.GoogleSignIn(serverClientId: webClientId);
       final g_auth.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
-      if (googleUser == null) throw 'Login Google dibatalkan.';
+      if (googleUser == null) throw 'Proses masuk dibatalkan.';
 
       final g_auth.GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final accessToken = googleAuth.accessToken;
       final idToken = googleAuth.idToken;
 
       if (accessToken == null || idToken == null) {
-        throw 'Token Autentikasi Google tidak ditemukan.';
+        throw 'Gagal mendapatkan akses dari Google.';
       }
 
       await Supabase.instance.client.auth.signInWithIdToken(
@@ -92,17 +143,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
-        CustomNotification.show(context, 'Login Google berhasil!');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainNavigation()),
-        );
+        CustomNotification.show(context, 'Berhasil masuk dengan Google!');
+        await _handlePostLoginNavigation();
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal login Google: $error'), backgroundColor: Colors.red),
-        );
+        String err = error.toString().replaceAll('Exception: ', '');
+        CustomNotification.show(context, err, isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -133,29 +180,37 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: AppColors.primaryGreen,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 40),
+                    child: const FaIcon(FontAwesomeIcons.wallet, color: Colors.white, size: 36),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Spendly', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                  Text('Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
                   const SizedBox(height: 40),
-                  Text('Selamat Datang Kembali', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
+                  Text('Selamat Datang Kembali', style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 8),
-                  const Text('Masuk untuk melanjutkan pencatatan', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  Text('Masuk untuk melanjutkan pencatatan', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 40),
 
                   _buildTextField(
                     controller: _emailController,
                     hintText: 'Alamat Email',
-                    icon: Icons.email_outlined,
+                    icon: FontAwesomeIcons.envelope,
                     keyboardType: TextInputType.emailAddress,
                     isDark: isDark,
+                    inputFormatters: [
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        return TextEditingValue(
+                          text: newValue.text.toLowerCase(),
+                          selection: newValue.selection,
+                        );
+                      }),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
                   _buildTextField(
                     controller: _passwordController,
                     hintText: 'Kata Sandi',
-                    icon: Icons.lock_outline,
+                    icon: FontAwesomeIcons.lock,
                     isPassword: true,
                     isVisible: _isPasswordVisible,
                     onVisibilityToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
@@ -165,25 +220,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {},
-                      child: const Text('Lupa Kata Sandi?', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      onPressed: _isLoading ? null : _resetPassword,
+                      style: TextButton.styleFrom(
+                        overlayColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+                      ),
+                      child: Text('Lupa Kata Sandi?', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 13)),
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   SizedBox(
                     width: double.infinity,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _signIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
                       child: _isLoading
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          : Text('Masuk', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -192,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('ATAU', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w500, fontSize: 14)),
+                        child: Text('ATAU', style: GoogleFonts.plusJakartaSans(color: Colors.grey.shade500, fontWeight: FontWeight.w500, fontSize: 14)),
                       ),
                       Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                     ],
@@ -201,20 +259,44 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
+                    height: 54,
+                    child: OutlinedButton(
                       onPressed: _isLoading ? null : _loginWithGoogle,
-                      icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.black87),
-                      label: Text('Sign in with Google', style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: textColor,
                         backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                        side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
+                      ).copyWith(
+                        overlayColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                          if (states.contains(WidgetState.hovered)) return isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.shade100;
+                          if (states.contains(WidgetState.pressed)) return isDark ? Colors.white.withValues(alpha: 0.2) : Colors.grey.shade200;
+                          return null;
+                        }),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FaIcon(FontAwesomeIcons.google, size: 20, color: isDark ? Colors.white : Colors.black87),
+                          const SizedBox(width: 12),
+                          Text('Masuk dengan Google', style: GoogleFonts.plusJakartaSans(color: textColor, fontSize: 16, fontWeight: FontWeight.w600)),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Belum punya akun? ', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 14)),
+                      GestureDetector(
+                        onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RegisterScreen())),
+                        child: Text('Daftar', style: GoogleFonts.plusJakartaSans(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -227,26 +309,31 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
-    required IconData icon,
+    required dynamic icon,
     bool isPassword = false,
     bool isVisible = false,
     VoidCallback? onVisibilityToggle,
     TextInputType keyboardType = TextInputType.text,
     required bool isDark,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !isVisible,
       keyboardType: keyboardType,
-      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+      inputFormatters: inputFormatters,
+      style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         counterText: "",
-        prefixIcon: Icon(icon, color: Colors.grey.shade500, size: 22),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: FaIcon(icon, color: Colors.grey.shade500, size: 20),
+        ),
         suffixIcon: isPassword
-            ? IconButton(icon: Icon(isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey.shade500, size: 20), onPressed: onVisibilityToggle)
+            ? IconButton(icon: FaIcon(isVisible ? FontAwesomeIcons.eye : FontAwesomeIcons.eyeSlash, color: Colors.grey.shade500, size: 18), onPressed: onVisibilityToggle)
             : null,
         hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        hintStyle: GoogleFonts.plusJakartaSans(color: Colors.grey.shade400, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         filled: true,
         fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
