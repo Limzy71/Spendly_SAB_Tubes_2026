@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
@@ -35,13 +36,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _savedPin = prefs.getString('user_pin');
-      _isFirstTimeSetup = _savedPin == null;
+      _isFirstTimeSetup = _savedPin == null || _savedPin!.isEmpty;
     });
   }
 
   Future<void> _processChangePin() async {
     if (_formKey.currentState!.validate()) {
-
       if (!_isFirstTimeSetup && _oldPinController.text != _savedPin) {
         CustomNotification.show(context, 'PIN Lama yang Anda masukkan salah!', isError: true);
         return;
@@ -58,11 +58,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
       if (mounted) {
         Navigator.pop(context);
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            CustomNotification.show(context, _isFirstTimeSetup ? 'PIN berhasil dibuat!' : 'PIN berhasil diperbarui!');
-          }
-        });
+        CustomNotification.show(context, _isFirstTimeSetup ? 'PIN berhasil dibuat!' : 'PIN berhasil diperbarui!');
       }
     }
   }
@@ -77,17 +73,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    Color textColor = isDark ? Colors.white : Colors.black87;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           _isFirstTimeSetup ? 'Buat PIN Keamanan' : 'Ubah PIN Keamanan',
-          style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold),
+          style: GoogleFonts.plusJakartaSans(color: textColor, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
+          icon: FaIcon(FontAwesomeIcons.arrowLeft, color: textColor, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         backgroundColor: Colors.transparent,
@@ -102,7 +99,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             children: [
               Text(
                 'Buat PIN 6 digit yang kuat untuk melindungi akun Spendly Anda.',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                style: GoogleFonts.plusJakartaSans(color: Colors.grey.shade600, fontSize: 14),
               ),
               const SizedBox(height: 24),
 
@@ -113,10 +110,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   hint: 'Masukkan PIN saat ini',
                   obscureText: _obscureOld,
                   onToggleVisibility: () => setState(() => _obscureOld = !_obscureOld),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'PIN lama wajib diisi';
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 20),
               ],
@@ -127,11 +120,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 hint: 'Masukkan 6 Digit PIN baru',
                 obscureText: _obscureNew,
                 onToggleVisibility: () => setState(() => _obscureNew = !_obscureNew),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'PIN baru wajib diisi';
-                  if (value.length != 6) return 'PIN wajib 6 digit angka';
-                  return null;
-                },
               ),
               const SizedBox(height: 20),
 
@@ -141,27 +129,23 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 hint: 'Ulangi PIN baru',
                 obscureText: _obscureConfirm,
                 onToggleVisibility: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Konfirmasi PIN wajib diisi';
-                  if (value != _newPinController.text) return 'Konfirmasi PIN tidak cocok';
-                  return null;
-                },
+                isConfirm: true,
               ),
               const SizedBox(height: 40),
 
               SizedBox(
                 width: double.infinity,
+                height: 54,
                 child: ElevatedButton(
                   onPressed: _processChangePin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
                   child: Text(
                     _isFirstTimeSetup ? 'Simpan PIN' : 'Simpan PIN Baru',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
                   ),
                 ),
               ),
@@ -175,7 +159,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget _buildFormLabel(String label, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-      child: Text(label, style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500)),
+      child: Text(label, style: GoogleFonts.plusJakartaSans(color: textColor.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500)),
     );
   }
 
@@ -184,26 +168,35 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     required String hint,
     required bool obscureText,
     required VoidCallback onToggleVisibility,
-    required String? Function(String?)? validator,
+    bool isConfirm = false,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      validator: validator,
       keyboardType: TextInputType.number,
       maxLength: 6,
-      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, letterSpacing: 8, fontWeight: FontWeight.bold),
+      style: GoogleFonts.plusJakartaSans(color: Theme.of(context).textTheme.bodyLarge?.color, letterSpacing: 8, fontWeight: FontWeight.bold),
+      validator: (value) {
+        if (value == null || value.isEmpty) return 'PIN wajib diisi';
+        if (value.length != 6) return 'PIN wajib 6 digit angka';
+        if (isConfirm && value != _newPinController.text) return 'Konfirmasi PIN tidak cocok';
+        return null;
+      },
       decoration: InputDecoration(
         counterText: "",
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, letterSpacing: 0, fontWeight: FontWeight.normal),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent, width: 2)),
-        suffixIcon: IconButton(icon: FaIcon(obscureText ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye, color: Colors.grey, size: 18), onPressed: onToggleVisibility),
+        hintStyle: GoogleFonts.plusJakartaSans(color: Colors.grey.shade400, fontSize: 14, letterSpacing: 0, fontWeight: FontWeight.normal),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        filled: true,
+        fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16)), borderSide: BorderSide(color: AppColors.primaryGreen, width: 1.5)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
+        suffixIcon: IconButton(
+            icon: FaIcon(obscureText ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye, color: Colors.grey, size: 18),
+            onPressed: onToggleVisibility
+        ),
       ),
     );
   }
