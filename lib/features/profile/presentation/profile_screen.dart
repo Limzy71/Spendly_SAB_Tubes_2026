@@ -5,10 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'change_password_screen.dart';
+import 'passcode_settings_screen.dart';
+import 'update_account_password_screen.dart';
 import 'widgets/update_profile_screen.dart';
 import '../../../theme/app_colors.dart';
 import '../logic/theme_cubit.dart';
@@ -125,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (value == true && (savedPin == null || savedPin.isEmpty)) {
       CustomNotification.show(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen())).then((_) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const PasscodeSettingsScreen())).then((_) {
         _loadSecuritySettings();
       });
       return;
@@ -422,8 +422,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ChangePasswordScreen()),
+                  MaterialPageRoute(builder: (context) => const PasscodeSettingsScreen()),
                 ).then((_) => _loadSecuritySettings());
+              },
+            ),
+            _buildListTile(
+              icon: FontAwesomeIcons.key,
+              title: 'Ubah Kata Sandi Akun',
+              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const UpdateAccountPasswordScreen()),
+                );
               },
             ),
             _buildSwitchTile(
