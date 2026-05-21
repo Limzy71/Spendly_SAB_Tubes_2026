@@ -88,8 +88,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
             size: 20,
             color: isDark ? Colors.white : Colors.black87,
           ),
-          onPressed: () {
-            Navigator.push(
+          onPressed: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const NotificationScreen()),
             );

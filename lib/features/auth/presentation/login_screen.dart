@@ -11,6 +11,7 @@ import 'register_screen.dart';
 import 'passcode_screen.dart';
 import '../../main_layout/presentation/main_navigation.dart';
 import '../../../widgets/custom_notification.dart';
+import '../../../widgets/network_helper.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,6 +55,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
+
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) return;
 
     setState(() => _isLoading = true);
 
@@ -101,6 +105,9 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) return;
+
     setState(() => _isLoading = true);
 
     try {
@@ -118,6 +125,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle() async {
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) return;
+
     setState(() => _isLoading = true);
 
     try {

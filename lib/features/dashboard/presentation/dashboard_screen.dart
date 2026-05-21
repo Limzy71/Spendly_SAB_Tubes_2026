@@ -9,6 +9,7 @@ import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../transaction/presentation/all_transactions_screen.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -40,6 +41,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _fetchDashboardData() async {
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -187,6 +194,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) { return dateString; }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 11) {
+      return "Selamat Pagi,";
+    } else if (hour >= 11 && hour < 15) {
+      return "Selamat Siang,";
+    } else if (hour >= 15 && hour < 18) {
+      return "Selamat Sore,";
+    } else {
+      return "Selamat Malam,";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool hasTransactions = _recentTransactions.isNotEmpty;
@@ -204,7 +224,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       } else if (meta != null && meta['name'] != null && meta['name'].toString().trim().isNotEmpty) {
         userName = meta['name'].toString();
       } else if (user.email != null && user.email!.isNotEmpty) {
-        // Ambil potongan depan email jika nama belum disetel
         userName = user.email!.split('@')[0];
       }
     }
@@ -227,7 +246,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                Text(_getGreeting(), style: const TextStyle(color: Colors.grey, fontSize: 14)),
                 Text(userName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
                 const SizedBox(height: 16),
                 _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),

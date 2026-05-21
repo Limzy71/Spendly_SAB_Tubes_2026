@@ -10,6 +10,7 @@ import '../../budget/presentation/budget_screen.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -104,11 +105,17 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _fetchReportData() async {
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return; // Akan dilompati langsung ke finally jika null
+      if (userId == null) return;
 
       final txResponse = await supabase
           .from('transactions')

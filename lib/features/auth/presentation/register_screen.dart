@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 import 'login_screen.dart';
+import '../../../widgets/network_helper.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -37,6 +38,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) return;
 
     setState(() => _isLoading = true);
 

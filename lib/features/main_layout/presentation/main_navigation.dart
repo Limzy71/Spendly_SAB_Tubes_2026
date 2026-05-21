@@ -21,6 +21,7 @@ class _MainNavigationState extends State<MainNavigation> {
   Key _dashboardKey = UniqueKey();
   Key _reportKey = UniqueKey();
   Key _walletKey = UniqueKey();
+  Key _appBarKey = UniqueKey();
 
   void _onItemTapped(int index) {
     setState(() {
@@ -28,6 +29,12 @@ class _MainNavigationState extends State<MainNavigation> {
       if (index == 1 && _selectedIndex != 1) _reportKey = UniqueKey();
       if (index == 2 && _selectedIndex != 2) _walletKey = UniqueKey();
       _selectedIndex = index;
+    });
+  }
+
+  void _refreshAppBar() {
+    setState(() {
+      _appBarKey = UniqueKey();
     });
   }
 
@@ -40,6 +47,7 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: CustomAppBar(
+        key: _appBarKey,
         onProfileTap: () => _onItemTapped(3),
       ),
       body: IndexedStack(
@@ -48,7 +56,7 @@ class _MainNavigationState extends State<MainNavigation> {
           DashboardScreen(key: _dashboardKey),
           ReportScreen(key: _reportKey),
           WalletScreen(key: _walletKey),
-          const ProfileScreen(),
+          ProfileScreen(onProfileUpdated: _refreshAppBar),
         ],
       ),
       floatingActionButton: FloatingActionButton(
