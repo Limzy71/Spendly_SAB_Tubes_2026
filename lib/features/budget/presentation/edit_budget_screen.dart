@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 
+// IMPORT NETWORK HELPER
+import '../../../../widgets/network_helper.dart';
+
 class EditBudgetScreen extends StatefulWidget {
   final String category;
   final int currentLimit;
@@ -57,6 +60,12 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   }
 
   Future<void> _fetchTransactionHistory() async {
+    // 1. INTEGRASI NETWORK HELPER
+    if (!await NetworkHelper.checkConnection(context)) {
+      if (mounted) setState(() => _isLoadingHistory = false);
+      return;
+    }
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
@@ -82,6 +91,9 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   }
 
   Future<void> _updateBudget() async {
+    // 2. INTEGRASI NETWORK HELPER
+    if (!await NetworkHelper.checkConnection(context)) return;
+
     setState(() => _isLoading = true);
 
     try {
@@ -152,6 +164,9 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     );
 
     if (confirm != true) return;
+
+    // 3. INTEGRASI NETWORK HELPER (Setel di sini agar ngecek internetnya setelah user yakin menghapus)
+    if (!await NetworkHelper.checkConnection(context)) return;
 
     setState(() => _isLoading = true);
     try {
@@ -323,7 +338,6 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                 final note = tx['note']?.toString() ?? '';
                 final txDate = tx['transaction_date'].toString().split('T')[0];
 
-                // SEKARANG DRY: Memakai NumberFormat standar intl
                 String formattedAmount = NumberFormat.decimalPattern('id').format(amount);
 
                 final amountColor = isExpense ? Colors.red : AppColors.primaryGreen;
