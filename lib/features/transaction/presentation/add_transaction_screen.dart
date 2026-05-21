@@ -10,6 +10,7 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({Key? key}) : super(key: key);
@@ -142,6 +143,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Future<void> _fetchWallets() async {
+    // Cek koneksi sebelum memuat data dompet
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
@@ -425,6 +430,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (selectedWalletId == null) {
       CustomNotification.show(context, 'Pilih dompet terlebih dahulu', isWarning: true);
       return;
+    }
+
+    // Menggunakan konsep DRY dari NetworkHelper
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) {
+      return; // Hentikan proses jika internet mati (notifikasi sudah di-handle oleh helper)
     }
 
     setState(() => _isLoading = true);

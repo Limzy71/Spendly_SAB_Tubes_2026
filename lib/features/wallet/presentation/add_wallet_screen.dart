@@ -6,6 +6,7 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/wallet_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class AddWalletScreen extends StatefulWidget {
   const AddWalletScreen({Key? key}) : super(key: key);
@@ -54,6 +55,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
   }
 
   Future<void> _fetchExistingWallets() async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
@@ -165,6 +169,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       return;
     }
 
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
+
     setState(() => _isLoading = true);
 
     try {
@@ -189,7 +196,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal menyimpan: $e', isError: true);
+      if (mounted) {
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menyimpan');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

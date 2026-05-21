@@ -9,6 +9,7 @@ import 'dart:io';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class EditTransactionScreen extends StatefulWidget {
   final Map<String, dynamic> transaction;
@@ -165,6 +166,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Future<void> _fetchWallets() async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
@@ -433,6 +437,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       return;
     }
 
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
+
     setState(() => _isLoading = true);
 
     try {
@@ -465,13 +472,23 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         Navigator.pop(context, 'Transaksi Berhasil Diperbarui!');
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+      if (mounted) {
+        // Mencegat error bawaan Supabase jika jaringan bermasalah
+        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
+          CustomNotification.show(context, 'Gagal memperbarui: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
+        } else {
+          CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+        }
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _deleteTransaction() async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
+
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -483,7 +500,14 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         Navigator.pop(context, 'Transaksi Berhasil Dihapus!');
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
+      if (mounted) {
+        // Mencegat error bawaan Supabase jika jaringan bermasalah
+        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
+          CustomNotification.show(context, 'Gagal menghapus: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
+        } else {
+          CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
+        }
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

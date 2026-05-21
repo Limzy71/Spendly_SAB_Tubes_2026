@@ -22,4 +22,18 @@ class NetworkHelper {
 
     return true; // Internet aktif
   }
+
+  /// Tambahkan ini di dalam class NetworkHelper
+  static void handleSupabaseError(BuildContext context, Object error, {String prefix = 'Terjadi kesalahan'}) {
+    String errorMsg = error.toString();
+    if (errorMsg.contains('ClientException') || errorMsg.contains('Failed to fetch') || errorMsg.contains('SocketException')) {
+      CustomNotification.show(
+        context,
+        '$prefix: Koneksi ke server terputus. Silakan periksa jaringan Anda.',
+        isError: true,
+      );
+    } else {
+      CustomNotification.show(context, '$prefix: $errorMsg', isError: true);
+    }
+  }
 }

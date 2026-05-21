@@ -9,6 +9,7 @@ import '../../../../widgets/sub_app_bar.dart';
 import 'edit_transaction_screen.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class AllTransactionsScreen extends StatefulWidget {
   final String filterType;
@@ -81,6 +82,12 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
   Future<void> _fetchAllTransactions() async {
     setState(() => _isLoading = true);
+
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) {
+      if (mounted) setState(() => _isLoading = false);
+      return; // Hentikan proses jika internet mati
+    }
 
     try {
       final userId = supabase.auth.currentUser?.id;
