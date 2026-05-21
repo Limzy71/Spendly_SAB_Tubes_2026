@@ -9,6 +9,7 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../main_layout/presentation/main_navigation.dart';
 import 'login_screen.dart';
+import '../../../widgets/network_helper.dart';
 
 class PasscodeScreen extends StatefulWidget {
   const PasscodeScreen({super.key});
@@ -36,7 +37,11 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
     setState(() => _isBiometricEnabled = bioEnabled);
 
     if (bioEnabled) {
-      _authenticateWithBiometric();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _authenticateWithBiometric();
+        }
+      });
     }
   }
 
@@ -58,7 +63,7 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
         );
       }
     } catch (e) {
-
+      debugPrint(e.toString());
     }
   }
 
@@ -128,6 +133,10 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!isOnline) return;
+
+                if (!context.mounted) return;
                 Navigator.pop(dialogContext);
 
                 final prefs = await SharedPreferences.getInstance();

@@ -19,11 +19,14 @@ import 'about_screen.dart';
 import '../../main_layout/presentation/main_navigation.dart';
 import '../../../../main.dart';
 import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/network_helper.dart';
 
 import '../../auth/presentation/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback? onProfileUpdated;
+
+  const ProfileScreen({super.key, this.onProfileUpdated});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -103,6 +106,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
+                bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!isOnline) return;
+
                 Navigator.pop(dialogContext);
                 setState(() => _userName = nameController.text.trim());
                 await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': nameController.text.trim()}));
@@ -220,6 +226,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!isOnline) return;
+
                 Navigator.pop(dialogContext);
                 await Supabase.instance.client.auth.signOut();
 
@@ -256,6 +265,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!isOnline) return;
+
                 Navigator.pop(dialogContext);
                 CustomNotification.show(context, 'Sedang menghapus riwayat transaksi...', isWarning: true);
 
@@ -346,6 +358,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
 
                             if (newPath != null) {
+                              bool isOnline = await NetworkHelper.checkConnection(context);
+                              if (!isOnline) return;
+
                               setState(() => _profileImagePath = newPath);
 
                               CustomNotification.show(context, 'Sedang menyimpan foto...', isWarning: true);
@@ -375,6 +390,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                                 if (context.mounted) {
                                   CustomNotification.show(context, 'Foto profil berhasil diperbarui!');
+                                  if (widget.onProfileUpdated != null) {
+                                    widget.onProfileUpdated!();
+                                  }
                                 }
                               } catch (e) {
                                 if (context.mounted) {
@@ -562,13 +580,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               ListTile(
-                                leading: const FaIcon(FontAwesomeIcons.cloudArrowUp, color: Colors.green),
-                                title: Text('Cadangkan Data', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
-                                subtitle: Text('Simpan seluruh data ke Google Drive', style: GoogleFonts.plusJakartaSans()),
-                                onTap: () async {
-                                  Navigator.pop(sheetContext);
-                                  await DriveSyncService.backupToDrive(context);
-                                },
+                                  leading: const FaIcon(FontAwesomeIcons.cloudArrowUp, color: Colors.green),
+                                  title: Text('Cadangkan Data', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
+                                  subtitle: Text('Simpan seluruh data ke Google Drive', style: GoogleFonts.plusJakartaSans()),
+                                  onTap: () async {
+                                    bool isOnline = await NetworkHelper.checkConnection(context);
+                                    if (!isOnline) return;
+                                    Navigator.pop(sheetContext);
+                                    await DriveSyncService.backupToDrive(context);
+                                  }
                               ),
                               ListTile(
                                 leading: const FaIcon(FontAwesomeIcons.cloudArrowDown, color: Colors.blue),
@@ -640,6 +660,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       title: Text('Ekspor sebagai CSV', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
                                       subtitle: Text('Cocok untuk Excel / Spreadsheet', style: GoogleFonts.plusJakartaSans()),
                                       onTap: () async {
+                                        bool isOnline = await NetworkHelper.checkConnection(context);
+                                        if (!isOnline) return;
                                         Navigator.pop(sheetContext);
                                         await ExportService.exportTransactionsToCSV(context, selectedFilter);
                                       },
@@ -649,6 +671,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       title: Text('Ekspor sebagai PDF', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
                                       subtitle: Text('Format rapi, siap untuk dicetak', style: GoogleFonts.plusJakartaSans()),
                                       onTap: () async {
+                                        bool isOnline = await NetworkHelper.checkConnection(context);
+                                        if (!isOnline) return;
                                         Navigator.pop(sheetContext);
                                         await ExportService.exportTransactionsToPDF(context, selectedFilter);
                                       },
