@@ -6,6 +6,7 @@ import '../../../theme/app_colors.dart';
 import 'add_wallet_screen.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/wallet_helper.dart';
+import '../../../widgets/network_helper.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({Key? key}) : super(key: key);
@@ -41,6 +42,12 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _fetchWalletData() async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -90,7 +97,7 @@ class _WalletScreenState extends State<WalletScreen> {
         });
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengambil data');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -114,6 +121,9 @@ class _WalletScreenState extends State<WalletScreen> {
       CustomNotification.show(context, 'Gagal: Saldo dompet asal tidak mencukupi!', isError: true);
       return;
     }
+
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
 
     setState(() => _isTransferring = true);
 
@@ -151,7 +161,7 @@ class _WalletScreenState extends State<WalletScreen> {
         _fetchWalletData();
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Transfer gagal: $e', isError: true);
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Transfer gagal');
     } finally {
       if (mounted) setState(() => _isTransferring = false);
     }
@@ -162,6 +172,9 @@ class _WalletScreenState extends State<WalletScreen> {
       CustomNotification.show(context, 'Tidak bisa menghapus satu-satunya dompet!', isWarning: true);
       return;
     }
+
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
 
     setState(() => _isLoading = true);
     try {
@@ -201,7 +214,7 @@ class _WalletScreenState extends State<WalletScreen> {
         _fetchWalletData();
         if (mounted) CustomNotification.show(context, 'Dompet berhasil dihapus.');
       } catch (e) {
-        if (mounted) CustomNotification.show(context, 'Gagal menghapus dompet: $e', isError: true);
+        if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus dompet');
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -277,6 +290,9 @@ class _WalletScreenState extends State<WalletScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   onPressed: () async {
+                    bool hasConnection = await NetworkHelper.checkConnection(context);
+                    if (!hasConnection) return;
+
                     Navigator.pop(ctx);
                     setState(() => _isLoading = true);
                     try {
