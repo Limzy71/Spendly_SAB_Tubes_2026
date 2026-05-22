@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/network_helper.dart'; // Import Network Helper
 
 class UpdateAccountPasswordScreen extends StatefulWidget {
   const UpdateAccountPasswordScreen({super.key});
@@ -33,6 +34,9 @@ class _UpdateAccountPasswordScreenState extends State<UpdateAccountPasswordScree
   }
 
   Future<void> _sendResetPasswordEmail() async {
+    // 1. INTEGRASI NETWORK HELPER
+    if (!await NetworkHelper.checkConnection(context)) return;
+
     setState(() => _isLoading = true);
 
     try {
@@ -55,6 +59,9 @@ class _UpdateAccountPasswordScreenState extends State<UpdateAccountPasswordScree
 
   Future<void> _updatePassword() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // 2. INTEGRASI NETWORK HELPER
+    if (!await NetworkHelper.checkConnection(context)) return;
 
     setState(() => _isLoading = true);
 

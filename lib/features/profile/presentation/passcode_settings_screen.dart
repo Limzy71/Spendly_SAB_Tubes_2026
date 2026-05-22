@@ -8,6 +8,8 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../auth/presentation/login_screen.dart';
 
+import '../../../../widgets/network_helper.dart';
+
 class PasscodeSettingsScreen extends StatefulWidget {
   const PasscodeSettingsScreen({super.key});
 
@@ -66,23 +68,37 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(dialogContext);
+                Navigator.pop(dialogContext); // Tutup Dialog Dulu
+
+                // 1. CEK INTERNET SEBELUM MERESET DATA
+                if (!await NetworkHelper.checkConnection(context)) return;
 
                 setState(() => _isLoading = true);
 
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove('user_pin');
-                await prefs.setBool('is_pin_enabled', false);
-                await prefs.setBool('is_biometric_enabled', false);
+                try {
+                  // Harus signOut dulu, pastikan server memprosesnya
+                  await Supabase.instance.client.auth.signOut();
 
-                await Supabase.instance.client.auth.signOut();
+                  // Jika server berhasil, baru hapus data lokal
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('user_pin');
+                  await prefs.setBool('is_pin_enabled', false);
+                  await prefs.setBool('is_biometric_enabled', false);
 
-                if (mounted) {
-                  CustomNotification.show(context, 'Sesi direset. Silakan masuk kembali untuk mengatur PIN baru.', isWarning: true);
-                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        (route) => false,
-                  );
+                  if (mounted) {
+                    CustomNotification.show(context, 'Sesi direset. Silakan masuk kembali untuk mengatur PIN baru.', isWarning: true);
+                    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          (route) => false,
+                    );
+                  }
+                } catch (e) {
+                  // Jika signOut gagal atau bermasalah
+                  if (mounted) {
+                    CustomNotification.show(context, 'Gagal mereset sesi, coba lagi.', isError: true);
+                  }
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -95,11 +111,11 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
   }
 
   Future<void> _processChangePin() async {
+    // Note: Fungsi ini TIDAK pakai NetworkHelper karena sifatnya 100% lokal (simpan ke memori HP).
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    // Memberikan efek loading sebentar agar transisi terasa halus & profesional
     await Future.delayed(const Duration(milliseconds: 400));
 
     if (!_isFirstTimeSetup && _oldPinController.text != _savedPin) {

@@ -7,6 +7,9 @@ import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 
+// IMPORT NETWORK HELPER
+import '../../../../widgets/network_helper.dart';
+
 class AddBudgetScreen extends StatefulWidget {
   const AddBudgetScreen({Key? key}) : super(key: key);
 
@@ -46,7 +49,6 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           String iconId = prefs.getString('custom_budget_icon_$catName') ?? 'star';
           categories.insert(categories.length - 1, {
             'name': catName,
-            // SEKARANG DRY: Memanggil kamus penerjemah ikon dari pusat
             'icon': CategoryHelper.getCustomIconById(iconId),
             'color': AppColors.primaryGreen,
           });
@@ -179,6 +181,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       CustomNotification.show(context, 'Silakan pilih kategori terlebih dahulu', isWarning: true);
       return;
     }
+
+    // INTEGRASI NETWORK HELPER SEBELUM LOADING DIMULAI
+    if (!await NetworkHelper.checkConnection(context)) return;
 
     setState(() => _isLoading = true);
 
