@@ -300,6 +300,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _showDeleteAccountDialog() async {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Hapus Akun & Data',
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+          content: Text(
+            'Tindakan ini akan menghapus akun Spendly Anda beserta semua data di dalamnya, termasuk transaksi, dompet, anggaran, foto profil, file struk, dan data lokal aplikasi. Proses ini tidak bisa dibatalkan.',
+            style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Batal', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!isOnline) return;
+
+                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                CustomNotification.show(context, 'Sedang menghapus akun dan data...', isWarning: true);
+
+                try {
+                  final supabase = Supabase.instance.client;
+                  final user = supabase.auth.currentUser;
+                  if (user == null) return;
+
+                  await supabase.functions.invoke(
+                    'delete-account',
+                    body: {
+                      'user_id': user.id,
+                      'avatar_url': user.userMetadata?['avatar_url'],
+                    },
+                  );
+
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.clear();
+
+                  await supabase.auth.signOut();
+
+                  if (!mounted) return;
+                  CustomNotification.show(context, 'Akun dan data berhasil dihapus.');
+                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+                  );
+                } catch (e) {
+                  if (mounted) {
+                    CustomNotification.show(context, 'Gagal menghapus akun: $e', isError: true);
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text('Hapus Akun', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -706,7 +776,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildListTile(
                 icon: FontAwesomeIcons.circleInfo,
                 title: 'Tentang Spendly',
-                subtitle: 'v1.0.0 (Kebijakan Privasi, Layanan)',
+                subtitle: 'v1.0.4 (Kebijakan Privasi, Layanan)',
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
                   Navigator.push(
@@ -721,6 +791,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               leading: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.red, size: 20),
               title: Text('Reset Riwayat Transaksi', style: GoogleFonts.plusJakartaSans(color: Colors.red, fontSize: 14)),
               onTap: _showDeleteDataDialog,
+            ),
+            const SizedBox(height: 4),
+            ListTile(
+              leading: const FaIcon(FontAwesomeIcons.userSlash, color: Colors.red, size: 20),
+              title: Text('Hapus Akun & Data', style: GoogleFonts.plusJakartaSans(color: Colors.red, fontSize: 14)),
+              onTap: _showDeleteAccountDialog,
             ),
             const SizedBox(height: 20),
             Padding(

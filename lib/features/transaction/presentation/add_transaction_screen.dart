@@ -25,6 +25,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   static const String _expenseCategoryListKey = 'custom_transaction_expense_categories';
   static const String _incomeCategoryListKey = 'custom_transaction_income_categories';
+  static const String _expenseCategoryHiddenKey = 'custom_transaction_expense_categories_hidden';
+  static const String _incomeCategoryHiddenKey = 'custom_transaction_income_categories_hidden';
   static const String _expenseCategoryIconPrefix = 'custom_transaction_expense_icon_';
   static const String _incomeCategoryIconPrefix = 'custom_transaction_income_icon_';
   static const String _legacyMigrationKey = 'custom_transaction_categories_migrated_v1';
@@ -80,6 +82,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   String _categoryListKey(bool expense) {
     return expense ? _expenseCategoryListKey : _incomeCategoryListKey;
+  }
+
+  String _hiddenCategoryListKey(bool expense) {
+    return expense ? _expenseCategoryHiddenKey : _incomeCategoryHiddenKey;
   }
 
   String _categoryIconKey(bool expense, String categoryName) {
@@ -174,8 +180,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     setState(() {
       void loadCustomCategoriesForType({required bool expense, required List<Map<String, dynamic>> targetList}) {
         final customCats = prefs.getStringList(_categoryListKey(expense)) ?? [];
+        final hiddenCats = prefs.getStringList(_hiddenCategoryListKey(expense)) ?? [];
 
         for (String catName in customCats) {
+          if (hiddenCats.contains(catName)) {
+            continue;
+          }
+
           if (targetList.any((c) => c['name'] == catName)) {
             continue;
           }
@@ -209,7 +220,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Hapus Kategori?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Apakah Anda yakin ingin menghapus kategori "$catName" dari daftar?'),
+        content: Text('Hapus kategori "$catName" dari daftar pilihan? Transaksi yang sudah ada tetap memakai nama dan icon lamanya.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -217,25 +228,24 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
 
+              final prefs = await SharedPreferences.getInstance();
+              final hiddenKey = _hiddenCategoryListKey(isExpense);
+              final hiddenCats = prefs.getStringList(hiddenKey) ?? [];
+              if (!hiddenCats.contains(catName)) {
+                hiddenCats.add(catName);
+                await prefs.setStringList(hiddenKey, hiddenCats);
+              }
+
               setState(() {
                 currentList.removeWhere((c) => c['name'] == catName);
-
-                if (selectedCategory == catName) {
+                if (selectedCategory == catName && currentList.isNotEmpty) {
                   selectedCategory = currentList.first['name'];
                 }
               });
 
-              final prefs = await SharedPreferences.getInstance();
-              final listKey = _categoryListKey(isExpense);
-              final iconKey = _categoryIconKey(isExpense, catName);
-              List<String> customCats = prefs.getStringList(listKey) ?? [];
-              if (customCats.contains(catName)) {
-                customCats.remove(catName);
-                await prefs.setStringList(listKey, customCats);
-                await prefs.remove(iconKey);
+              if (mounted) {
+                CustomNotification.show(context, 'Kategori "$catName" berhasil dihapus.');
               }
-
-              if (mounted) CustomNotification.show(context, 'Kategori berhasil dihapus!');
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
@@ -412,13 +422,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
                         final prefs = await SharedPreferences.getInstance();
                         final listKey = _categoryListKey(isExpense);
+                        final hiddenKey = _hiddenCategoryListKey(isExpense);
                         final iconKey = _categoryIconKey(isExpense, newCatName);
                         List<String> customCats = prefs.getStringList(listKey) ?? [];
+                        List<String> hiddenCats = prefs.getStringList(hiddenKey) ?? [];
 
                         if (!customCats.contains(newCatName)) {
                           customCats.add(newCatName);
                           await prefs.setStringList(listKey, customCats);
                           await prefs.setString(iconKey, tempIconId);
+                        }
+
+                        if (hiddenCats.contains(newCatName)) {
+                          hiddenCats.remove(newCatName);
+                          await prefs.setStringList(hiddenKey, hiddenCats);
                         }
 
                         setState(() {
