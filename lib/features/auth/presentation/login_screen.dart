@@ -168,6 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
       const webClientId = '426102305894-du5esrcekmtabv211lefl2sipt1r2jpk.apps.googleusercontent.com';
 
       final g_auth.GoogleSignIn googleSignIn = g_auth.GoogleSignIn(serverClientId: webClientId);
+      await googleSignIn.signOut();
       final g_auth.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {

@@ -345,7 +345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _fetchDashboardData();
           if (mounted) {
             String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-            CustomNotification.show(context, msg, isError: msg.contains('Dihapus'));
+            CustomNotification.show(context, msg);
           }
         }
       },

@@ -3,6 +3,19 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme/app_colors.dart';
 
 class CategoryHelper {
+  static const Set<String> _builtInCategoryNames = {
+    'makanan',
+    'transportasi',
+    'belanja',
+    'tagihan',
+    'hiburan',
+    'gaji',
+    'bonus',
+    'investasi',
+    'dana',
+    'bca',
+    'baru',
+  };
 
   // 1. Fungsi Pusat untuk Warna Pintar (REVISI PRIORITAS)
   static Color getColor(String category, {Map<String, String>? customIcons}) {
@@ -45,6 +58,21 @@ class CategoryHelper {
   // 2. Fungsi Pusat untuk Ikon Pintar (SAMA, PRIORITAS KEYWORD DI ATAS)
   static dynamic getIcon(String category, {Map<String, String>? customIcons}) {
     String cat = category.toLowerCase().trim();
+
+    if (customIcons != null) {
+      final customIconId = customIcons[cat];
+      if (customIconId != null) {
+        return getCustomIconById(customIconId);
+      }
+
+      if (!_builtInCategoryNames.contains(cat)) {
+        return FontAwesomeIcons.boxArchive;
+      }
+    }
+
+    if (cat == 'bca') {
+      return FontAwesomeIcons.buildingColumns;
+    }
 
     // Prioritaskan Smart Keyword Matching agar ikon otomatis muncul meskipun kategori kustom
     if (cat.contains('makan') || cat.contains('jajan') || cat.contains('kuliner') || cat.contains('sarapan') || cat.contains('resto')) {
@@ -89,11 +117,6 @@ class CategoryHelper {
       return FontAwesomeIcons.laptop;
     } else if (cat.contains('rumah') || cat.contains('building') || cat.contains('gedung')) {
       return FontAwesomeIcons.building;
-    }
-
-    // Jika tidak ada keyword cocok, baru ambil dari pilihan ikon manual user
-    if (customIcons != null && customIcons.containsKey(cat)) {
-      return getCustomIconById(customIcons[cat]!);
     }
 
     return FontAwesomeIcons.boxArchive;

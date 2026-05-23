@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -33,6 +34,7 @@ class _ReportScreenState extends State<ReportScreen> {
   int _filteredExpense = 0;
   List<Map<String, dynamic>> _topTransactions = [];
   Map<String, double> _categoryPercentages = {};
+  Map<String, String> _customIcons = {};
 
   List<double> _chartIncome = [];
   List<double> _chartExpense = [];
@@ -116,6 +118,22 @@ class _ReportScreenState extends State<ReportScreen> {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      Map<String, String> tempIcons = {};
+
+      void loadCustomIcons(String listKey, String iconPrefix) {
+        final customCats = prefs.getStringList(listKey) ?? [];
+        for (final cat in customCats) {
+          tempIcons[cat.toLowerCase()] = prefs.getString('$iconPrefix$cat') ?? 'star';
+        }
+      }
+
+      loadCustomIcons('custom_transaction_expense_categories', 'custom_transaction_expense_icon_');
+      loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
+      loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
+
+      _customIcons = tempIcons;
 
       final txResponse = await supabase
           .from('transactions')
@@ -481,7 +499,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
                       amount: '- ${_formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0)}',
                       bgIconColor: CategoryHelper.getColor(catName).withValues(alpha: 0.1),
-                      icon: CategoryHelper.getIcon(catName),
+                      icon: CategoryHelper.getIcon(catName, customIcons: _customIcons),
                       amountColor: barRed,
                     ),
                   );

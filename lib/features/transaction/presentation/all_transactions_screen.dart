@@ -383,7 +383,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         if (result != null) {
           _fetchAllTransactions();
           String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-          CustomNotification.show(context, msg, isError: msg.contains('Dihapus'));
+          CustomNotification.show(context, msg);
         }
       },
       borderRadius: BorderRadius.circular(16),
