@@ -211,7 +211,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
 
               Container(
                 padding: const EdgeInsets.all(20),
@@ -317,7 +317,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     budget['percentage'],
                     budget['limit'],
                   );
-                }).toList(),
+                }),
 
               const SizedBox(height: 32),
 
@@ -327,6 +327,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   onPressed: () async {
                     await Navigator.push(context, MaterialPageRoute(
                         builder: (context) => const AddBudgetScreen()));
+                    if (!mounted) return;
                     _fetchBudgetData();
                   },
                   icon: const FaIcon(FontAwesomeIcons.plus, color: Colors.white, size: 16),

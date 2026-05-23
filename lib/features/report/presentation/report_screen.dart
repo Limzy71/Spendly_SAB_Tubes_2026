@@ -471,6 +471,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   return GestureDetector(
                     onTap: () async {
                       final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
+                      if (!mounted) return;
                       if (result != null) {
                         _fetchReportData();
                       }

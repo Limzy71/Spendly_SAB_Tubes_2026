@@ -63,10 +63,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     final user = Supabase.instance.client.auth.currentUser;
     final String? supabaseAvatarUrl = user?.userMetadata?['avatar_url'];
+    final userId = user?.id ?? '';
 
     setState(() {
-      _isPinEnabled = prefs.getBool('is_pin_enabled') ?? false;
-      _isBiometricEnabled = prefs.getBool('is_biometric_enabled') ?? false;
+      _isPinEnabled = prefs.getBool('is_pin_enabled_$userId') ?? prefs.getBool('is_pin_enabled') ?? false;
+      _isBiometricEnabled = prefs.getBool('is_biometric_enabled_$userId') ?? prefs.getBool('is_biometric_enabled') ?? false;
 
       if (supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty) {
         _profileImagePath = supabaseAvatarUrl;
@@ -107,14 +108,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
                 bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!mounted) return;
                 if (!isOnline) return;
 
                 Navigator.pop(dialogContext);
                 setState(() => _userName = nameController.text.trim());
                 await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': nameController.text.trim()}));
-                if (mounted) {
-                  CustomNotification.show(context, 'Nama berhasil diubah!');
-                }
+                if (!mounted) return;
+                CustomNotification.show(context, 'Nama berhasil diubah!');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
@@ -127,7 +128,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _togglePin(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    final savedPin = prefs.getString('user_pin');
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    final savedPin = prefs.getString('user_pin_$userId') ?? prefs.getString('user_pin');
 
     if (value == true && (savedPin == null || savedPin.isEmpty)) {
       CustomNotification.show(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
@@ -137,11 +139,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    await prefs.setBool('is_pin_enabled', value);
+    await prefs.setBool('is_pin_enabled_$userId', value);
     setState(() => _isPinEnabled = value);
 
     if (value == false) {
-      await prefs.setBool('is_biometric_enabled', false);
+      await prefs.setBool('is_biometric_enabled_$userId', false);
       setState(() => _isBiometricEnabled = false);
     }
   }
@@ -153,6 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final prefs = await SharedPreferences.getInstance();
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     if (value == true) {
       try {
@@ -169,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
 
         if (didAuthenticate) {
-          await prefs.setBool('is_biometric_enabled', true);
+          await prefs.setBool('is_biometric_enabled_$userId', true);
           setState(() => _isBiometricEnabled = true);
           CustomNotification.show(context, 'Biometrik berhasil diaktifkan!');
         } else {
@@ -179,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         CustomNotification.show(context, 'Gagal verifikasi biometrik', isError: true);
       }
     } else {
-      await prefs.setBool('is_biometric_enabled', false);
+      await prefs.setBool('is_biometric_enabled_$userId', false);
       setState(() => _isBiometricEnabled = false);
     }
   }
@@ -204,7 +207,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await prefs.setInt('reminder_minute', picked.minute);
 
       await NotificationHelper.scheduleDailyNotification(picked.hour, picked.minute);
-      if (mounted) CustomNotification.show(context, 'Pengingat harian disimpan!');
+      if (!mounted) return;
+      CustomNotification.show(context, 'Pengingat harian disimpan!');
     }
   }
 
@@ -227,17 +231,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!mounted) return;
                 if (!isOnline) return;
 
                 Navigator.pop(dialogContext);
                 await Supabase.instance.client.auth.signOut();
-
-                if (mounted) {
-                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        (route) => false,
-                  );
-                }
+                if (!mounted) return;
+                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: Text("Keluar", style: GoogleFonts.plusJakartaSans(color: Colors.white)),

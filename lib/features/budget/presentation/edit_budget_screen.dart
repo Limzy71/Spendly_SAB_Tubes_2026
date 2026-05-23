@@ -61,7 +61,9 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
 
   Future<void> _fetchTransactionHistory() async {
     // 1. INTEGRASI NETWORK HELPER
-    if (!await NetworkHelper.checkConnection(context)) {
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!isOnline) {
       if (mounted) setState(() => _isLoadingHistory = false);
       return;
     }
@@ -92,7 +94,9 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
 
   Future<void> _updateBudget() async {
     // 2. INTEGRASI NETWORK HELPER
-    if (!await NetworkHelper.checkConnection(context)) return;
+    bool isOnline2 = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!isOnline2) return;
 
     setState(() => _isLoading = true);
 
@@ -126,15 +130,14 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
             .ilike('category', widget.category.trim());
       }
 
-      if (mounted) {
-        setState(() {
-          _isDataModified = true;
-        });
+      if (!mounted) return;
+      setState(() {
+        _isDataModified = true;
+      });
 
-        _fetchTransactionHistory();
+      _fetchTransactionHistory();
 
-        CustomNotification.show(context, 'Anggaran berhasil diperbarui!');
-      }
+      CustomNotification.show(context, 'Anggaran berhasil diperbarui!');
     } catch (e) {
       if (mounted) {
         CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);

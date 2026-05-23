@@ -12,6 +12,7 @@ import 'passcode_screen.dart';
 import '../../main_layout/presentation/main_navigation.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/network_helper.dart';
+import '../../../widgets/pin_helper.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,9 +37,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handlePostLoginNavigation() async {
     if (!mounted) return;
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    await PinHelper.migrateLegacyPinIfNeeded(userId);
+    if (!mounted) return;
+
     final prefs = await SharedPreferences.getInstance();
-    final bool isPinEnabled = prefs.getBool('is_pin_enabled') ?? false;
-    final String? storedPin = prefs.getString('user_pin');
+    if (!mounted) return;
+    final bool isPinEnabled = prefs.getBool('is_pin_enabled_$userId') ?? false;
+    final String? storedPin = prefs.getString('user_pin_$userId');
 
     if (isPinEnabled && storedPin != null && storedPin.isNotEmpty) {
       Navigator.pushReplacement(
