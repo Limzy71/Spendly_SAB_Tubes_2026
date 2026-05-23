@@ -11,6 +11,7 @@ import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
+import '../../wallet/presentation/add_wallet_screen.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({Key? key}) : super(key: key);
@@ -22,6 +23,12 @@ class AddTransactionScreen extends StatefulWidget {
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final supabase = Supabase.instance.client;
 
+  static const String _expenseCategoryListKey = 'custom_transaction_expense_categories';
+  static const String _incomeCategoryListKey = 'custom_transaction_income_categories';
+  static const String _expenseCategoryIconPrefix = 'custom_transaction_expense_icon_';
+  static const String _incomeCategoryIconPrefix = 'custom_transaction_income_icon_';
+  static const String _legacyMigrationKey = 'custom_transaction_categories_migrated_v1';
+
   bool isExpense = true;
   String selectedCategory = "Makanan";
   int? selectedWalletId;
@@ -30,6 +37,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   bool _isLoading = false;
 
   List<Map<String, dynamic>> _wallets = [];
+  bool _walletsLoaded = false;
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
@@ -50,7 +58,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     {'name': 'Bonus', 'icon': FontAwesomeIcons.gift, 'color': Colors.amber.shade600},
     {'name': 'Investasi', 'icon': FontAwesomeIcons.arrowTrendUp, 'color': Colors.blueAccent},
     {'name': 'Dana', 'icon': FontAwesomeIcons.wallet, 'color': Colors.indigo},
-    {'name': 'Lainnya', 'icon': FontAwesomeIcons.boxArchive, 'color': Colors.teal},
+    {'name': 'BCA', 'icon': FontAwesomeIcons.buildingColumns, 'color': Colors.teal},
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
@@ -70,34 +78,127 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCustomCategories() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+  String _categoryListKey(bool expense) {
+    return expense ? _expenseCategoryListKey : _incomeCategoryListKey;
+  }
 
-    setState(() {
-      for (String catName in customCats) {
-        bool existsInExpense = expenseCategories.any((c) => c['name'] == catName);
-        bool existsInIncome = incomeCategories.any((c) => c['name'] == catName);
+  String _categoryIconKey(bool expense, String categoryName) {
+    return '${expense ? _expenseCategoryIconPrefix : _incomeCategoryIconPrefix}$categoryName';
+  }
 
-        if (!existsInExpense && !existsInIncome) {
-          String iconId = prefs.getString('custom_budget_icon_$catName') ?? 'star';
-          var newCat = {
-            'name': catName,
-            'icon': CategoryHelper.getCustomIconById(iconId),
-            'color': AppColors.primaryGreen,
-          };
-          expenseCategories.insert(expenseCategories.length - 1, newCat);
-          incomeCategories.insert(incomeCategories.length - 1, newCat);
+  List<Map<String, dynamic>> _customIconsForType(bool expense) {
+    if (expense) {
+      return [
+        {'id': 'utensils', 'icon': FontAwesomeIcons.utensils},
+        {'id': 'car', 'icon': FontAwesomeIcons.car},
+        {'id': 'bag', 'icon': FontAwesomeIcons.bagShopping},
+        {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
+        {'id': 'film', 'icon': FontAwesomeIcons.film},
+        {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
+        {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+        {'id': 'house', 'icon': FontAwesomeIcons.house},
+        {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
+        {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
+        {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+        {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
+        {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+        {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
+        {'id': 'train', 'icon': FontAwesomeIcons.train},
+        {'id': 'building', 'icon': FontAwesomeIcons.building},
+        {'id': 'star', 'icon': FontAwesomeIcons.star},
+        {'id': 'music', 'icon': FontAwesomeIcons.music},
+        {'id': 'dumbbell', 'icon': FontAwesomeIcons.dumbbell},
+        {'id': 'book', 'icon': FontAwesomeIcons.book},
+      ];
+    }
+
+    return [
+      {'id': 'bank', 'icon': FontAwesomeIcons.buildingColumns},
+      {'id': 'wallet', 'icon': FontAwesomeIcons.wallet},
+      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
+      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
+      {'id': 'salary', 'icon': FontAwesomeIcons.moneyBillWave},
+      {'id': 'chart', 'icon': FontAwesomeIcons.chartLine},
+      {'id': 'briefcase', 'icon': FontAwesomeIcons.briefcase},
+      {'id': 'giftbox', 'icon': FontAwesomeIcons.gift},
+      {'id': 'arrow', 'icon': FontAwesomeIcons.arrowTrendUp},
+      {'id': 'safe', 'icon': FontAwesomeIcons.boxArchive},
+    ];
+  }
+
+  String _defaultIconIdForType(bool expense) {
+    return expense ? 'invoice' : 'bank';
+  }
+
+  Future<void> _migrateLegacyCategoriesIfNeeded(SharedPreferences prefs) async {
+    if (prefs.getBool(_legacyMigrationKey) == true) {
+      return;
+    }
+
+    final legacyCategories = prefs.getStringList('custom_budget_categories') ?? [];
+    if (legacyCategories.isEmpty) {
+      await prefs.setBool(_legacyMigrationKey, true);
+      return;
+    }
+
+    Future<void> migrateForType({required bool expense}) async {
+      final listKey = _categoryListKey(expense);
+      final iconPrefix = expense ? _expenseCategoryIconPrefix : _incomeCategoryIconPrefix;
+      final currentCategories = prefs.getStringList(listKey) ?? [];
+      final mergedCategories = [...currentCategories];
+
+      for (final catName in legacyCategories) {
+        if (!mergedCategories.contains(catName)) {
+          mergedCategories.add(catName);
+        }
+
+        final legacyIconId = prefs.getString('custom_budget_icon_$catName') ?? _defaultIconIdForType(expense);
+        final newIconKey = '$iconPrefix$catName';
+        if (!prefs.containsKey(newIconKey)) {
+          await prefs.setString(newIconKey, legacyIconId);
         }
       }
+
+      await prefs.setStringList(listKey, mergedCategories);
+    }
+
+    await migrateForType(expense: true);
+    await migrateForType(expense: false);
+    await prefs.setBool(_legacyMigrationKey, true);
+  }
+
+  Future<void> _loadCustomCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyCategoriesIfNeeded(prefs);
+
+    setState(() {
+      void loadCustomCategoriesForType({required bool expense, required List<Map<String, dynamic>> targetList}) {
+        final customCats = prefs.getStringList(_categoryListKey(expense)) ?? [];
+
+        for (String catName in customCats) {
+          if (targetList.any((c) => c['name'] == catName)) {
+            continue;
+          }
+
+          final iconId = prefs.getString(_categoryIconKey(expense, catName)) ?? _defaultIconIdForType(expense);
+          final newCat = {
+            'name': catName,
+            'icon': CategoryHelper.getCustomIconById(iconId),
+            'color': expense ? Colors.redAccent : AppColors.primaryGreen,
+          };
+
+          targetList.insert(targetList.length - 1, newCat);
+        }
+      }
+
+      loadCustomCategoriesForType(expense: true, targetList: expenseCategories);
+      loadCustomCategoriesForType(expense: false, targetList: incomeCategories);
     });
   }
 
-  // --- FITUR BARU: HAPUS KATEGORI ---
   void _confirmDeleteCategory(String catName) {
     List<Map<String, dynamic>> currentList = isExpense ? expenseCategories : incomeCategories;
 
-    // Validasi: Harus tersisa minimal 1 kategori utama di luar tombol 'Baru'
     if (currentList.length <= 2) {
       CustomNotification.show(context, 'Minimal harus ada 1 kategori tersisa!', isWarning: true);
       return;
@@ -117,20 +218,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               Navigator.pop(ctx);
 
               setState(() {
-                expenseCategories.removeWhere((c) => c['name'] == catName);
-                incomeCategories.removeWhere((c) => c['name'] == catName);
+                currentList.removeWhere((c) => c['name'] == catName);
 
                 if (selectedCategory == catName) {
-                  selectedCategory = isExpense ? expenseCategories[0]['name'] : incomeCategories[0]['name'];
+                  selectedCategory = currentList.first['name'];
                 }
               });
 
               final prefs = await SharedPreferences.getInstance();
-              List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+              final listKey = _categoryListKey(isExpense);
+              final iconKey = _categoryIconKey(isExpense, catName);
+              List<String> customCats = prefs.getStringList(listKey) ?? [];
               if (customCats.contains(catName)) {
                 customCats.remove(catName);
-                await prefs.setStringList('custom_budget_categories', customCats);
-                await prefs.remove('custom_budget_icon_$catName');
+                await prefs.setStringList(listKey, customCats);
+                await prefs.remove(iconKey);
               }
 
               if (mounted) CustomNotification.show(context, 'Kategori berhasil dihapus!');
@@ -143,8 +245,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Future<void> _fetchWallets() async {
-    // Cek koneksi sebelum memuat data dompet
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     try {
@@ -181,10 +283,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (mounted) {
         setState(() {
           _wallets = processedWallets;
+          _walletsLoaded = true;
         });
       }
     } catch (e) {
       debugPrint('Error: $e');
+      if (mounted) setState(() => _walletsLoaded = true);
     }
   }
 
@@ -239,23 +343,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     TextEditingController catController = TextEditingController();
     bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final List<Map<String, dynamic>> availableIcons = [
-      {'id': 'star', 'icon': FontAwesomeIcons.star},
-      {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
-      {'id': 'plane', 'icon': FontAwesomeIcons.plane},
-      {'id': 'house', 'icon': FontAwesomeIcons.house},
-      {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
-      {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
-      {'id': 'paw', 'icon': FontAwesomeIcons.paw},
-      {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
-      {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
-      {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
-      {'id': 'film', 'icon': FontAwesomeIcons.film},
-      {'id': 'train', 'icon': FontAwesomeIcons.train},
-      {'id': 'building', 'icon': FontAwesomeIcons.building},
-      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
-      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
-    ];
+    final List<Map<String, dynamic>> availableIcons = _customIconsForType(isExpense);
 
     String tempIconId = availableIcons[0]['id'];
     dynamic tempIcon = availableIcons[0]['icon'];
@@ -287,8 +375,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                       const SizedBox(height: 12),
                       Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                        spacing: 14,
+                        runSpacing: 14,
                         children: availableIcons.map((item) {
                           bool isSelected = tempIconId == item['id'];
                           return GestureDetector(
@@ -323,12 +411,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         String newCatName = catController.text.trim();
 
                         final prefs = await SharedPreferences.getInstance();
-                        List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+                        final listKey = _categoryListKey(isExpense);
+                        final iconKey = _categoryIconKey(isExpense, newCatName);
+                        List<String> customCats = prefs.getStringList(listKey) ?? [];
 
                         if (!customCats.contains(newCatName)) {
                           customCats.add(newCatName);
-                          await prefs.setStringList('custom_budget_categories', customCats);
-                          await prefs.setString('custom_budget_icon_$newCatName', tempIconId);
+                          await prefs.setStringList(listKey, customCats);
+                          await prefs.setString(iconKey, tempIconId);
                         }
 
                         setState(() {
@@ -363,11 +453,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime today = DateTime.now();
+    final DateTime lastSelectableDate = DateTime(today.year, today.month, today.day);
+    final DateTime initialDate = selectedDate.isAfter(lastSelectableDate) ? lastSelectableDate : selectedDate;
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate,
+      initialDate: initialDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2101),
+      lastDate: lastSelectableDate,
       builder: (context, child) {
         return Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)), child: child!);
       },
@@ -412,7 +506,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
               const SizedBox(height: 20),
             ],
           ),
@@ -432,10 +526,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       return;
     }
 
-    // Menggunakan konsep DRY dari NetworkHelper
     bool hasConnection = await NetworkHelper.checkConnection(context);
     if (!hasConnection) {
-      return; // Hentikan proses jika internet mati (notifikasi sudah di-handle oleh helper)
+      return;
     }
 
     setState(() => _isLoading = true);
@@ -495,63 +588,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => FocusScope.of(context).requestFocus(_amountFocusNode),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
-                      child: Row(
-                        children: [
-                          _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
-                          _buildTabItem("Pemasukan", !isExpense, isDark, cardColor),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    const Text('NOMINAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                        const SizedBox(width: 10),
-                        IntrinsicWidth(
-                          child: TextField(
-                            controller: _amountController,
-                            focusNode: _amountFocusNode,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
-                            cursorColor: AppColors.primaryGreen,
-                            decoration: InputDecoration(border: InputBorder.none, hintText: "0", hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)),
-                            onChanged: (value) {
-                              if (value.isNotEmpty) {
-                                String clean = value.replaceAll('.', '');
-                                String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
-                                _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
+            getAmountInputSection(isDark, cardColor, textColor),
+            const SizedBox(height: 35), // Peregangan jarak atas judul kategori
             const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Text('KATEGORI (Tekan Tahan untuk Hapus)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 18), // Peregangan jarak bawah judul kategori
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -565,7 +608,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 }).toList(),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -575,7 +618,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 child: Column(
                   children: [
                     InkWell(
-                      onTap: _wallets.isEmpty ? null : _showWalletSelector,
+                      onTap: (_walletsLoaded && _wallets.isNotEmpty)
+                          ? _showWalletSelector
+                          : () async {
+                        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+                        if (!mounted) return;
+                        if (result == true) _fetchWallets();
+                      },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
@@ -583,20 +632,39 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             const FaIcon(FontAwesomeIcons.wallet, color: AppColors.primaryGreen, size: 20),
                             const SizedBox(width: 15),
                             Expanded(
-                              child: _wallets.isEmpty
+                              child: !_walletsLoaded
                                   ? const Text("Memuat dompet...", style: TextStyle(color: Colors.grey, fontSize: 14))
-                                  : Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  : (_wallets.isEmpty
+                                  ? Row(
                                 children: [
-                                  Text(
-                                    selectedWalletId == null
-                                        ? "Pilih Dompet"
-                                        : _wallets.firstWhere((w) => w['id'] == selectedWalletId)['name'],
-                                    style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
+                                  Expanded(child: const Text("Belum ada dompet. Silakan buat terlebih dahulu.", style: TextStyle(color: Colors.grey, fontSize: 14))),
+                                  TextButton(
+                                            onPressed: () async {
+                                              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+                                              if (!mounted) return;
+                                              if (result == true) {
+                                                _fetchWallets();
+                                              }
+                                            },
+                                    child: const Text('Buat Dompet', style: TextStyle(color: AppColors.primaryGreen)),
+                                  )
+                                ],
+                              )
+                                  : Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      selectedWalletId == null
+                                          ? "Pilih Dompet"
+                                          : _wallets.firstWhere((w) => w['id'] == selectedWalletId)['name'],
+                                      style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
+                                  const SizedBox(width: 12),
                                   const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                                 ],
-                              ),
+                              )),
                             ),
                           ],
                         ),
@@ -611,8 +679,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           children: [
                             const FaIcon(FontAwesomeIcons.calendarDays, color: AppColors.primaryGreen, size: 20),
                             const SizedBox(width: 15),
-                            Text(DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate), style: TextStyle(fontSize: 14, color: textColor)),
-                            const Spacer(),
+                            Expanded(
+                              child: Text(
+                                DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate),
+                                style: TextStyle(fontSize: 14, color: textColor),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
                             const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
                           ],
                         ),
@@ -682,6 +756,59 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ),
             const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget getAmountInputSection(bool isDark, Color cardColor, Color textColor) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => FocusScope.of(context).requestFocus(_amountFocusNode),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                children: [
+                  _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
+                  _buildTabItem("Pemasukan", !isExpense, isDark, cardColor),
+                ],
+              ),
+            ),
+            const SizedBox(height: 25),
+            const Text('NOMINAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                const SizedBox(width: 10),
+                IntrinsicWidth(
+                  child: TextField(
+                    controller: _amountController,
+                    focusNode: _amountFocusNode,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
+                    cursorColor: AppColors.primaryGreen,
+                    decoration: InputDecoration(border: InputBorder.none, hintText: "0", hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)),
+                    onChanged: (value) {
+                      if (value.isNotEmpty) {
+                        String clean = value.replaceAll('.', '');
+                        String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                        _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

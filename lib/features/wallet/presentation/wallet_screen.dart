@@ -43,6 +43,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Future<void> _fetchWalletData() async {
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) {
       if (mounted) setState(() => _isLoading = false);
       return;
@@ -123,6 +124,7 @@ class _WalletScreenState extends State<WalletScreen> {
     }
 
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     setState(() => _isTransferring = true);
@@ -174,20 +176,23 @@ class _WalletScreenState extends State<WalletScreen> {
     }
 
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     setState(() => _isLoading = true);
     try {
       final txCheck = await supabase.from('transactions').select('id').eq('wallet_id', id);
+      if (!mounted) return;
       setState(() => _isLoading = false);
 
       if (txCheck.isNotEmpty) {
+        if (!mounted) return;
         CustomNotification.show(context, 'Gagal: Dompet masih memiliki riwayat transaksi!', isError: true);
         return;
       }
     } catch (e) {
-      setState(() => _isLoading = false);
-      CustomNotification.show(context, 'Gagal mengecek data: $e', isError: true);
+      if (mounted) setState(() => _isLoading = false);
+      if (mounted) CustomNotification.show(context, 'Gagal mengecek data: $e', isError: true);
       return;
     }
 
@@ -206,6 +211,7 @@ class _WalletScreenState extends State<WalletScreen> {
         ],
       ),
     ) ?? false;
+    if (!mounted) return;
 
     if (confirm) {
       setState(() => _isLoading = true);
@@ -291,6 +297,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   onPressed: () async {
                     bool hasConnection = await NetworkHelper.checkConnection(context);
+                    if (!mounted) return;
                     if (!hasConnection) return;
 
                     Navigator.pop(ctx);
@@ -371,7 +378,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
               const SizedBox(height: 20),
             ],
           ),
@@ -463,7 +470,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ..._wallets.map((wallet) => _buildWalletItem(
                   wallet: wallet,
                   isDarkMode: isDarkMode,
-                )).toList(),
+                )),
 
               const SizedBox(height: 24),
               Divider(thickness: 1, color: isDarkMode ? Colors.white12 : const Color(0xFFEEEEEE)),

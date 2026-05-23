@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../auth/presentation/login_screen.dart';
+import '../../../../widgets/pin_helper.dart';
 
 import '../../../../widgets/network_helper.dart';
 
@@ -39,9 +40,14 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
   }
 
   Future<void> _loadExistingPin() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    await PinHelper.migrateLegacyPinIfNeeded(userId);
+    if (!mounted) return;
+
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _savedPin = prefs.getString('user_pin');
+      _savedPin = prefs.getString('user_pin_$userId');
       _isFirstTimeSetup = _savedPin == null || _savedPin!.isEmpty;
     });
   }
@@ -68,32 +74,35 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(dialogContext); // Tutup Dialog Dulu
+                Navigator.pop(dialogContext);
 
-                // 1. CEK INTERNET SEBELUM MERESET DATA
+                if (!mounted) return;
                 if (!await NetworkHelper.checkConnection(context)) return;
 
                 setState(() => _isLoading = true);
 
                 try {
-                  // Harus signOut dulu, pastikan server memprosesnya
+                  final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+                  await PinHelper.migrateLegacyPinIfNeeded(userId);
+
                   await Supabase.instance.client.auth.signOut();
 
-                  // Jika server berhasil, baru hapus data lokal
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('user_pin');
-                  await prefs.setBool('is_pin_enabled', false);
-                  await prefs.setBool('is_biometric_enabled', false);
+                  await prefs.remove('user_pin_$userId');
+                  await prefs.remove('is_pin_enabled_$userId');
+                  await prefs.remove('is_biometric_enabled_$userId');
 
-                  if (mounted) {
-                    CustomNotification.show(context, 'Sesi direset. Silakan masuk kembali untuk mengatur PIN baru.', isWarning: true);
-                    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          (route) => false,
-                    );
-                  }
+                  await prefs.remove('user_pin');
+                  await prefs.remove('is_pin_enabled');
+                  await prefs.remove('is_biometric_enabled');
+
+                  if (!mounted) return;
+                  CustomNotification.show(context, 'Sesi direset. Silakan masuk kembali untuk mengatur PIN baru.', isWarning: true);
+                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                  );
                 } catch (e) {
-                  // Jika signOut gagal atau bermasalah
                   if (mounted) {
                     CustomNotification.show(context, 'Gagal mereset sesi, coba lagi.', isError: true);
                   }
@@ -111,7 +120,6 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
   }
 
   Future<void> _processChangePin() async {
-    // Note: Fungsi ini TIDAK pakai NetworkHelper karena sifatnya 100% lokal (simpan ke memori HP).
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -130,9 +138,14 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
       return;
     }
 
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    await PinHelper.migrateLegacyPinIfNeeded(userId);
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_pin', _newPinController.text);
-    await prefs.setBool('is_pin_enabled', true);
+
+    await prefs.setString('user_pin_$userId', _newPinController.text);
+    await prefs.setBool('is_pin_enabled_$userId', true);
 
     if (mounted) {
       setState(() => _isLoading = false);

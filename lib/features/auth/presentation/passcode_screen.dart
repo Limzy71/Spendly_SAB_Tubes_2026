@@ -10,6 +10,7 @@ import '../../../../widgets/custom_notification.dart';
 import '../../main_layout/presentation/main_navigation.dart';
 import 'login_screen.dart';
 import '../../../widgets/network_helper.dart';
+import '../../../widgets/pin_helper.dart';
 
 class PasscodeScreen extends StatefulWidget {
   const PasscodeScreen({super.key});
@@ -32,8 +33,13 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
   }
 
   Future<void> _checkBiometricSettings() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    await PinHelper.migrateLegacyPinIfNeeded(userId);
+
     final prefs = await SharedPreferences.getInstance();
-    bool bioEnabled = prefs.getBool('is_biometric_enabled') ?? false;
+
+    bool bioEnabled = prefs.getBool('is_biometric_enabled_$userId') ?? false;
     setState(() => _isBiometricEnabled = bioEnabled);
 
     if (bioEnabled) {
@@ -90,8 +96,13 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
   }
 
   Future<void> _verifyPin() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    await PinHelper.migrateLegacyPinIfNeeded(userId);
+
     final prefs = await SharedPreferences.getInstance();
-    final storedPin = prefs.getString('user_pin');
+
+    final storedPin = prefs.getString('user_pin_$userId');
 
     if (enteredPin == storedPin) {
       if (mounted) {
@@ -140,9 +151,15 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
                 Navigator.pop(dialogContext);
 
                 final prefs = await SharedPreferences.getInstance();
+                final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+                await prefs.remove('user_pin_$userId');
+                await prefs.remove('is_pin_enabled_$userId');
+                await prefs.remove('is_biometric_enabled_$userId');
+
                 await prefs.remove('user_pin');
-                await prefs.setBool('is_pin_enabled', false);
-                await prefs.setBool('is_biometric_enabled', false);
+                await prefs.remove('is_pin_enabled');
+                await prefs.remove('is_biometric_enabled');
 
                 await Supabase.instance.client.auth.signOut();
 

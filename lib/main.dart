@@ -10,6 +10,7 @@ import 'theme/app_theme.dart';
 import 'features/main_layout/presentation/main_navigation.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/passcode_screen.dart';
+import 'widgets/pin_helper.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -103,9 +104,13 @@ class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   Future<bool> _isPinEnabled() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    await PinHelper.migrateLegacyPinIfNeeded(userId);
+
     final prefs = await SharedPreferences.getInstance();
-    final pin = prefs.getString('user_pin');
-    final isEnabled = prefs.getBool('is_pin_enabled') ?? false;
+    final pin = prefs.getString('user_pin_$userId');
+    final isEnabled = prefs.getBool('is_pin_enabled_$userId') ?? false;
 
     return pin != null && isEnabled;
   }
