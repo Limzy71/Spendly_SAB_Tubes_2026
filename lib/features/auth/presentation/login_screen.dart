@@ -61,13 +61,28 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) return;
+    // 1. CEK VALIDASI FORM
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
+    // 2. NYALAKAN LOADING
+    setState(() {
+      _isLoading = true;
+    });
+
+    // 3. JEDA BUATAN
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // 4. CEK JARINGAN
     bool isOnline = await NetworkHelper.checkConnection(context);
-    if (!isOnline) return;
 
-    setState(() => _isLoading = true);
+    if (!isOnline) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
+    // 5. PROSES KE SUPABASE (JIKA ADA INTERNET)
     try {
       await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
@@ -79,6 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await _handlePostLoginNavigation();
       }
     } on AuthException catch (error) {
+      // (Biar rapi, kode error catch-nya tetap sama seperti milikmu)
       if (mounted) {
         String errorMessage = 'Terjadi kesalahan saat masuk.';
         final msg = error.message.toLowerCase();
@@ -101,11 +117,14 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+      debugPrint("=== PROSES LOGIN SELESAI ===");
     }
   }
 
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
+
+    setState(() => _isLoading = true);
 
     if (email.isEmpty) {
       CustomNotification.show(context, 'Masukkan alamat email Anda terlebih dahulu.', isWarning: true);
@@ -113,9 +132,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     bool isOnline = await NetworkHelper.checkConnection(context);
-    if (!isOnline) return;
+    if (!isOnline) {
+      await Future.delayed(const Duration(seconds: 1));
 
-    setState(() => _isLoading = true);
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(email);
@@ -132,10 +154,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle() async {
-    bool isOnline = await NetworkHelper.checkConnection(context);
-    if (!isOnline) return;
-
     setState(() => _isLoading = true);
+
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) {
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       const webClientId = '426102305894-du5esrcekmtabv211lefl2sipt1r2jpk.apps.googleusercontent.com';
@@ -143,7 +170,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final g_auth.GoogleSignIn googleSignIn = g_auth.GoogleSignIn(serverClientId: webClientId);
       final g_auth.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
-      if (googleUser == null) throw 'Proses masuk dibatalkan.';
+      if (googleUser == null) {
+        if (mounted) setState(() => _isLoading = false); // Pastikan loading mati jika batal
+        throw 'Proses masuk dibatalkan.';
+      }
 
       final g_auth.GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final accessToken = googleAuth.accessToken;
