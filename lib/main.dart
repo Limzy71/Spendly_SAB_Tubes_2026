@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:async';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'features/profile/logic/theme_cubit.dart';
@@ -100,8 +101,40 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  Session? _session = Supabase.instance.client.auth.currentSession;
+  Future<bool>? _pinFuture;
+  StreamSubscription<AuthState>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_session != null) {
+      _pinFuture = _isPinEnabled();
+    }
+
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
+      if (!mounted) return;
+
+      setState(() {
+        _session = authState.session;
+        _pinFuture = _session == null ? null : _isPinEnabled();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   Future<bool> _isPinEnabled() async {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
@@ -117,35 +150,24 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_session == null) {
+      return const LoginScreen();
+    }
+
+    return FutureBuilder<bool>(
+      future: _pinFuture ??= _isPinEnabled(),
+      builder: (context, pinSnapshot) {
+        if (pinSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.green)));
         }
 
-        final session = snapshot.hasData ? snapshot.data!.session : null;
+        final hasPin = pinSnapshot.data ?? false;
 
-        if (session != null) {
-          return FutureBuilder<bool>(
-            future: _isPinEnabled(),
-            builder: (context, pinSnapshot) {
-              if (pinSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.green)));
-              }
-
-              final hasPin = pinSnapshot.data ?? false;
-
-              if (hasPin) {
-                return const PasscodeScreen();
-              }
-
-              return const MainNavigation();
-            },
-          );
+        if (hasPin) {
+          return const PasscodeScreen();
         }
 
-        return const LoginScreen();
+        return const MainNavigation();
       },
     );
   }
