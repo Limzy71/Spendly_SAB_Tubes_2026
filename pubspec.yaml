@@ -76,6 +76,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   change_app_package_name: ^1.5.0
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -122,3 +123,8 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: false
   image_path: "assets/icon/app_logo.png"
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/icon/app_logo.png
+  android_gravity: center
