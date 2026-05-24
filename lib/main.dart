@@ -29,7 +29,7 @@ class NotificationHelper {
       channelDescription: 'Notifikasi untuk mencatat keuangan harian',
       importance: Importance.max,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@mipmap/launcher_icon', // <-- SUDAH DIPERBAIKI DI SINI
     );
 
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
@@ -57,7 +57,7 @@ void main() async {
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
 
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
