@@ -11,6 +11,8 @@ import 'theme/app_theme.dart';
 import 'features/main_layout/presentation/main_navigation.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/passcode_screen.dart';
+import 'features/splash/presentation/splash_screen.dart';
+import 'widgets/app_bootstrap.dart';
 import 'widgets/pin_helper.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -30,7 +32,7 @@ class NotificationHelper {
       channelDescription: 'Notifikasi untuk mencatat keuangan harian',
       importance: Importance.max,
       priority: Priority.high,
-      icon: '@mipmap/launcher_icon', // <-- SUDAH DIPERBAIKI DI SINI
+      icon: '@mipmap/launcher_icon',
     );
 
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
@@ -58,16 +60,16 @@ void main() async {
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
 
+  AppBootstrap.start();
+  runApp(const MyApp());
+
+  unawaited(_initializeNotifications());
+}
+
+Future<void> _initializeNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  await Supabase.initialize(
-    url: 'https://kkyqghphrvnfycukwpyk.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtreXFnaHBocnZuZnljdWt3cHlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTIwMDQsImV4cCI6MjA5NDE2ODAwNH0.0-YLNAcZG1U4ZL6Nrz0EdY4_Dioaq4C7sEy-VhWDtaA',
-  );
-
-  runApp(const MyApp());
 }
 
 class NoOverscrollBehavior extends ScrollBehavior {
@@ -93,7 +95,7 @@ class MyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
             scrollBehavior: NoOverscrollBehavior(),
-            home: const AuthGate(),
+            home: const SplashScreen(),
           );
         },
       ),

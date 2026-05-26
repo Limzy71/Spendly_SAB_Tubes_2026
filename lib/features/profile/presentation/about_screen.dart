@@ -59,7 +59,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text('Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 4),
-            Text('Versi 1.0.4', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
+            Text('Versi 1.0.7', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
             const SizedBox(height: 30),
 
             Text(
@@ -87,7 +87,7 @@ class AboutScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const FaIcon(FontAwesomeIcons.userTie, size: 18, color: AppColors.primaryGreen), // <-- Ikon "Manager"
+                        const FaIcon(FontAwesomeIcons.userTie, size: 18, color: AppColors.primaryGreen),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(

@@ -13,6 +13,7 @@ import '../../main_layout/presentation/main_navigation.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/network_helper.dart';
 import '../../../widgets/pin_helper.dart';
+import '../../../widgets/profile_image_cache.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -61,20 +62,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signIn() async {
-    // 1. CEK VALIDASI FORM
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // 2. NYALAKAN LOADING
     setState(() {
       _isLoading = true;
     });
 
-    // 3. JEDA BUATAN
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    // 4. CEK JARINGAN
+    if (!mounted) return;
+
     bool isOnline = await NetworkHelper.checkConnection(context);
 
     if (!isOnline) {
@@ -82,19 +81,19 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 5. PROSES KE SUPABASE (JIKA ADA INTERNET)
     try {
       await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
+      await ProfileImageCache.clearLegacyKey();
+
       if (mounted) {
         CustomNotification.show(context, 'Berhasil masuk!');
         await _handlePostLoginNavigation();
       }
     } on AuthException catch (error) {
-      // (Biar rapi, kode error catch-nya tetap sama seperti milikmu)
       if (mounted) {
         String errorMessage = 'Terjadi kesalahan saat masuk.';
         final msg = error.message.toLowerCase();
@@ -106,7 +105,12 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (msg.contains('rate limit')) {
           errorMessage = 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
         } else {
-          errorMessage = error.message;
+          final match = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(error.message);
+          if (match != null) {
+            errorMessage = match.group(1)!;
+          } else {
+            errorMessage = error.message.replaceAll(RegExp(r'[\{\}"]'), '').replaceFirst('code:unexpected_failure, message:', '');
+          }
         }
 
         CustomNotification.show(context, errorMessage, isError: true);
@@ -172,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final g_auth.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
-        if (mounted) setState(() => _isLoading = false); // Pastikan loading mati jika batal
+        if (mounted) setState(() => _isLoading = false);
         throw 'Proses masuk dibatalkan.';
       }
 
@@ -189,6 +193,8 @@ class _LoginScreenState extends State<LoginScreen> {
         idToken: idToken,
         accessToken: accessToken,
       );
+
+      await ProfileImageCache.clearLegacyKey();
 
       if (mounted) {
         CustomNotification.show(context, 'Berhasil masuk dengan Google!');
@@ -233,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                   Text('Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
                   const SizedBox(height: 40),
-                  Text('Selamat Datang Kembali', style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
+                  Text('Selamat Datang', style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 8),
                   Text('Masuk untuk melanjutkan pencatatan', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 40),
@@ -370,6 +376,15 @@ class _LoginScreenState extends State<LoginScreen> {
       obscureText: isPassword && !isVisible,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Bagian ini tidak boleh kosong';
+        }
+        if (hintText.contains('Email') && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+          return 'Format email tidak valid';
+        }
+        return null;
+      },
       style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         counterText: "",
@@ -386,7 +401,11 @@ class _LoginScreenState extends State<LoginScreen> {
         filled: true,
         fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade200, width: 1)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.primaryGreen, width: 1.5)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 1)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
+        errorStyle: GoogleFonts.plusJakartaSans(color: Colors.redAccent, fontSize: 12),
       ),
     );
   }

@@ -57,9 +57,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
       }
     } on AuthException catch (error) {
-      if (mounted) CustomNotification.show(context, error.message, isError: true);
+      if (mounted) {
+        String errorMessage = 'Pendaftaran gagal. Silakan coba lagi.';
+        final rawMsg = error.message.toLowerCase();
+
+        // 1. Tangani error spesifik dengan bahasa manusia
+        if (rawMsg.contains('database error saving new user') || rawMsg.contains('already registered')) {
+          errorMessage = 'Email ini sudah terdaftar. Silakan gunakan email lain atau langsung Masuk.';
+        } else if (rawMsg.contains('password')) {
+          errorMessage = 'Kata sandi terlalu lemah. Minimal 6 karakter.';
+        } else if (rawMsg.contains('invalid email')) {
+          errorMessage = 'Format email tidak valid. Periksa kembali ketikan Anda.';
+        } else {
+          // 2. Jika pesan berupa JSON, kita saring (ekstrak) bagian "message"-nya saja
+          final match = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(error.message);
+          if (match != null) {
+            errorMessage = match.group(1)!;
+          } else {
+            // Jika regex gagal, bersihkan karakter aneh sebagai cadangan
+            errorMessage = error.message.replaceAll(RegExp(r'[\{\}"]'), '').replaceFirst('code:unexpected_failure, message:', '');
+          }
+        }
+        CustomNotification.show(context, errorMessage, isError: true);
+      }
     } catch (error) {
-      if (mounted) CustomNotification.show(context, 'Terjadi kesalahan tidak terduga: $error', isError: true);
+      if (mounted) CustomNotification.show(context, 'Terjadi kendala jaringan atau sistem.', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
