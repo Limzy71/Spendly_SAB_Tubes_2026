@@ -9,6 +9,7 @@ import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../transaction/presentation/all_transactions_screen.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -40,25 +41,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _fetchDashboardData() async {
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) {
+        return;
+      }
 
       final prefs = await SharedPreferences.getInstance();
-      List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
       Map<String, String> tempIcons = {};
-      for (String cat in customCats) {
-        tempIcons[cat.toLowerCase()] = prefs.getString('custom_budget_icon_$cat') ?? 'star';
+      void loadCustomIcons(String listKey, String iconPrefix) {
+        final customCats = prefs.getStringList(listKey) ?? [];
+        for (final cat in customCats) {
+          tempIcons[cat.toLowerCase()] = prefs.getString('$iconPrefix$cat') ?? 'star';
+        }
       }
+
+      loadCustomIcons('custom_transaction_expense_categories', 'custom_transaction_expense_icon_');
+      loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
+      loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
       for (var w in walletResponse) {
         walletData[w['id'] as int] = {
           'name': w['name'].toString(),
-          'balance': w['balance'] as int,
+          'balance': int.tryParse(w['balance'].toString()) ?? 0,
         };
       }
 
@@ -73,9 +88,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       int tempExpense = 0;
 
       for (var tx in txResponse) {
-        int amount = tx['amount'] as int;
-        bool isExpense = tx['is_expense'] as bool;
-        int walletId = tx['wallet_id'] as int;
+        int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+        bool isExpense = tx['is_expense'] == true;
+        int walletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
         String category = tx['category']?.toString() ?? '';
 
         if (isExpense) {
@@ -97,20 +112,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Set<int> processedIds = {};
 
       for (var tx in txResponse) {
-        int id = tx['id'] as int;
+        int id = int.tryParse(tx['id'].toString()) ?? -1;
         if (processedIds.contains(id)) continue;
 
-        int amount = tx['amount'] as int;
-        bool isExpense = tx['is_expense'] as bool;
-        int walletId = tx['wallet_id'] as int;
+        int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+        bool isExpense = tx['is_expense'] == true;
+        int walletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
         String category = tx['category']?.toString() ?? '';
 
         if (category.toLowerCase() == 'transfer') {
           final partner = txResponse.firstWhere(
                 (t) => t['category']?.toString().toLowerCase() == 'transfer' &&
-                t['amount'] == amount &&
+                (int.tryParse(t['amount'].toString()) ?? 0) == amount &&
                 t['is_expense'] != isExpense &&
-                !processedIds.contains(t['id'] as int),
+                !processedIds.contains(int.tryParse(t['id'].toString()) ?? -1),
             orElse: () => <String, dynamic>{},
           );
 
@@ -125,7 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           displayTx.add(mergedTx);
           processedIds.add(id);
-          if (partner.isNotEmpty) processedIds.add(partner['id'] as int);
+          if (partner.isNotEmpty) processedIds.add(int.tryParse(partner['id'].toString()) ?? -1);
         } else {
           var mergedTx = Map<String, dynamic>.from(tx);
           mergedTx['wallet_name'] = walletData[walletId]?['name'] ?? 'Dompet';
@@ -156,13 +171,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _bankBalance = tempBank;
           _ewalletBalance = tempEwallet;
           _recentTransactions = displayTx.take(5).toList();
-          _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
+        CustomNotification.show(context, 'Gagal memuat data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) {
         setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal: $e', isError: true);
       }
     }
   }
@@ -183,6 +200,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) { return dateString; }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 11) {
+      return "Selamat Pagi,";
+    } else if (hour >= 11 && hour < 15) {
+      return "Selamat Siang,";
+    } else if (hour >= 15 && hour < 18) {
+      return "Selamat Sore,";
+    } else {
+      return "Selamat Malam,";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool hasTransactions = _recentTransactions.isNotEmpty;
@@ -190,7 +220,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     final user = Supabase.instance.client.auth.currentUser;
-    final userName = user?.userMetadata?['full_name'] ?? 'Pengguna';
+
+    // PERBAIKAN: Logika Nama Cerdas (Smart Name Fallback)
+    String userName = 'Pengguna';
+    if (user != null) {
+      final meta = user.userMetadata;
+      if (meta != null && meta['full_name'] != null && meta['full_name'].toString().trim().isNotEmpty) {
+        userName = meta['full_name'].toString();
+      } else if (meta != null && meta['name'] != null && meta['name'].toString().trim().isNotEmpty) {
+        userName = meta['name'].toString();
+      } else if (user.email != null && user.email!.isNotEmpty) {
+        userName = user.email!.split('@')[0];
+      }
+    }
 
     return Scaffold(
       body: RefreshIndicator(
@@ -210,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                const Text("Selamat Pagi,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                Text(_getGreeting(), style: const TextStyle(color: Colors.grey, fontSize: 14)),
                 Text(userName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
                 const SizedBox(height: 16),
                 _buildBalanceCard(context, AppColors.primaryGreen, hasTransactions),
@@ -222,6 +264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(12),
                           onTap: () async {
                             await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'income')));
+                            if (!mounted) return;
                             _fetchDashboardData();
                           },
                           child: _buildSummaryCard(context, title: "Pemasukan", amount: _formatCurrency(_totalIncome), indicatorColor: AppColors.primaryGreen, icon: FontAwesomeIcons.arrowTrendUp, iconBgColor: isDark ? Colors.green.withValues(alpha: 0.1) : const Color(0xFFF1FAF5)),
@@ -233,6 +276,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(12),
                           onTap: () async {
                             await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen(filterType: 'expense')));
+                            if (!mounted) return;
                             _fetchDashboardData();
                           },
                           child: _buildSummaryCard(context, title: "Pengeluaran", amount: _formatCurrency(_totalExpense), indicatorColor: Colors.red, icon: FontAwesomeIcons.arrowTrendDown, iconBgColor: Colors.red.withValues(alpha: 0.1)),
@@ -249,6 +293,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       TextButton(
                           onPressed: () async {
                             await Navigator.push(context, MaterialPageRoute(builder: (context) => const AllTransactionsScreen()));
+                            if (!mounted) return;
                             _fetchDashboardData();
                           },
                           child: const Text("Lihat Semua", style: TextStyle(color: AppColors.primaryGreen, fontSize: 13))
@@ -257,7 +302,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (hasTransactions)
-                  ..._recentTransactions.map((tx) => _buildTransactionItem(tx, textColor, isDark)).toList()
+                  ..._recentTransactions.map((tx) => _buildTransactionItem(tx, textColor, isDark))
                 else
                   _buildEmptyState(context, AppColors.primaryGreen),
                 const SizedBox(height: 100),
@@ -300,7 +345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _fetchDashboardData();
           if (mounted) {
             String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-            CustomNotification.show(context, msg, isError: msg.contains('Dihapus'));
+            CustomNotification.show(context, msg);
           }
         }
       },
@@ -373,5 +418,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, {required String title, required String amount, required Color indicatorColor, required dynamic icon, required Color iconBgColor}) { return Container(decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)), child: ClipRRect(borderRadius: BorderRadius.circular(12), child: IntrinsicHeight(child: Row(children: [Container(width: 4, color: indicatorColor), Expanded(child: Padding(padding: const EdgeInsets.all(12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle), child: FaIcon(icon, size: 12, color: indicatorColor)), const SizedBox(width: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]), const SizedBox(height: 8), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(amount, style: TextStyle(color: indicatorColor, fontWeight: FontWeight.bold, fontSize: 16)))],),),),],),),),); }
+  Widget _buildSummaryCard(BuildContext context, {required String title, required String amount, required Color indicatorColor, required dynamic icon, required Color iconBgColor}) { return Container(decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)), child: ClipRRect(borderRadius: BorderRadius.circular(12), child: IntrinsicHeight(child: Row(children: [Container(width: 4, color: indicatorColor), Expanded(child: Padding(padding: const EdgeInsets.all(12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle), child: FaIcon(icon, size: 12, color: indicatorColor)), const SizedBox(width: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]), const SizedBox(height: 8), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(amount, style: TextStyle(color: indicatorColor, fontWeight: FontWeight.bold, fontSize: 16)))],),),),])),)); }
 }

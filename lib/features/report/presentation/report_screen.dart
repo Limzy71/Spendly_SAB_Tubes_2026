@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -10,6 +11,7 @@ import '../../budget/presentation/budget_screen.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -32,6 +34,7 @@ class _ReportScreenState extends State<ReportScreen> {
   int _filteredExpense = 0;
   List<Map<String, dynamic>> _topTransactions = [];
   Map<String, double> _categoryPercentages = {};
+  Map<String, String> _customIcons = {};
 
   List<double> _chartIncome = [];
   List<double> _chartExpense = [];
@@ -104,11 +107,33 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _fetchReportData() async {
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!isOnline) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      Map<String, String> tempIcons = {};
+
+      void loadCustomIcons(String listKey, String iconPrefix) {
+        final customCats = prefs.getStringList(listKey) ?? [];
+        for (final cat in customCats) {
+          tempIcons[cat.toLowerCase()] = prefs.getString('$iconPrefix$cat') ?? 'star';
+        }
+      }
+
+      loadCustomIcons('custom_transaction_expense_categories', 'custom_transaction_expense_icon_');
+      loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
+      loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
+
+      _customIcons = tempIcons;
 
       final txResponse = await supabase
           .from('transactions')
@@ -152,7 +177,7 @@ class _ReportScreenState extends State<ReportScreen> {
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
           if (txDate.year == startDate.year) {
-            int amount = tx['amount'] as int;
+            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
             if (tx['is_expense'] == true) tempChartExpense[txDate.month - 1] += amount;
             else tempChartIncome[txDate.month - 1] += amount;
           }
@@ -169,7 +194,7 @@ class _ReportScreenState extends State<ReportScreen> {
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
           if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-            int amount = tx['amount'] as int;
+            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
             int dayIdx = -1;
             for (int i = 0; i < 7; i++) {
               if (txDate.year == last7Days[i].year && txDate.month == last7Days[i].month && txDate.day == last7Days[i].day) {
@@ -206,7 +231,7 @@ class _ReportScreenState extends State<ReportScreen> {
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
           if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-            int amount = tx['amount'] as int;
+            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
             int diffDays = txDate.difference(startDate).inDays;
             int segIdx = diffDays ~/ 7;
             if (segIdx >= segments) segIdx = segments - 1;
@@ -226,8 +251,8 @@ class _ReportScreenState extends State<ReportScreen> {
       for (var tx in txResponse) {
         DateTime txDate = DateTime.parse(tx['transaction_date']);
         if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-          int amount = tx['amount'] as int;
-          bool isExpense = tx['is_expense'] as bool;
+          int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+          bool isExpense = tx['is_expense'] == true;
           String category = tx['category']?.toString() ?? 'Lainnya';
 
           if (isExpense) {
@@ -244,7 +269,7 @@ class _ReportScreenState extends State<ReportScreen> {
       }
 
       List<Map<String, dynamic>> sortedTxResponse = List<Map<String, dynamic>>.from(txResponse)
-        ..sort((a, b) => (b['amount'] as int).compareTo(a['amount'] as int));
+        ..sort((a, b) => (int.tryParse(b['amount'].toString()) ?? 0).compareTo(int.tryParse(a['amount'].toString()) ?? 0));
 
       for (var tx in sortedTxResponse) {
         DateTime txDate = DateTime.parse(tx['transaction_date']);
@@ -273,14 +298,12 @@ class _ReportScreenState extends State<ReportScreen> {
           _chartLabels = tempChartLabels;
           _categoryPercentages = tempCategoryPercentages;
           _topTransactions = tempTopTx;
-          _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal memuat laporan: $e', isError: true);
-      }
+      if (mounted) CustomNotification.show(context, 'Gagal memuat laporan: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -407,7 +430,6 @@ class _ReportScreenState extends State<ReportScreen> {
                       _buildPieChart(textColor),
                       const SizedBox(height: 24),
                       ..._categoryPercentages.entries.map((entry) {
-                        // SEKARANG DRY: Warna legend mengambil dari Helper Pusat
                         Color color = CategoryHelper.getColor(entry.key);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
@@ -467,6 +489,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   return GestureDetector(
                     onTap: () async {
                       final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
+                      if (!mounted) return;
                       if (result != null) {
                         _fetchReportData();
                       }
@@ -474,10 +497,9 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: TransactionItem(
                       title: catName,
                       subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
-                      amount: '- ${_formatCurrency(tx['amount'])}',
-                      // SEKARANG DRY & DINAMIS: Mengikuti warna dan ikon kategori aslinya dari pusat helper
+                      amount: '- ${_formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0)}',
                       bgIconColor: CategoryHelper.getColor(catName).withValues(alpha: 0.1),
-                      icon: CategoryHelper.getIcon(catName),
+                      icon: CategoryHelper.getIcon(catName, customIcons: _customIcons),
                       amountColor: barRed,
                     ),
                   );
@@ -496,7 +518,6 @@ class _ReportScreenState extends State<ReportScreen> {
     _categoryPercentages.forEach((key, value) {
       sections.add(
           PieChartSectionData(
-            // SEKARANG DRY: Warna chart pie mengambil dari Helper Pusat
             color: CategoryHelper.getColor(key),
             value: value,
             title: '',

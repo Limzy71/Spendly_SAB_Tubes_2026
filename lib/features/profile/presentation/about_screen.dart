@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   void _showSimpleDialog(BuildContext context, String title, String content) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(title, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
         content: SingleChildScrollView(
-          child: Text(content, style: const TextStyle(height: 1.5, fontSize: 14)),
+          child: Text(content, style: GoogleFonts.plusJakartaSans(height: 1.5, fontSize: 14, color: isDark ? Colors.white70 : Colors.black87)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+            child: Text('Tutup', style: GoogleFonts.plusJakartaSans(color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -32,7 +36,7 @@ class AboutScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Tentang Spendly', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text('Tentang Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
         backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
         foregroundColor: isDark ? Colors.white : Colors.black87,
         elevation: 0.5,
@@ -53,21 +57,21 @@ class AboutScreen extends StatelessWidget {
               child: const FaIcon(FontAwesomeIcons.wallet, size: 60, color: AppColors.primaryGreen),
             ),
             const SizedBox(height: 16),
-            Text('Spendly', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
+            Text('Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 4),
-            Text('Versi 1.0.0', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+            Text('Versi 1.0.7', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
             const SizedBox(height: 30),
 
             Text(
               'Spendly adalah aplikasi pencatatan keuangan cerdas yang membantu Anda mengelola pemasukan, pengeluaran, and anggaran dengan mudah dan aman.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, height: 1.5),
+              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, height: 1.5),
             ),
             const SizedBox(height: 40),
 
             Align(
               alignment: Alignment.centerLeft,
-              child: Text('TIM PENGEMBANG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2)),
+              child: Text('TIM PENGEMBANG', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2)),
             ),
             const SizedBox(height: 10),
             Card(
@@ -81,16 +85,16 @@ class AboutScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        FaIcon(FontAwesomeIcons.userGear, size: 18, color: AppColors.primaryGreen),
-                        SizedBox(width: 12),
+                        const FaIcon(FontAwesomeIcons.userTie, size: 18, color: AppColors.primaryGreen),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Dhaffa Galang Fahriza', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              Text('Back-End Developer', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('La Ode Muh. Ikhsan Mbala', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
+                              Text('Project Manager / Back-End', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)), // <-- Update Role
                             ],
                           ),
                         ),
@@ -100,14 +104,14 @@ class AboutScreen extends StatelessWidget {
 
                     Row(
                       children: [
-                        FaIcon(FontAwesomeIcons.laptopCode, size: 18, color: AppColors.primaryGreen),
+                        const FaIcon(FontAwesomeIcons.laptopCode, size: 18, color: AppColors.primaryGreen),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Mudor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              Text('Front-End & UI/UX', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('Murod Fikri Fadlurohman', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
+                              Text('Front-End & UI/UX', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -115,16 +119,16 @@ class AboutScreen extends StatelessWidget {
                     ),
                     const Divider(height: 24),
 
-                    const Row(
+                    Row(
                       children: [
-                        FaIcon(FontAwesomeIcons.userPen, size: 18, color: AppColors.primaryGreen),
-                        SizedBox(width: 12),
+                        const FaIcon(FontAwesomeIcons.userPen, size: 18, color: AppColors.primaryGreen),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Iksan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              Text('Database Administrator / QA', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('Dhaffa Galang Fahriza', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
+                              Text('Database Administrator / QA', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -136,12 +140,12 @@ class AboutScreen extends StatelessWidget {
                       children: [
                         FaIcon(FontAwesomeIcons.graduationCap, size: 18, color: Colors.blue.shade400),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Kelompok Keren', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              Text('Teknik Informatika - Univ. Pasundan', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('Spendly Project', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
+                              Text('Teknik Informatika - Univ. Pasundan', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -155,7 +159,7 @@ class AboutScreen extends StatelessWidget {
 
             Align(
               alignment: Alignment.centerLeft,
-              child: Text('LEGAL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2)),
+              child: Text('LEGAL', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2)),
             ),
             const SizedBox(height: 10),
             Container(
@@ -168,7 +172,7 @@ class AboutScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: const FaIcon(FontAwesomeIcons.shieldHalved, size: 18, color: Colors.grey),
-                    title: const Text('Kebijakan Privasi', style: TextStyle(fontSize: 14)),
+                    title: Text('Kebijakan Privasi', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
                     trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                     onTap: () {
                       _showSimpleDialog(
@@ -181,7 +185,7 @@ class AboutScreen extends StatelessWidget {
                   Divider(height: 1, thickness: 1, color: isDark ? Colors.white12 : Colors.grey.shade100),
                   ListTile(
                     leading: const FaIcon(FontAwesomeIcons.fileContract, size: 18, color: Colors.grey),
-                    title: const Text('Syarat & Ketentuan', style: TextStyle(fontSize: 14)),
+                    title: Text('Syarat & Ketentuan', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
                     trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                     onTap: () {
                       _showSimpleDialog(
@@ -195,7 +199,7 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 40),
-            Text('© 2026 Spendly - Kelompok 7', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+            Text('© 2026 Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey.shade400)),
             const SizedBox(height: 20),
           ],
         ),

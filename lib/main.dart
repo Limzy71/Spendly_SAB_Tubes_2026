@@ -3,14 +3,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:async';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-
 import 'features/profile/logic/theme_cubit.dart';
 import 'theme/app_theme.dart';
 import 'features/main_layout/presentation/main_navigation.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/passcode_screen.dart';
+import 'features/splash/presentation/splash_screen.dart';
+import 'widgets/app_bootstrap.dart';
+import 'widgets/pin_helper.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -29,7 +32,7 @@ class NotificationHelper {
       channelDescription: 'Notifikasi untuk mencatat keuangan harian',
       importance: Importance.max,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@mipmap/launcher_icon',
     );
 
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
@@ -57,16 +60,16 @@ void main() async {
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
 
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  AppBootstrap.start();
+  runApp(const MyApp());
+
+  unawaited(_initializeNotifications());
+}
+
+Future<void> _initializeNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  await Supabase.initialize(
-    url: 'https://kkyqghphrvnfycukwpyk.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtreXFnaHBocnZuZnljdWt3cHlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTIwMDQsImV4cCI6MjA5NDE2ODAwNH0.0-YLNAcZG1U4ZL6Nrz0EdY4_Dioaq4C7sEy-VhWDtaA',
-  );
-
-  runApp(const MyApp());
 }
 
 class NoOverscrollBehavior extends ScrollBehavior {
@@ -92,7 +95,7 @@ class MyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
             scrollBehavior: NoOverscrollBehavior(),
-            home: const AuthGate(),
+            home: const SplashScreen(),
           );
         },
       ),
@@ -100,48 +103,73 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  Session? _session = Supabase.instance.client.auth.currentSession;
+  Future<bool>? _pinFuture;
+  StreamSubscription<AuthState>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_session != null) {
+      _pinFuture = _isPinEnabled();
+    }
+
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
+      if (!mounted) return;
+
+      setState(() {
+        _session = authState.session;
+        _pinFuture = _session == null ? null : _isPinEnabled();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<bool> _isPinEnabled() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    await PinHelper.migrateLegacyPinIfNeeded(userId);
+
     final prefs = await SharedPreferences.getInstance();
-    final pin = prefs.getString('user_pin');
-    final isEnabled = prefs.getBool('is_pin_enabled') ?? false;
+    final pin = prefs.getString('user_pin_$userId');
+    final isEnabled = prefs.getBool('is_pin_enabled_$userId') ?? false;
 
     return pin != null && isEnabled;
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_session == null) {
+      return const LoginScreen();
+    }
+
+    return FutureBuilder<bool>(
+      future: _pinFuture ??= _isPinEnabled(),
+      builder: (context, pinSnapshot) {
+        if (pinSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.green)));
         }
 
-        final session = snapshot.hasData ? snapshot.data!.session : null;
+        final hasPin = pinSnapshot.data ?? false;
 
-        if (session != null) {
-          return FutureBuilder<bool>(
-            future: _isPinEnabled(),
-            builder: (context, pinSnapshot) {
-              if (pinSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.green)));
-              }
-
-              final hasPin = pinSnapshot.data ?? false;
-
-              if (hasPin) {
-                return const PasscodeScreen();
-              }
-
-              return const MainNavigation();
-            },
-          );
+        if (hasPin) {
+          return const PasscodeScreen();
         }
 
-        return const LoginScreen();
+        return const MainNavigation();
       },
     );
   }

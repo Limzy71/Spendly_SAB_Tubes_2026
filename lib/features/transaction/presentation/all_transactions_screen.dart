@@ -9,6 +9,7 @@ import '../../../../widgets/sub_app_bar.dart';
 import 'edit_transaction_screen.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
 
 class AllTransactionsScreen extends StatefulWidget {
   final String filterType;
@@ -82,16 +83,28 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   Future<void> _fetchAllTransactions() async {
     setState(() => _isLoading = true);
 
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) {
+      if (mounted) setState(() => _isLoading = false);
+      return; // Hentikan proses jika internet mati
+    }
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
       final prefs = await SharedPreferences.getInstance();
-      List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
       Map<String, String> tempIcons = {};
-      for (String cat in customCats) {
-        tempIcons[cat.toLowerCase()] = prefs.getString('custom_budget_icon_$cat') ?? 'star';
+      void loadCustomIcons(String listKey, String iconPrefix) {
+        final customCats = prefs.getStringList(listKey) ?? [];
+        for (final cat in customCats) {
+          tempIcons[cat.toLowerCase()] = prefs.getString('$iconPrefix$cat') ?? 'star';
+        }
       }
+
+      loadCustomIcons('custom_transaction_expense_categories', 'custom_transaction_expense_icon_');
+      loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
+      loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
@@ -366,12 +379,11 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         }
 
         final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
+        if (!mounted) return;
         if (result != null) {
           _fetchAllTransactions();
-          if (mounted) {
-            String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-            CustomNotification.show(context, msg, isError: msg.contains('Dihapus'));
-          }
+          String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
+          CustomNotification.show(context, msg);
         }
       },
       borderRadius: BorderRadius.circular(16),

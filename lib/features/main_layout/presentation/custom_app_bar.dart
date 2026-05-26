@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../profile/presentation/notification_screen.dart';
+import '../../../widgets/profile_image_cache.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final VoidCallback? onProfileTap;
@@ -30,14 +31,20 @@ class _CustomAppBarState extends State<CustomAppBar> {
   Future<void> _loadProfileImage() async {
     final user = Supabase.instance.client.auth.currentUser;
     final String? supabaseAvatarUrl = user?.userMetadata?['avatar_url'];
+    final userId = user?.id ?? '';
 
     if (supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty) {
       if (mounted) setState(() => _profileImagePath = supabaseAvatarUrl);
       return;
     }
 
+    if (userId.isEmpty) {
+      if (mounted) setState(() => _profileImagePath = null);
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    final localPath = prefs.getString('profile_image_path');
+    final localPath = prefs.getString(ProfileImageCache.keyForUser(userId));
     if (mounted) setState(() => _profileImagePath = localPath);
   }
 
@@ -88,8 +95,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
             size: 20,
             color: isDark ? Colors.white : Colors.black87,
           ),
-          onPressed: () {
-            Navigator.push(
+          onPressed: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const NotificationScreen()),
             );

@@ -7,6 +7,9 @@ import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 
+// IMPORT NETWORK HELPER
+import '../../../../widgets/network_helper.dart';
+
 class AddBudgetScreen extends StatefulWidget {
   const AddBudgetScreen({Key? key}) : super(key: key);
 
@@ -40,13 +43,13 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     final prefs = await SharedPreferences.getInstance();
     List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
 
+    if (!mounted) return;
     setState(() {
       for (String catName in customCats) {
         if (!categories.any((c) => c['name'] == catName)) {
           String iconId = prefs.getString('custom_budget_icon_$catName') ?? 'star';
           categories.insert(categories.length - 1, {
             'name': catName,
-            // SEKARANG DRY: Memanggil kamus penerjemah ikon dari pusat
             'icon': CategoryHelper.getCustomIconById(iconId),
             'color': AppColors.primaryGreen,
           });
@@ -151,6 +154,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                           await prefs.setString('custom_budget_icon_$newCatName', tempIconId);
                         }
 
+                        if (!mounted) return;
                         setState(() {
                           if (!categories.any((c) => c['name'] == newCatName)) {
                             categories.insert(categories.length - 1, {
@@ -161,6 +165,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                           }
                           selectedCategory = newCatName;
                         });
+                        if (!mounted) return;
                         Navigator.pop(ctx);
                       }
                     },
@@ -179,6 +184,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       CustomNotification.show(context, 'Silakan pilih kategori terlebih dahulu', isWarning: true);
       return;
     }
+
+    // INTEGRASI NETWORK HELPER SEBELUM LOADING DIMULAI
+    bool isOnline = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!isOnline) return;
 
     setState(() => _isLoading = true);
 
@@ -223,13 +233,12 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         });
       }
 
-      if (mounted) {
-        Navigator.pop(context, true);
-        String msg = isNewBudget
-            ? 'Anggaran baru berhasil dibuat!'
-            : 'Batas anggaran berhasil ditambahkan!';
-        CustomNotification.show(context, msg);
-      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      String msg = isNewBudget
+          ? 'Anggaran baru berhasil dibuat!'
+          : 'Batas anggaran berhasil ditambahkan!';
+      CustomNotification.show(context, msg);
     } catch (e) {
       if (mounted) {
         CustomNotification.show(context, 'Gagal menyimpan: $e', isError: true);

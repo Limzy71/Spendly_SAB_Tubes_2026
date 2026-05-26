@@ -10,6 +10,9 @@ import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 
+// IMPORT NETWORK HELPER
+import '../../../../widgets/network_helper.dart';
+
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({Key? key}) : super(key: key);
 
@@ -33,6 +36,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   Future<void> _fetchBudgetData() async {
+    // INTEGRASI NETWORK HELPER SEBELUM FETCH DATA
+    if (!await NetworkHelper.checkConnection(context)) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -202,7 +211,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
 
               Container(
                 padding: const EdgeInsets.all(20),
@@ -300,7 +309,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     cardColor,
                     textColor,
                     isDark,
-                    // SEKARANG DRY: Memanggil pencocokan warna & ikon pintar pusat
                     CategoryHelper.getIcon(budget['category'], customIcons: _customIcons),
                     CategoryHelper.getColor(budget['category'], customIcons: _customIcons),
                     budget['category'],
@@ -309,7 +317,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     budget['percentage'],
                     budget['limit'],
                   );
-                }).toList(),
+                }),
 
               const SizedBox(height: 32),
 
@@ -319,6 +327,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   onPressed: () async {
                     await Navigator.push(context, MaterialPageRoute(
                         builder: (context) => const AddBudgetScreen()));
+                    if (!mounted) return;
                     _fetchBudgetData();
                   },
                   icon: const FaIcon(FontAwesomeIcons.plus, color: Colors.white, size: 16),

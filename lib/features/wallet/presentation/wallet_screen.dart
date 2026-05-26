@@ -6,6 +6,7 @@ import '../../../theme/app_colors.dart';
 import 'add_wallet_screen.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/wallet_helper.dart';
+import '../../../widgets/network_helper.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({Key? key}) : super(key: key);
@@ -41,10 +42,17 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _fetchWalletData() async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!hasConnection) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) return; // Langsung lompat ke finally
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
       final txResponse = await supabase.from('transactions').select().eq('user_id', userId);
@@ -53,17 +61,19 @@ class _WalletScreenState extends State<WalletScreen> {
       List<Map<String, dynamic>> processedWallets = [];
 
       for (var w in walletResponse) {
-        int wId = w['id'] as int;
+        int wId = int.tryParse(w['id'].toString()) ?? -1;
         String wName = w['name'].toString();
-        int currentBal = w['balance'] as int;
+        int currentBal = int.tryParse(w['balance'].toString()) ?? 0;
         String? iconName = w['icon_name']?.toString();
 
         for (var tx in txResponse) {
-          if (tx['wallet_id'] == wId) {
+          int txWalletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
+          if (txWalletId == wId) {
+            int txAmount = int.tryParse(tx['amount'].toString()) ?? 0;
             if (tx['is_expense'] == true) {
-              currentBal -= tx['amount'] as int;
+              currentBal -= txAmount;
             } else {
-              currentBal += tx['amount'] as int;
+              currentBal += txAmount;
             }
           }
         }
@@ -73,7 +83,6 @@ class _WalletScreenState extends State<WalletScreen> {
           'id': wId,
           'name': wName,
           'balance': currentBal,
-          // SEKARANG DRY: Memanggil parsing kecerdasan buatan dari WalletHelper pusat
           'subtitle': WalletHelper.getSubtitle(wName),
           'icon': WalletHelper.getIcon(iconName, wName),
           'color': WalletHelper.getColor(wName),
@@ -86,14 +95,12 @@ class _WalletScreenState extends State<WalletScreen> {
           _totalBalance = grandTotal;
           if (!_wallets.any((w) => w['id'] == selectedFromAccountId)) selectedFromAccountId = null;
           if (!_wallets.any((w) => w['id'] == selectedToAccountId)) selectedToAccountId = null;
-          _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
-      }
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengambil data');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -108,13 +115,17 @@ class _WalletScreenState extends State<WalletScreen> {
     }
 
     final cleanAmount = _amountController.text.replaceAll('.', '');
-    final amount = int.parse(cleanAmount);
+    final amount = int.tryParse(cleanAmount) ?? 0;
 
     final fromWallet = _wallets.firstWhere((w) => w['id'] == selectedFromAccountId);
     if (amount > fromWallet['balance']) {
       CustomNotification.show(context, 'Gagal: Saldo dompet asal tidak mencukupi!', isError: true);
       return;
     }
+
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!hasConnection) return;
 
     setState(() => _isTransferring = true);
 
@@ -152,7 +163,7 @@ class _WalletScreenState extends State<WalletScreen> {
         _fetchWalletData();
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Transfer gagal: $e', isError: true);
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Transfer gagal');
     } finally {
       if (mounted) setState(() => _isTransferring = false);
     }
@@ -164,18 +175,24 @@ class _WalletScreenState extends State<WalletScreen> {
       return;
     }
 
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!hasConnection) return;
+
     setState(() => _isLoading = true);
     try {
       final txCheck = await supabase.from('transactions').select('id').eq('wallet_id', id);
+      if (!mounted) return;
       setState(() => _isLoading = false);
 
       if (txCheck.isNotEmpty) {
+        if (!mounted) return;
         CustomNotification.show(context, 'Gagal: Dompet masih memiliki riwayat transaksi!', isError: true);
         return;
       }
     } catch (e) {
-      setState(() => _isLoading = false);
-      CustomNotification.show(context, 'Gagal mengecek data: $e', isError: true);
+      if (mounted) setState(() => _isLoading = false);
+      if (mounted) CustomNotification.show(context, 'Gagal mengecek data: $e', isError: true);
       return;
     }
 
@@ -194,6 +211,7 @@ class _WalletScreenState extends State<WalletScreen> {
         ],
       ),
     ) ?? false;
+    if (!mounted) return;
 
     if (confirm) {
       setState(() => _isLoading = true);
@@ -202,10 +220,9 @@ class _WalletScreenState extends State<WalletScreen> {
         _fetchWalletData();
         if (mounted) CustomNotification.show(context, 'Dompet berhasil dihapus.');
       } catch (e) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          CustomNotification.show(context, 'Gagal menghapus dompet: $e', isError: true);
-        }
+        if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus dompet');
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -279,12 +296,19 @@ class _WalletScreenState extends State<WalletScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   onPressed: () async {
+                    bool hasConnection = await NetworkHelper.checkConnection(context);
+                    if (!mounted) return;
+                    if (!hasConnection) return;
+
                     Navigator.pop(ctx);
                     setState(() => _isLoading = true);
                     try {
-                      int newBalance = int.parse(editBalanceController.text.replaceAll('.', ''));
+                      int newBalance = int.tryParse(editBalanceController.text.replaceAll('.', '')) ?? 0;
 
-                      int totalTxEffect = wallet['balance'] - (await supabase.from('wallets').select('balance').eq('id', wallet['id']).single())['balance'] as int;
+                      final walletData = await supabase.from('wallets').select('balance').eq('id', wallet['id']).single();
+                      int dbBalance = int.tryParse(walletData['balance'].toString()) ?? 0;
+
+                      int totalTxEffect = (wallet['balance'] as int) - dbBalance;
                       int newBaseBalance = newBalance - totalTxEffect;
 
                       await supabase.from('wallets').update({
@@ -295,10 +319,9 @@ class _WalletScreenState extends State<WalletScreen> {
                       _fetchWalletData();
                       if (mounted) CustomNotification.show(context, 'Dompet berhasil diperbarui!');
                     } catch (e) {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
-                        CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
-                      }
+                      if (mounted) CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+                    } finally {
+                      if (mounted) setState(() => _isLoading = false);
                     }
                   },
                   child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -318,44 +341,93 @@ class _WalletScreenState extends State<WalletScreen> {
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
+        final selectableWallets = _wallets
+            .where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId)
+            .toList();
+        final bool needsScrollableList = selectableWallets.length > 3;
+
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Text(isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text(
+                  isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
               if (_wallets.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text('Belum ada dompet', style: TextStyle(color: Colors.grey)),
+                  padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.account_balance_wallet_outlined, size: 42, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('Belum ada dompet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 6),
+                      Text(
+                        'Tambahkan dompet terlebih dahulu agar transfer bisa dilakukan.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              else if (selectableWallets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.swap_horiz, size: 42, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('Tidak ada dompet tujuan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 6),
+                      Text(
+                        'Buat dompet lain dulu supaya transfer antar dompet bisa dipilih.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ],
+                  ),
                 )
               else
-                ..._wallets.where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId).map((wallet) {
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isFromAccount) {
-                          selectedFromAccountId = wallet['id'];
-                        } else {
-                          selectedToAccountId = wallet['id'];
-                        }
-                      });
-                      Navigator.pop(ctx);
+                SizedBox(
+                  height: needsScrollableList ? MediaQuery.of(ctx).size.height * 0.5 : null,
+                  child: ListView.separated(
+                    shrinkWrap: !needsScrollableList,
+                    physics: needsScrollableList ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                    itemCount: selectableWallets.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 24, endIndent: 24),
+                    itemBuilder: (context, index) {
+                      final wallet = selectableWallets[index];
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (isFromAccount) {
+                              selectedFromAccountId = wallet['id'];
+                            } else {
+                              selectedToAccountId = wallet['id'];
+                            }
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                              Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      );
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                          Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
+                  ),
+                ),
               const SizedBox(height: 20),
             ],
           ),
@@ -447,7 +519,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ..._wallets.map((wallet) => _buildWalletItem(
                   wallet: wallet,
                   isDarkMode: isDarkMode,
-                )).toList(),
+                )),
 
               const SizedBox(height: 24),
               Divider(thickness: 1, color: isDarkMode ? Colors.white12 : const Color(0xFFEEEEEE)),

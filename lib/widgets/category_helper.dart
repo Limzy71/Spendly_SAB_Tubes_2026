@@ -3,6 +3,19 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme/app_colors.dart';
 
 class CategoryHelper {
+  static const Set<String> _builtInCategoryNames = {
+    'makanan',
+    'transportasi',
+    'belanja',
+    'tagihan',
+    'hiburan',
+    'gaji',
+    'bonus',
+    'investasi',
+    'dana',
+    'bca',
+    'baru',
+  };
 
   // 1. Fungsi Pusat untuk Warna Pintar (REVISI PRIORITAS)
   static Color getColor(String category, {Map<String, String>? customIcons}) {
@@ -45,6 +58,21 @@ class CategoryHelper {
   // 2. Fungsi Pusat untuk Ikon Pintar (SAMA, PRIORITAS KEYWORD DI ATAS)
   static dynamic getIcon(String category, {Map<String, String>? customIcons}) {
     String cat = category.toLowerCase().trim();
+
+    if (customIcons != null) {
+      final customIconId = customIcons[cat];
+      if (customIconId != null) {
+        return getCustomIconById(customIconId);
+      }
+
+      if (!_builtInCategoryNames.contains(cat)) {
+        return FontAwesomeIcons.boxArchive;
+      }
+    }
+
+    if (cat == 'bca') {
+      return FontAwesomeIcons.buildingColumns;
+    }
 
     // Prioritaskan Smart Keyword Matching agar ikon otomatis muncul meskipun kategori kustom
     if (cat.contains('makan') || cat.contains('jajan') || cat.contains('kuliner') || cat.contains('sarapan') || cat.contains('resto')) {
@@ -91,17 +119,29 @@ class CategoryHelper {
       return FontAwesomeIcons.building;
     }
 
-    // Jika tidak ada keyword cocok, baru ambil dari pilihan ikon manual user
-    if (customIcons != null && customIcons.containsKey(cat)) {
-      return getCustomIconById(customIcons[cat]!);
-    }
-
     return FontAwesomeIcons.boxArchive;
   }
 
   // 3. Pustaka Penerjemah ID Ikon Kustom
   static dynamic getCustomIconById(String id) {
     switch (id) {
+      case 'bank': return FontAwesomeIcons.buildingColumns;
+      case 'wallet': return FontAwesomeIcons.wallet;
+      case 'coins': return FontAwesomeIcons.coins;
+      case 'piggy': return FontAwesomeIcons.piggyBank;
+      case 'salary': return FontAwesomeIcons.moneyBillWave;
+      case 'chart': return FontAwesomeIcons.chartLine;
+      case 'briefcase': return FontAwesomeIcons.briefcase;
+      case 'giftbox': return FontAwesomeIcons.gift;
+      case 'arrow': return FontAwesomeIcons.arrowTrendUp;
+      case 'bag': return FontAwesomeIcons.bagShopping;
+      case 'utensils': return FontAwesomeIcons.utensils;
+      case 'car': return FontAwesomeIcons.car;
+      case 'invoice': return FontAwesomeIcons.fileInvoiceDollar;
+      case 'cart': return FontAwesomeIcons.cartShopping;
+      case 'wifi': return FontAwesomeIcons.wifi;
+      case 'game': return FontAwesomeIcons.gamepad;
+      case 'book': return FontAwesomeIcons.book;
       case 'star': return FontAwesomeIcons.star;
       case 'coffee': return FontAwesomeIcons.mugHot;
       case 'plane': return FontAwesomeIcons.plane;
@@ -115,8 +155,11 @@ class CategoryHelper {
       case 'film': return FontAwesomeIcons.film;
       case 'train': return FontAwesomeIcons.train;
       case 'building': return FontAwesomeIcons.building;
-      case 'coins': return FontAwesomeIcons.coins;
-      case 'piggy': return FontAwesomeIcons.piggyBank;
+      case 'card': return FontAwesomeIcons.creditCard;
+      case 'savings': return FontAwesomeIcons.piggyBank;
+      case 'business': return FontAwesomeIcons.briefcase;
+      case 'coins2': return FontAwesomeIcons.coins;
+      case 'safe': return FontAwesomeIcons.boxArchive;
       default: return FontAwesomeIcons.star;
     }
   }

@@ -9,6 +9,8 @@ import 'dart:io';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/network_helper.dart';
+import '../../wallet/presentation/add_wallet_screen.dart';
 
 class EditTransactionScreen extends StatefulWidget {
   final Map<String, dynamic> transaction;
@@ -22,6 +24,14 @@ class EditTransactionScreen extends StatefulWidget {
 class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final supabase = Supabase.instance.client;
 
+  static const String _expenseCategoryListKey = 'custom_transaction_expense_categories';
+  static const String _incomeCategoryListKey = 'custom_transaction_income_categories';
+  static const String _expenseCategoryHiddenKey = 'custom_transaction_expense_categories_hidden';
+  static const String _incomeCategoryHiddenKey = 'custom_transaction_income_categories_hidden';
+  static const String _expenseCategoryIconPrefix = 'custom_transaction_expense_icon_';
+  static const String _incomeCategoryIconPrefix = 'custom_transaction_income_icon_';
+  static const String _legacyMigrationKey = 'custom_transaction_categories_migrated_v1';
+
   late bool isExpense;
   late String selectedCategory;
   int? selectedWalletId;
@@ -32,6 +42,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   bool _isLoading = false;
 
   List<Map<String, dynamic>> _wallets = [];
+  bool _walletsLoaded = false;
+  Map<String, String> _customIcons = {};
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
@@ -52,7 +64,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     {'name': 'Bonus', 'icon': FontAwesomeIcons.gift, 'color': Colors.amber.shade600},
     {'name': 'Investasi', 'icon': FontAwesomeIcons.arrowTrendUp, 'color': Colors.blueAccent},
     {'name': 'Dana', 'icon': FontAwesomeIcons.wallet, 'color': Colors.indigo},
-    {'name': 'Lainnya', 'icon': FontAwesomeIcons.boxArchive, 'color': Colors.teal},
+    {'name': 'BCA', 'icon': FontAwesomeIcons.buildingColumns, 'color': Colors.teal},
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
@@ -83,32 +95,154 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCustomCategories() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+  String _categoryListKey(bool expense) {
+    return expense ? _expenseCategoryListKey : _incomeCategoryListKey;
+  }
 
-    setState(() {
-      for (String catName in customCats) {
-        bool existsInExpense = expenseCategories.any((c) => c['name'] == catName);
-        bool existsInIncome = incomeCategories.any((c) => c['name'] == catName);
+  String _hiddenCategoryListKey(bool expense) {
+    return expense ? _expenseCategoryHiddenKey : _incomeCategoryHiddenKey;
+  }
 
-        if (!existsInExpense && !existsInIncome) {
-          String iconId = prefs.getString('custom_budget_icon_$catName') ?? 'star';
-          var newCat = {
-            'name': catName,
-            'icon': CategoryHelper.getCustomIconById(iconId),
-            'color': AppColors.primaryGreen,
-          };
-          expenseCategories.insert(expenseCategories.length - 1, newCat);
-          incomeCategories.insert(incomeCategories.length - 1, newCat);
+  String _categoryIconKey(bool expense, String categoryName) {
+    return '${expense ? _expenseCategoryIconPrefix : _incomeCategoryIconPrefix}$categoryName';
+  }
+
+  List<Map<String, dynamic>> _customIconsForType(bool expense) {
+    if (expense) {
+      return [
+        {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
+        {'id': 'cart', 'icon': FontAwesomeIcons.cartShopping},
+        {'id': 'utensils', 'icon': FontAwesomeIcons.utensils},
+        {'id': 'car', 'icon': FontAwesomeIcons.car},
+        {'id': 'bag', 'icon': FontAwesomeIcons.bagShopping},
+        {'id': 'film', 'icon': FontAwesomeIcons.film},
+        {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+        {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
+        {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+        {'id': 'train', 'icon': FontAwesomeIcons.train},
+        {'id': 'wifi', 'icon': FontAwesomeIcons.wifi},
+        {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
+        {'id': 'house', 'icon': FontAwesomeIcons.house},
+        {'id': 'book', 'icon': FontAwesomeIcons.book},
+        {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
+        {'id': 'star', 'icon': FontAwesomeIcons.star},
+        {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
+        {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+        {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
+      ];
+    }
+
+    return [
+      {'id': 'bank', 'icon': FontAwesomeIcons.buildingColumns},
+      {'id': 'wallet', 'icon': FontAwesomeIcons.wallet},
+      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
+      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
+      {'id': 'salary', 'icon': FontAwesomeIcons.moneyBillWave},
+      {'id': 'chart', 'icon': FontAwesomeIcons.chartLine},
+      {'id': 'briefcase', 'icon': FontAwesomeIcons.briefcase},
+      {'id': 'giftbox', 'icon': FontAwesomeIcons.gift},
+      {'id': 'arrow', 'icon': FontAwesomeIcons.arrowTrendUp},
+      {'id': 'building', 'icon': FontAwesomeIcons.building},
+      {'id': 'card', 'icon': FontAwesomeIcons.creditCard},
+      {'id': 'savings', 'icon': FontAwesomeIcons.piggyBank},
+      {'id': 'business', 'icon': FontAwesomeIcons.briefcase},
+      {'id': 'coins2', 'icon': FontAwesomeIcons.coins},
+      {'id': 'safe', 'icon': FontAwesomeIcons.boxArchive},
+    ];
+  }
+
+  String _defaultIconIdForType(bool expense) {
+    return expense ? 'invoice' : 'bank';
+  }
+
+  Future<void> _migrateLegacyCategoriesIfNeeded(SharedPreferences prefs) async {
+    if (prefs.getBool(_legacyMigrationKey) == true) {
+      return;
+    }
+
+    final legacyCategories = prefs.getStringList('custom_budget_categories') ?? [];
+    if (legacyCategories.isEmpty) {
+      await prefs.setBool(_legacyMigrationKey, true);
+      return;
+    }
+
+    Future<void> migrateForType({required bool expense}) async {
+      final listKey = _categoryListKey(expense);
+      final iconPrefix = expense ? _expenseCategoryIconPrefix : _incomeCategoryIconPrefix;
+      final currentCategories = prefs.getStringList(listKey) ?? [];
+      final mergedCategories = [...currentCategories];
+
+      for (final catName in legacyCategories) {
+        if (!mergedCategories.contains(catName)) {
+          mergedCategories.add(catName);
+        }
+
+        final legacyIconId = prefs.getString('custom_budget_icon_$catName') ?? _defaultIconIdForType(expense);
+        final newIconKey = '$iconPrefix$catName';
+        if (!prefs.containsKey(newIconKey)) {
+          await prefs.setString(newIconKey, legacyIconId);
         }
       }
+
+      await prefs.setStringList(listKey, mergedCategories);
+    }
+
+    await migrateForType(expense: true);
+    await migrateForType(expense: false);
+    await prefs.setBool(_legacyMigrationKey, true);
+  }
+
+  Future<void> _loadCustomCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyCategoriesIfNeeded(prefs);
+
+    Map<String, String> tempIcons = {};
+    void loadCustomIcons(String listKey, String iconPrefix) {
+      final customCats = prefs.getStringList(listKey) ?? [];
+      for (final cat in customCats) {
+        tempIcons[cat.toLowerCase()] = prefs.getString('$iconPrefix$cat') ?? 'star';
+      }
+    }
+
+    loadCustomIcons(_expenseCategoryListKey, _expenseCategoryIconPrefix);
+    loadCustomIcons(_incomeCategoryListKey, _incomeCategoryIconPrefix);
+    loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
+
+    setState(() {
+      _customIcons = tempIcons;
+
+      void loadCustomCategoriesForType({required bool expense, required List<Map<String, dynamic>> targetList}) {
+        final customCats = prefs.getStringList(_categoryListKey(expense)) ?? [];
+        final hiddenCats = prefs.getStringList(_hiddenCategoryListKey(expense)) ?? [];
+
+        for (String catName in customCats) {
+          if (hiddenCats.contains(catName)) {
+            continue;
+          }
+
+          if (targetList.any((c) => c['name'] == catName)) {
+            continue;
+          }
+
+          final iconId = prefs.getString(_categoryIconKey(expense, catName)) ?? _defaultIconIdForType(expense);
+          final newCat = {
+            'name': catName,
+            'icon': CategoryHelper.getCustomIconById(iconId),
+            'color': expense ? Colors.redAccent : AppColors.primaryGreen,
+          };
+
+          targetList.insert(targetList.length - 1, newCat);
+        }
+      }
+
+      loadCustomCategoriesForType(expense: true, targetList: expenseCategories);
+      loadCustomCategoriesForType(expense: false, targetList: incomeCategories);
 
       List<Map<String, dynamic>> targetList = isExpense ? expenseCategories : incomeCategories;
       if (!targetList.any((c) => c['name'] == selectedCategory)) {
         targetList.insert(0, {
           'name': selectedCategory,
-          'icon': CategoryHelper.getIcon(selectedCategory),
+          'icon': CategoryHelper.getIcon(selectedCategory, customIcons: _customIcons),
           'color': CategoryHelper.getColor(selectedCategory),
         });
       }
@@ -130,7 +264,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Hapus Kategori?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Apakah Anda yakin ingin menghapus kategori "$catName" dari daftar?'),
+        content: Text('Hapus kategori "$catName" dari daftar pilihan? Transaksi yang sudah ada tetap memakai nama dan icon lamanya.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -138,24 +272,24 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
 
-              setState(() {
-                expenseCategories.removeWhere((c) => c['name'] == catName);
-                incomeCategories.removeWhere((c) => c['name'] == catName);
+              final prefs = await SharedPreferences.getInstance();
+              final hiddenKey = _hiddenCategoryListKey(isExpense);
+              final hiddenCats = prefs.getStringList(hiddenKey) ?? [];
+              if (!hiddenCats.contains(catName)) {
+                hiddenCats.add(catName);
+                await prefs.setStringList(hiddenKey, hiddenCats);
+              }
 
-                if (selectedCategory == catName) {
-                  selectedCategory = isExpense ? expenseCategories[0]['name'] : incomeCategories[0]['name'];
+              setState(() {
+                currentList.removeWhere((c) => c['name'] == catName);
+                if (selectedCategory == catName && currentList.isNotEmpty) {
+                  selectedCategory = currentList.first['name'];
                 }
               });
 
-              final prefs = await SharedPreferences.getInstance();
-              List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
-              if (customCats.contains(catName)) {
-                customCats.remove(catName);
-                await prefs.setStringList('custom_budget_categories', customCats);
-                await prefs.remove('custom_budget_icon_$catName');
+              if (mounted) {
+                CustomNotification.show(context, 'Kategori "$catName" berhasil dihapus.');
               }
-
-              if (mounted) CustomNotification.show(context, 'Kategori berhasil dihapus!');
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
@@ -165,6 +299,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Future<void> _fetchWallets() async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!hasConnection) return;
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
@@ -199,10 +337,12 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       if (mounted) {
         setState(() {
           _wallets = processedWallets;
+          _walletsLoaded = true;
         });
       }
     } catch (e) {
       debugPrint('Error: $e');
+      if (mounted) setState(() => _walletsLoaded = true);
     }
   }
 
@@ -242,23 +382,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     TextEditingController catController = TextEditingController();
     bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final List<Map<String, dynamic>> availableIcons = [
-      {'id': 'star', 'icon': FontAwesomeIcons.star},
-      {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
-      {'id': 'plane', 'icon': FontAwesomeIcons.plane},
-      {'id': 'house', 'icon': FontAwesomeIcons.house},
-      {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
-      {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
-      {'id': 'paw', 'icon': FontAwesomeIcons.paw},
-      {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
-      {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
-      {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
-      {'id': 'film', 'icon': FontAwesomeIcons.film},
-      {'id': 'train', 'icon': FontAwesomeIcons.train},
-      {'id': 'building', 'icon': FontAwesomeIcons.building},
-      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
-      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
-    ];
+    final List<Map<String, dynamic>> availableIcons = _customIconsForType(isExpense);
 
     String tempIconId = availableIcons[0]['id'];
     dynamic tempIcon = availableIcons[0]['icon'];
@@ -290,8 +414,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                       const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                       const SizedBox(height: 12),
                       Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                        spacing: 14,
+                        runSpacing: 14,
                         children: availableIcons.map((item) {
                           bool isSelected = tempIconId == item['id'];
                           return GestureDetector(
@@ -326,12 +450,21 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                         String newCatName = catController.text.trim();
 
                         final prefs = await SharedPreferences.getInstance();
-                        List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+                        final listKey = _categoryListKey(isExpense);
+                        final hiddenKey = _hiddenCategoryListKey(isExpense);
+                        final iconKey = _categoryIconKey(isExpense, newCatName);
+                        List<String> customCats = prefs.getStringList(listKey) ?? [];
+                        List<String> hiddenCats = prefs.getStringList(hiddenKey) ?? [];
 
                         if (!customCats.contains(newCatName)) {
                           customCats.add(newCatName);
-                          await prefs.setStringList('custom_budget_categories', customCats);
-                          await prefs.setString('custom_budget_icon_$newCatName', tempIconId);
+                          await prefs.setStringList(listKey, customCats);
+                          await prefs.setString(iconKey, tempIconId);
+                        }
+
+                        if (hiddenCats.contains(newCatName)) {
+                          hiddenCats.remove(newCatName);
+                          await prefs.setStringList(hiddenKey, hiddenCats);
                         }
 
                         setState(() {
@@ -366,11 +499,15 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime today = DateTime.now();
+    final DateTime lastSelectableDate = DateTime(today.year, today.month, today.day);
+    final DateTime initialDate = selectedDate.isAfter(lastSelectableDate) ? lastSelectableDate : selectedDate;
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate,
+      initialDate: initialDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2101),
+      lastDate: lastSelectableDate,
       builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)), child: child!),
     );
     if (picked != null && picked != selectedDate) setState(() => selectedDate = picked);
@@ -413,7 +550,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
               const SizedBox(height: 20),
             ],
           ),
@@ -432,6 +569,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       CustomNotification.show(context, 'Pilih dompet terlebih dahulu', isWarning: true);
       return;
     }
+
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
 
     setState(() => _isLoading = true);
 
@@ -465,13 +605,23 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         Navigator.pop(context, 'Transaksi Berhasil Diperbarui!');
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+      if (mounted) {
+        // Mencegat error bawaan Supabase jika jaringan bermasalah
+        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
+          CustomNotification.show(context, 'Gagal memperbarui: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
+        } else {
+          CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+        }
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _deleteTransaction() async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!hasConnection) return;
+
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -480,10 +630,17 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       await supabase.from('transactions').delete().eq('id', widget.transaction['id']).eq('user_id', userId);
 
       if (mounted) {
-        Navigator.pop(context, 'Transaksi Berhasil Dihapus!');
+        Navigator.pop(context, 'Transaksi berhasil dihapus.');
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
+      if (mounted) {
+        // Mencegat error bawaan Supabase jika jaringan bermasalah
+        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
+          CustomNotification.show(context, 'Gagal menghapus: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
+        } else {
+          CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
+        }
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -622,7 +779,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 child: Column(
                   children: [
                     InkWell(
-                      onTap: _wallets.isEmpty ? null : _showWalletSelector,
+                      onTap: (_walletsLoaded && _wallets.isNotEmpty)
+                          ? _showWalletSelector
+                              : () async {
+                                  final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+                                  if (!mounted) return;
+                                  if (result == true) _fetchWallets();
+                                },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
@@ -630,20 +793,34 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                             const FaIcon(FontAwesomeIcons.wallet, color: AppColors.primaryGreen, size: 20),
                             const SizedBox(width: 15),
                             Expanded(
-                              child: _wallets.isEmpty
+                              child: !_walletsLoaded
                                   ? const Text("Memuat dompet...", style: TextStyle(color: Colors.grey, fontSize: 14))
-                                  : Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    selectedWalletId == null
-                                        ? "Pilih Dompet"
-                                        : _wallets.firstWhere((w) => w['id'] == selectedWalletId, orElse: () => {'name': 'Pilih Dompet'})['name'],
-                                    style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
-                                  ),
-                                  const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-                                ],
-                              ),
+                                  : (_wallets.isEmpty
+                                      ? Row(
+                                          children: [
+                                            Expanded(child: Text("Belum ada dompet. Silakan buat terlebih dahulu.", style: TextStyle(color: Colors.grey, fontSize: 14))),
+                                            TextButton(
+                                              onPressed: () async {
+                                                final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+                                                if (!mounted) return;
+                                                if (result == true) _fetchWallets();
+                                              },
+                                              child: const Text('Buat Dompet', style: TextStyle(color: AppColors.primaryGreen)),
+                                            )
+                                          ],
+                                        )
+                                      : Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              selectedWalletId == null
+                                                  ? "Pilih Dompet"
+                                                  : _wallets.firstWhere((w) => w['id'] == selectedWalletId, orElse: () => {'name': 'Pilih Dompet'})['name'],
+                                              style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
+                                            ),
+                                            const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                                          ],
+                                        )),
                             ),
                           ],
                         ),
