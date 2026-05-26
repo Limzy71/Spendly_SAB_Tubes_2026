@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+6
+version: 1.0.7+7
 
 environment:
   sdk: ">=3.1.5 <4.0.0"
@@ -76,7 +76,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   change_app_package_name: ^1.5.0
   flutter_launcher_icons: ^0.13.1
-  flutter_native_splash: ^2.4.0
+  flutter_native_splash: ^2.4.7
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -125,6 +125,12 @@ flutter_launcher_icons:
   image_path: "assets/icon/app_logo.png"
 
 flutter_native_splash:
-  color: "#ffffff"
-  image: assets/icon/app_logo.png
+  color: "#FFFFFF"
+  image: "assets/icon/app_logo.png"
   android_gravity: center
+  fullscreen: true
+
+  # Ini penangkal background hitam aneh untuk Android 12 ke atas
+  android_12:
+    color: "#FFFFFF"
+    image: "assets/icon/app_logo.png"

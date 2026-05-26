@@ -20,6 +20,7 @@ import '../../main_layout/presentation/main_navigation.dart';
 import '../../../../main.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/network_helper.dart';
+import '../../../../widgets/profile_image_cache.dart';
 
 import '../../auth/presentation/login_screen.dart';
 
@@ -69,11 +70,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isPinEnabled = prefs.getBool('is_pin_enabled_$userId') ?? prefs.getBool('is_pin_enabled') ?? false;
       _isBiometricEnabled = prefs.getBool('is_biometric_enabled_$userId') ?? prefs.getBool('is_biometric_enabled') ?? false;
 
-      if (supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty) {
-        _profileImagePath = supabaseAvatarUrl;
-      } else {
-        _profileImagePath = prefs.getString('profile_image_path');
-      }
+      _profileImagePath = supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty
+          ? supabaseAvatarUrl
+          : (userId.isNotEmpty ? prefs.getString(ProfileImageCache.keyForUser(userId)) : null);
 
       final int savedHour = prefs.getInt('reminder_hour') ?? 20;
       final int savedMinute = prefs.getInt('reminder_minute') ?? 0;
@@ -459,7 +458,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 );
 
                                 final prefs = await SharedPreferences.getInstance();
-                                await prefs.setString('profile_image_path', newPath);
+                                final userId = user.id;
+                                await prefs.setString(ProfileImageCache.keyForUser(userId), newPath);
+                                await prefs.remove(ProfileImageCache.legacyKey);
 
                                 if (context.mounted) {
                                   CustomNotification.show(context, 'Foto profil berhasil diperbarui!');
@@ -776,7 +777,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildListTile(
                 icon: FontAwesomeIcons.circleInfo,
                 title: 'Tentang Spendly',
-                subtitle: 'v1.0.4 (Kebijakan Privasi, Layanan)',
+                subtitle: 'v1.0.7 (Kebijakan Privasi, Layanan)',
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
                   Navigator.push(

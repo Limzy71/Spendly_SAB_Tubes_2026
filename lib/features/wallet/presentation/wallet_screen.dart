@@ -341,44 +341,93 @@ class _WalletScreenState extends State<WalletScreen> {
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
+        final selectableWallets = _wallets
+            .where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId)
+            .toList();
+        final bool needsScrollableList = selectableWallets.length > 3;
+
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Text(isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text(
+                  isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
               if (_wallets.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text('Belum ada dompet', style: TextStyle(color: Colors.grey)),
+                  padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.account_balance_wallet_outlined, size: 42, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('Belum ada dompet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 6),
+                      Text(
+                        'Tambahkan dompet terlebih dahulu agar transfer bisa dilakukan.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              else if (selectableWallets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.swap_horiz, size: 42, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('Tidak ada dompet tujuan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 6),
+                      Text(
+                        'Buat dompet lain dulu supaya transfer antar dompet bisa dipilih.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ],
+                  ),
                 )
               else
-                ..._wallets.where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId).map((wallet) {
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isFromAccount) {
-                          selectedFromAccountId = wallet['id'];
-                        } else {
-                          selectedToAccountId = wallet['id'];
-                        }
-                      });
-                      Navigator.pop(ctx);
+                SizedBox(
+                  height: needsScrollableList ? MediaQuery.of(ctx).size.height * 0.5 : null,
+                  child: ListView.separated(
+                    shrinkWrap: !needsScrollableList,
+                    physics: needsScrollableList ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                    itemCount: selectableWallets.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 24, endIndent: 24),
+                    itemBuilder: (context, index) {
+                      final wallet = selectableWallets[index];
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (isFromAccount) {
+                              selectedFromAccountId = wallet['id'];
+                            } else {
+                              selectedToAccountId = wallet['id'];
+                            }
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                              Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      );
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                          Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
+                  ),
+                ),
               const SizedBox(height: 20),
             ],
           ),
