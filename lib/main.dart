@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:convert';
 import 'dart:async';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -18,16 +19,175 @@ import 'widgets/pin_helper.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 class NotificationHelper {
-  static Future<void> scheduleDailyNotification(int hour, int minute) async {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+  static bool _isInitialized = false;
+  static const String _dailyChannelId = 'daily_reminder_v2';
+  static const String _billChannelId = 'bill_reminder_v2';
+  static Timer? _dailyReminderTimer;
+  static Timer? _billReminderTimer;
 
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+  static String _scopeKey() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    return userId == null || userId.isEmpty ? 'guest' : userId;
+  }
+
+  static String _historyKey() => 'notification_history_v1_${_scopeKey()}';
+
+  static Future<bool> canScheduleExactAlarms() async {
+    final androidImplementation =
+        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+    return await androidImplementation?.canScheduleExactNotifications() ?? true;
+  }
+
+  static Future<void> ensureInitialized() async {
+    if (_isInitialized) return;
+
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
+    const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+    await flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+    );
+
+    final androidImplementation =
+        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+    // request permissions and log their results
+    try {
+      await androidImplementation?.requestNotificationsPermission();
+    } catch (e) {
     }
 
+    try {
+      await androidImplementation?.requestExactAlarmsPermission();
+    } catch (e) {
+    }
+
+    _isInitialized = true;
+  }
+
+  static Future<void> _handleNotificationResponse(NotificationResponse response) async {
+    await recordHistory(
+      title: 'Notifikasi dibuka',
+      body: response.payload == null ? 'Pengguna membuka notifikasi dari sistem.' : 'Notifikasi ${response.payload} dibuka.',
+      type: 'opened',
+      payload: response.payload,
+    );
+  }
+
+  static Future<void> recordHistory({
+    required String title,
+    required String body,
+    required String type,
+    String? payload,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final history = prefs.getStringList(_historyKey()) ?? <String>[];
+
+    final entry = <String, dynamic>{
+      'id': DateTime.now().microsecondsSinceEpoch.toString(),
+      'title': title,
+      'body': body,
+      'type': type,
+      'payload': payload,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    history.insert(0, jsonEncode(entry));
+    if (history.length > 30) {
+      history.removeRange(30, history.length);
+    }
+
+    await prefs.setStringList(_historyKey(), history);
+  }
+
+  static Future<List<Map<String, dynamic>>> loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final history = prefs.getStringList(_historyKey()) ?? <String>[];
+
+    return history
+        .map((item) => jsonDecode(item) as Map<String, dynamic>)
+        .toList(growable: false);
+  }
+
+  static Future<void> clearHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_historyKey());
+  }
+
+  static Future<void> scheduleDailyNotification(int hour, int minute) async {
+    await ensureInitialized();
+
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
+    _dailyReminderTimer?.cancel();
+    if (now.hour == hour && now.minute == minute) {
+      try {
+        const AndroidNotificationDetails immediateAndroidDetails = AndroidNotificationDetails(
+          _dailyChannelId,
+          'Pengingat Harian',
+          channelDescription: 'Notifikasi untuk mencatat keuangan harian',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/launcher_icon',
+        );
+
+        const NotificationDetails immediatePlatformDetails = NotificationDetails(android: immediateAndroidDetails);
+
+        await flutterLocalNotificationsPlugin.show(
+          1000,
+          'Catatan Keuangan 📝',
+          'Catat transaksi keuangan Anda hari ini',
+          immediatePlatformDetails,
+          payload: 'daily_reminder',
+        );
+
+        await recordHistory(
+          title: 'Pengingat Harian tampil',
+          body: 'Pengingat harian ditampilkan tepat pada jam yang dipilih.',
+          type: 'sent_daily',
+          payload: 'daily_reminder',
+        );
+      } catch (_) {
+      }
+    } else if (scheduledDate.isAfter(now)) {
+      _dailyReminderTimer = Timer(scheduledDate.difference(now), () async {
+        try {
+          const AndroidNotificationDetails immediateAndroidDetails = AndroidNotificationDetails(
+            _dailyChannelId,
+            'Pengingat Harian',
+            channelDescription: 'Notifikasi untuk mencatat keuangan harian',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/launcher_icon',
+          );
+
+          const NotificationDetails immediatePlatformDetails = NotificationDetails(android: immediateAndroidDetails);
+
+          await flutterLocalNotificationsPlugin.show(
+            1000,
+            'Catatan Keuangan 📝',
+            'Catat transaksi keuangan Anda hari ini',
+            immediatePlatformDetails,
+            payload: 'daily_reminder',
+          );
+
+          await recordHistory(
+            title: 'Pengingat Harian tampil',
+            body: 'Pengingat harian ditampilkan pada jadwal pertama hari ini.',
+            type: 'sent_daily',
+            payload: 'daily_reminder',
+          );
+        } catch (_) {
+        }
+      });
+    }
+
+    final repeatingDate = scheduledDate.add(const Duration(days: 1));
+
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'daily_reminder',
+      _dailyChannelId,
       'Pengingat Harian',
       channelDescription: 'Notifikasi untuk mencatat keuangan harian',
       importance: Importance.max,
@@ -37,20 +197,153 @@ class NotificationHelper {
 
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
+    await flutterLocalNotificationsPlugin.cancel(0);
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       0,
-      'Waktunya Mencatat! 📝',
-      'Jangan lupa catat pengeluaran dan pemasukanmu hari ini ya!',
-      scheduledDate,
+      'Catatan Keuangan 📝',
+      'Catat transaksi keuangan Anda hari ini',
+      repeatingDate,
       platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
+      payload: 'daily_reminder',
+    );
+
+    final pendingRequests = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    final hasDailyReminder = pendingRequests.any((request) => request.id == 0);
+    if (!hasDailyReminder) {
+      throw StateError('Pengingat harian gagal masuk pending notifications.');
+    }
+
+    await recordHistory(
+      title: 'Pengingat Harian dijadwalkan',
+      body: 'Akan muncul setiap hari pukul ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}.',
+      type: 'scheduled_daily',
+      payload: 'daily_reminder',
+    );
+  }
+
+  static Future<void> scheduleBillReminderNotification(int hour, int minute) async {
+    await ensureInitialized();
+
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
+    _billReminderTimer?.cancel();
+    if (now.hour == hour && now.minute == minute) {
+      try {
+        const AndroidNotificationDetails immediateAndroidDetails = AndroidNotificationDetails(
+          _billChannelId,
+          'Pengingat Tagihan',
+          channelDescription: 'Notifikasi untuk mengingatkan pembayaran tagihan',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/launcher_icon',
+        );
+
+        const NotificationDetails immediatePlatformDetails = NotificationDetails(android: immediateAndroidDetails);
+
+        await flutterLocalNotificationsPlugin.show(
+          1001,
+          'Pengingat Tagihan 💳',
+          'Periksa dan bayar tagihan Anda',
+          immediatePlatformDetails,
+          payload: 'bill_reminder',
+        );
+
+        await recordHistory(
+          title: 'Pengingat Tagihan tampil',
+          body: 'Pengingat tagihan ditampilkan tepat pada jam yang dipilih.',
+          type: 'sent_bill',
+          payload: 'bill_reminder',
+        );
+      } catch (_) {
+      }
+    } else if (scheduledDate.isAfter(now)) {
+      _billReminderTimer = Timer(scheduledDate.difference(now), () async {
+        try {
+          const AndroidNotificationDetails immediateAndroidDetails = AndroidNotificationDetails(
+            _billChannelId,
+            'Pengingat Tagihan',
+            channelDescription: 'Notifikasi untuk mengingatkan pembayaran tagihan',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/launcher_icon',
+          );
+
+          const NotificationDetails immediatePlatformDetails = NotificationDetails(android: immediateAndroidDetails);
+
+          await flutterLocalNotificationsPlugin.show(
+            1001,
+            'Pengingat Tagihan 💳',
+            'Periksa dan bayar tagihan Anda',
+            immediatePlatformDetails,
+            payload: 'bill_reminder',
+          );
+
+          await recordHistory(
+            title: 'Pengingat Tagihan tampil',
+            body: 'Pengingat tagihan ditampilkan pada jadwal pertama hari ini.',
+            type: 'sent_bill',
+            payload: 'bill_reminder',
+          );
+        } catch (_) {
+        }
+      });
+    }
+
+    final repeatingDate = scheduledDate.add(const Duration(days: 1));
+
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      _billChannelId,
+      'Pengingat Tagihan',
+      channelDescription: 'Notifikasi untuk mengingatkan pembayaran tagihan',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/launcher_icon',
+    );
+
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+
+    await flutterLocalNotificationsPlugin.cancel(1);
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      1,
+      'Pengingat Tagihan 💳',
+      'Periksa dan bayar tagihan Anda',
+      repeatingDate,
+      platformDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: 'bill_reminder',
+    );
+
+    final pendingRequests = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    final hasBillReminder = pendingRequests.any((request) => request.id == 1);
+    if (!hasBillReminder) {
+      throw StateError('Pengingat tagihan gagal masuk pending notifications.');
+    }
+
+    await recordHistory(
+      title: 'Pengingat Tagihan dijadwalkan',
+      body: 'Akan mengikuti jadwal harian pada ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}.',
+      type: 'scheduled_bill',
+      payload: 'bill_reminder',
     );
   }
 
   static Future<void> cancelAllNotifications() async {
+    _dailyReminderTimer?.cancel();
+    _billReminderTimer?.cancel();
     await flutterLocalNotificationsPlugin.cancelAll();
+  }
+
+  static Future<void> cancelBillReminderNotification() async {
+    _billReminderTimer?.cancel();
+    await flutterLocalNotificationsPlugin.cancel(1);
   }
 }
 
@@ -60,16 +353,10 @@ void main() async {
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
 
+  await NotificationHelper.ensureInitialized();
+
   AppBootstrap.start();
   runApp(const MyApp());
-
-  unawaited(_initializeNotifications());
-}
-
-Future<void> _initializeNotifications() async {
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
-  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 }
 
 class NoOverscrollBehavior extends ScrollBehavior {
@@ -112,12 +399,14 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   Session? _session = Supabase.instance.client.auth.currentSession;
+  String? _currentUserId;
   Future<bool>? _pinFuture;
   StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
+    _currentUserId = _session?.user.id;
     if (_session != null) {
       _pinFuture = _isPinEnabled();
     }
@@ -125,8 +414,16 @@ class _AuthGateState extends State<AuthGate> {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
       if (!mounted) return;
 
+      final nextUserId = authState.session?.user.id;
+      final hasUserChanged = _currentUserId != nextUserId;
+
+      if (hasUserChanged) {
+        NotificationHelper.cancelAllNotifications();
+      }
+
       setState(() {
         _session = authState.session;
+        _currentUserId = nextUserId;
         _pinFuture = _session == null ? null : _isPinEnabled();
       });
     });
