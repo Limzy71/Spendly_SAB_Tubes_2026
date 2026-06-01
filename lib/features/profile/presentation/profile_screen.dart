@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -36,13 +38,24 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isPinEnabled = false;
   bool _isBiometricEnabled = false;
+  
   String? _profileImagePath;
   String _userName = 'Pengguna Spendly';
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
+  bool _isDailyReminderEnabled = true;
   bool _isBillReminderEnabled = true;
 
   final LocalAuthentication _localAuth = LocalAuthentication();
+
+  String _currentUserId() {
+    return Supabase.instance.client.auth.currentUser?.id ?? 'guest';
+  }
+
+  String _reminderHourKey() => 'reminder_hour_${_currentUserId()}';
+  String _reminderMinuteKey() => 'reminder_minute_${_currentUserId()}';
+  String _dailyReminderEnabledKey() => 'daily_reminder_enabled_${_currentUserId()}';
+  String _billReminderEnabledKey() => 'bill_reminder_enabled_${_currentUserId()}';
 
   @override
   void initState() {
@@ -74,11 +87,199 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? supabaseAvatarUrl
           : (userId.isNotEmpty ? prefs.getString(ProfileImageCache.keyForUser(userId)) : null);
 
-      final int savedHour = prefs.getInt('reminder_hour') ?? 20;
-      final int savedMinute = prefs.getInt('reminder_minute') ?? 0;
+      final int savedHour = prefs.getInt(_reminderHourKey()) ?? 20;
+      final int savedMinute = prefs.getInt(_reminderMinuteKey()) ?? 0;
       _reminderTime = TimeOfDay(hour: savedHour, minute: savedMinute);
-      _isBillReminderEnabled = prefs.getBool('bill_reminder_enabled') ?? true;
+      _isDailyReminderEnabled = prefs.getBool(_dailyReminderEnabledKey()) ?? true;
+      _isBillReminderEnabled = prefs.getBool(_billReminderEnabledKey()) ?? true;
     });
+
+    await _syncReminderNotifications(promptIfNeeded: false);
+  }
+
+  Future<void> _showNotificationPermissionDialog() async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Izin Notifikasi Diperlukan', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+          content: Text(
+            'Aktifkan izin notifikasi agar pengingat harian dan tagihan bisa muncul tepat waktu.',
+            style: GoogleFonts.plusJakartaSans(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Nanti', style: GoogleFonts.plusJakartaSans()),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await openAppSettings();
+                if (!mounted) return;
+                Navigator.pop(dialogContext);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+              child: Text('Buka Settings', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _ensureNotificationPermission({bool promptIfNeeded = true}) async {
+    final status = await Permission.notification.status;
+    if (status.isGranted) {
+      return true;
+    }
+
+    if (!promptIfNeeded) {
+      return false;
+    }
+
+    final result = await Permission.notification.request();
+    if (result.isGranted) {
+      return true;
+    }
+
+    
+    await _showNotificationPermissionDialog();
+    return false;
+  }
+
+  Future<bool> _ensureExactAlarmPermission({bool promptIfNeeded = true}) async {
+    final canScheduleExactAlarms = await NotificationHelper.canScheduleExactAlarms();
+    
+    if (canScheduleExactAlarms) return true;
+
+    if (!promptIfNeeded) return false;
+
+    await NotificationHelper.ensureInitialized();
+    final androidImplementation = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final granted = await androidImplementation?.requestExactAlarmsPermission();
+
+    final refreshed = await NotificationHelper.canScheduleExactAlarms();
+    
+
+    if (!refreshed && granted != true && mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text('Alarm Tepat Waktu Diperlukan', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+            content: Text(
+              'Agar pengingat muncul tepat di jam yang dipilih, aktifkan izin alarm tepat waktu untuk Spendly.',
+              style: GoogleFonts.plusJakartaSans(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text('Nanti', style: GoogleFonts.plusJakartaSans()),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await openAppSettings();
+                  if (!mounted) return;
+                  Navigator.pop(dialogContext);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+                child: Text('Buka Settings', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    return refreshed;
+  }
+
+  Future<bool> _ensureBatteryOptimizationExemption({bool promptIfNeeded = true}) async {
+    final status = await Permission.ignoreBatteryOptimizations.status;
+    if (status.isGranted) return true;
+    if (!promptIfNeeded) return false;
+
+    final result = await Permission.ignoreBatteryOptimizations.request();
+    if (result.isGranted) {
+      return true;
+    }
+
+    await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text('Izinkan Latar Belakang', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+            content: Text(
+              'Agar pengingat muncul tepat waktu, izinkan Spendly berjalan tanpa dibatasi baterai.',
+              style: GoogleFonts.plusJakartaSans(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text('Nanti', style: GoogleFonts.plusJakartaSans()),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await openAppSettings();
+                  if (!mounted) return;
+                  Navigator.pop(dialogContext);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+                child: Text('Buka Settings', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      );
+
+    return result.isGranted;
+  }
+
+  Future<bool> _syncReminderNotifications({bool promptIfNeeded = true}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSavedReminder = prefs.containsKey(_reminderHourKey()) && prefs.containsKey(_reminderMinuteKey());
+    if (!hasSavedReminder) {
+      return false;
+    }
+
+    try {
+      final hasPermission = await _ensureNotificationPermission(promptIfNeeded: promptIfNeeded);
+      if (!hasPermission) {
+        return false;
+      }
+
+      final hasExactAlarmPermission = await _ensureExactAlarmPermission(promptIfNeeded: promptIfNeeded);
+      if (!hasExactAlarmPermission) {
+        return false;
+      }
+
+      final hasBatteryOptimizationExemption = await _ensureBatteryOptimizationExemption(promptIfNeeded: promptIfNeeded);
+      if (!hasBatteryOptimizationExemption) {
+        return false;
+      }
+
+      if (_isDailyReminderEnabled) {
+        await NotificationHelper.scheduleDailyNotification(_reminderTime.hour, _reminderTime.minute);
+      } else {
+        await NotificationHelper.cancelAllNotifications();
+      }
+
+      if (_isDailyReminderEnabled && _isBillReminderEnabled) {
+        await Future.delayed(const Duration(seconds: 10));
+      }
+
+      if (_isBillReminderEnabled) {
+        await NotificationHelper.scheduleBillReminderNotification(_reminderTime.hour, _reminderTime.minute);
+      } else {
+        await NotificationHelper.cancelBillReminderNotification();
+      }
+
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void _showEditNameDialog() {
@@ -187,27 +388,147 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _selectTime(BuildContext context) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _reminderTime,
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen),
+          data: theme.copyWith(
+            colorScheme: isDark
+                ? const ColorScheme.dark(primary: AppColors.primaryGreen)
+                : const ColorScheme.light(primary: AppColors.primaryGreen),
+            dialogBackgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+              dialBackgroundColor: isDark ? const Color(0xFF242424) : const Color(0xFFF1FAF5),
+              hourMinuteTextColor: isDark ? Colors.white : Colors.black87,
+              hourMinuteColor: AppColors.primaryGreen,
+              dayPeriodTextColor: isDark ? Colors.white : Colors.black87,
+              dayPeriodColor: AppColors.primaryGreen.withValues(alpha: 0.12),
+              dialHandColor: AppColors.primaryGreen,
+              dialTextColor: isDark ? Colors.white : Colors.black87,
+              entryModeIconColor: AppColors.primaryGreen,
+            ),
           ),
           child: child!,
         );
       },
     );
-    if (picked != null && picked != _reminderTime) {
+    if (picked != null) {
+      final isSameTimeAsBefore = picked == _reminderTime;
+      final now = TimeOfDay.now();
+      final isPickedTimePassed = picked.hour < now.hour ||
+          (picked.hour == now.hour && picked.minute < now.minute);
+
       setState(() => _reminderTime = picked);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('reminder_hour', picked.hour);
-      await prefs.setInt('reminder_minute', picked.minute);
+      await prefs.setInt(_reminderHourKey(), picked.hour);
+      await prefs.setInt(_reminderMinuteKey(), picked.minute);
 
-      await NotificationHelper.scheduleDailyNotification(picked.hour, picked.minute);
+      try {
+        final saved = await _syncReminderNotifications();
+        if (!mounted) return;
+        CustomNotification.show(
+          context,
+          saved
+              ? (isPickedTimePassed
+                  ? 'Aktif mulai besok'
+                  : (isSameTimeAsBefore ? 'Disinkronkan' : 'Tersimpan'))
+              : 'Gagal dijadwalkan',
+          isError: !saved,
+        );
+      } catch (_) {
+        if (!mounted) return;
+        CustomNotification.show(context, 'Gagal mengaktifkan pengingat. Cek izin notifikasi.', isError: true);
+      }
+    }
+  }
+
+  Future<void> _toggleDailyReminder(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (value) {
+      final hasPermission = await _ensureNotificationPermission();
+      if (!hasPermission) return;
+      final hasExactAlarmPermission = await _ensureExactAlarmPermission();
+      if (!hasExactAlarmPermission) return;
+      final hasBatteryOptimizationExemption = await _ensureBatteryOptimizationExemption();
+      if (!hasBatteryOptimizationExemption) return;
+    }
+
+    await prefs.setBool(_dailyReminderEnabledKey(), value);
+    if (!mounted) return;
+    setState(() => _isDailyReminderEnabled = value);
+
+    if (value) {
+      try {
+        final now = TimeOfDay.now();
+        final isReminderTimePassed = _reminderTime.hour < now.hour ||
+          (_reminderTime.hour == now.hour && _reminderTime.minute < now.minute);
+
+        await NotificationHelper.scheduleDailyNotification(_reminderTime.hour, _reminderTime.minute);
+        if (!mounted) return;
+        CustomNotification.show(
+          context,
+          isReminderTimePassed ? 'Aktif mulai besok' : 'Aktif',
+        );
+      } catch (_) {
+        if (!mounted) return;
+        CustomNotification.show(context, 'Gagal mengaktifkan pengingat harian.', isError: true);
+      }
+    } else {
+      await NotificationHelper.cancelAllNotifications();
+      if (_isBillReminderEnabled) {
+        try {
+          await NotificationHelper.scheduleBillReminderNotification(_reminderTime.hour, _reminderTime.minute);
+        } catch (_) {
+          // ignore
+        }
+      }
       if (!mounted) return;
-      CustomNotification.show(context, 'Pengingat harian disimpan!');
+      CustomNotification.show(context, 'Dimatikan', isWarning: true);
+    }
+  }
+
+  Future<void> _toggleBillReminder(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (value) {
+      final hasPermission = await _ensureNotificationPermission();
+      if (!hasPermission) return;
+      final hasExactAlarmPermission = await _ensureExactAlarmPermission();
+      if (!hasExactAlarmPermission) return;
+      final hasBatteryOptimizationExemption = await _ensureBatteryOptimizationExemption();
+      if (!hasBatteryOptimizationExemption) return;
+    }
+
+    await prefs.setBool(_billReminderEnabledKey(), value);
+    if (!mounted) return;
+    setState(() => _isBillReminderEnabled = value);
+
+    if (value) {
+      try {
+        final now = TimeOfDay.now();
+        final isReminderTimePassed = _reminderTime.hour < now.hour ||
+          (_reminderTime.hour == now.hour && _reminderTime.minute < now.minute);
+
+        await NotificationHelper.scheduleBillReminderNotification(_reminderTime.hour, _reminderTime.minute);
+        if (!mounted) return;
+        CustomNotification.show(
+          context,
+          isReminderTimePassed ? 'Aktif mulai besok' : 'Aktif',
+        );
+      } catch (_) {
+        if (!mounted) return;
+        CustomNotification.show(context, 'Gagal mengaktifkan pengingat tagihan.', isError: true);
+      }
+    } else {
+      await NotificationHelper.cancelBillReminderNotification();
+      if (!mounted) return;
+      CustomNotification.show(context, 'Dimatikan', isWarning: true);
     }
   }
 
@@ -556,55 +877,151 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 children: [
                   ListTile(leading: FaIcon(FontAwesomeIcons.bell, color: textColor, size: 20), title: Text('Pengaturan Notifikasi', style: GoogleFonts.plusJakartaSans(fontSize: 15, color: textColor))),
-                  InkWell(
-                    onTap: () => _selectTime(context),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Pengingat Harian', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
-                          Text(_reminderTime.format(context), style: GoogleFonts.plusJakartaSans(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
-                        ],
-                      ),
+                  // Jam pengingat (tampil paling atas)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: isDark
+                          ? LinearGradient(
+                              colors: [
+                                Colors.white.withValues(alpha: 0.05),
+                                Colors.white.withValues(alpha: 0.02),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : const LinearGradient(
+                              colors: [
+                                Color(0xFFF7FCF9),
+                                Color(0xFFEAF8F0),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFD8EBDF)),
                     ),
-                  ),
-                  InkWell(
-                    onTap: () async {
-                      final newValue = !_isBillReminderEnabled;
-                      setState(() => _isBillReminderEnabled = newValue);
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setBool('bill_reminder_enabled', newValue);
-
-                      if (newValue) {
-                        CustomNotification.show(context, 'Pengingat tagihan diaktifkan');
-                      } else {
-                        CustomNotification.show(context, 'Pengingat tagihan dimatikan', isWarning: true);
-                      }
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(8)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Pengingat Tagihan', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
-                          Icon(
-                            _isBillReminderEnabled ? Icons.check_circle : Icons.radio_button_unchecked,
-                            color: _isBillReminderEnabled ? AppColors.primaryGreen : Colors.grey,
-                            size: 20,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _selectTime(context),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryGreen.withValues(alpha: isDark ? 0.18 : 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.access_time_rounded, color: AppColors.primaryGreen, size: 22),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Waktu Pengingat',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Ketuk untuk mengubah jam',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor.withValues(alpha: isDark ? 0.85 : 1),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFDDE8E0)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _reminderTime.format(context),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: AppColors.primaryGreen,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.keyboard_arrow_right_rounded, size: 18, color: AppColors.primaryGreen),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+
+                  const SizedBox(height: 4),
+
+                  // Pengingat Harian toggle (di bawah jam)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1FAF5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      title: Text('Pengingat Harian', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
+                      subtitle: Text('Aktif setiap hari pada jam pilihan', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 11)),
+                      trailing: Switch.adaptive(
+                        value: _isDailyReminderEnabled,
+                        activeThumbColor: AppColors.primaryGreen,
+                        onChanged: _toggleDailyReminder,
+                      ),
+                    ),
+                  ),
+
+
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1FAF5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      title: Text('Pengingat Tagihan', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
+                      subtitle: Text('Mengikuti jadwal pengingat harian', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 11)),
+                      trailing: Switch.adaptive(
+                        value: _isBillReminderEnabled,
+                        activeThumbColor: AppColors.primaryGreen,
+                        onChanged: _toggleBillReminder,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Jika dua pengingat aktif, notifikasi dikirim selang 10 detik.',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 10, color: Colors.grey),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Divider(height: 1, thickness: 1, color: isDark ? Colors.white12 : const Color(0xFFF0F0F0)),
                   ListTile(
                     leading: FaIcon(FontAwesomeIcons.palette, color: textColor, size: 20),
@@ -693,6 +1110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
                     builder: (BuildContext sheetContext) {
                       Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+                      final bool isDarkSheet = Theme.of(context).brightness == Brightness.dark;
                       return StatefulBuilder(
                           builder: (BuildContext stateContext, StateSetter setSheetState) {
                             return SafeArea(
@@ -713,15 +1131,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         children: [
                                           ChoiceChip(
                                             label: Text('Semua Waktu', style: GoogleFonts.plusJakartaSans()),
+                                            labelStyle: GoogleFonts.plusJakartaSans(
+                                              color: selectedFilter == 0
+                                                  ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
+                                                  : (isDarkSheet ? Colors.white70 : Colors.black87),
+                                              fontWeight: selectedFilter == 0 ? FontWeight.w700 : FontWeight.w500,
+                                            ),
                                             selected: selectedFilter == 0,
-                                            selectedColor: AppColors.primaryGreen.withValues(alpha: 0.2),
+                                            selectedColor: isDarkSheet
+                                                ? AppColors.primaryGreen.withValues(alpha: 0.35)
+                                                : AppColors.primaryGreen.withValues(alpha: 0.2),
+                                            backgroundColor: isDarkSheet ? Colors.white10 : Colors.white,
+                                            side: BorderSide(color: isDarkSheet ? Colors.white30 : Colors.grey.shade300),
+                                            checkmarkColor: selectedFilter == 0
+                                                ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
+                                                : (isDarkSheet ? Colors.white70 : Colors.black54),
                                             onSelected: (val) => setSheetState(() => selectedFilter = 0),
                                           ),
                                           const SizedBox(width: 8),
                                           ChoiceChip(
                                             label: Text('Bulan Ini', style: GoogleFonts.plusJakartaSans()),
+                                            labelStyle: GoogleFonts.plusJakartaSans(
+                                              color: selectedFilter == 1
+                                                  ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
+                                                  : (isDarkSheet ? Colors.white70 : Colors.black87),
+                                              fontWeight: selectedFilter == 1 ? FontWeight.w700 : FontWeight.w500,
+                                            ),
                                             selected: selectedFilter == 1,
-                                            selectedColor: AppColors.primaryGreen.withValues(alpha: 0.2),
+                                            selectedColor: isDarkSheet
+                                                ? AppColors.primaryGreen.withValues(alpha: 0.35)
+                                                : AppColors.primaryGreen.withValues(alpha: 0.2),
+                                            backgroundColor: isDarkSheet ? Colors.white10 : Colors.white,
+                                            side: BorderSide(color: isDarkSheet ? Colors.white30 : Colors.grey.shade300),
+                                            checkmarkColor: selectedFilter == 1
+                                                ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
+                                                : (isDarkSheet ? Colors.white70 : Colors.black54),
                                             onSelected: (val) => setSheetState(() => selectedFilter = 1),
                                           ),
                                         ],
