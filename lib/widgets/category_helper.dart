@@ -35,15 +35,27 @@ class CategoryHelper {
     } else if (cat.contains('sehat') || cat.contains('sakit') || cat.contains('dokter') || cat.contains('obat') || cat.contains('apotek') || cat.contains('klinik') || cat.contains('rs') || cat.contains('vitamin') || cat.contains('gym')) {
       return Colors.pink.shade400;
     } else if (cat.contains('edukasi') || cat.contains('kuliah') || cat.contains('sekolah') || cat.contains('buku') || cat.contains('kursus') || cat.contains('spp') || cat.contains('tugas') || cat.contains('ukt')) {
-      return Colors.indigo.shade500; // <--- KULIAH AKAN JADI WARNA INI
+      return Colors.indigo.shade500;
+    } else if (cat.contains('musik') || cat.contains('music') || cat.contains('konser') || cat.contains('lagu') || cat.contains('band')) {
+      return Colors.purple.shade300;
+    } else if (cat.contains('olahraga') || cat.contains('dumbbell') || cat.contains('fitness') || cat.contains('fitnes')) {
+      return Colors.red.shade500;
     } else if (cat.contains('investasi') || cat.contains('saham') || cat.contains('reksadana') || cat.contains('crypto') || cat.contains('emas') || cat.contains('reksa')) {
       return Colors.cyan.shade600;
     } else if (cat.contains('gaji') || cat.contains('salary') || cat.contains('upah') || cat.contains('payday')) {
       return AppColors.primaryGreen;
     } else if (cat.contains('bonus') || cat.contains('hadiah') || cat.contains('gift') || cat.contains('thr') || cat.contains('reward')) {
       return Colors.amber.shade600;
-    } else if (cat.contains('dana') || cat.contains('tabungan') || cat.contains('celengan') || cat.contains('darurat')) {
-      return Colors.blue.shade800; // <--- DANA DARURAT AKAN JADI WARNA INI
+    } else if (cat.contains('bank') || cat.contains('bca') || cat.contains('rekening') || cat.contains('transfer')) {
+      return Colors.teal;
+    } else if (cat.contains('coin') || cat.contains('koin') || cat.contains('uang') || cat.contains('tunai')) {
+      return Colors.amber.shade800;
+    } else if (cat.contains('dana') || cat.contains('tabungan') || cat.contains('celengan') || cat.contains('darurat') || cat.contains('wallet')) {
+      return Colors.blue.shade800;
+    } else if (cat.contains('chart') || cat.contains('grafik') || cat.contains('statistik') || cat.contains('laporan')) {
+      return Colors.blueAccent;
+    } else if (cat.contains('briefcase') || cat.contains('usaha') || cat.contains('bisnis') || cat.contains('pekerjaan')) {
+      return Colors.amber.shade700;
     }
 
     // LAYER 2: Jika kata kunci tidak ada, baru cek apakah ini kategori kustom (Baru)
@@ -103,6 +115,10 @@ class CategoryHelper {
       return FontAwesomeIcons.graduationCap;
     } else if (cat.contains('buku') || cat.contains('tugas') || cat.contains('notes')) {
       return FontAwesomeIcons.book;
+    } else if (cat.contains('musik') || cat.contains('music') || cat.contains('konser') || cat.contains('lagu')) {
+      return FontAwesomeIcons.music;
+    } else if (cat.contains('olahraga') || cat.contains('dumbbell') || cat.contains('gym') || cat.contains('fitness') || cat.contains('fitnes')) {
+      return FontAwesomeIcons.dumbbell;
     } else if (cat.contains('investasi') || cat.contains('saham') || cat.contains('reksadana') || cat.contains('reksa')) {
       return FontAwesomeIcons.arrowTrendUp;
     } else if (cat.contains('crypto') || cat.contains('bitcoin')) {
@@ -111,8 +127,16 @@ class CategoryHelper {
       return FontAwesomeIcons.moneyBillWave;
     } else if (cat.contains('bonus') || cat.contains('hadiah') || cat.contains('gift') || cat.contains('thr') || cat.contains('reward')) {
       return FontAwesomeIcons.gift;
+    } else if (cat.contains('bank') || cat.contains('bca') || cat.contains('rekening') || cat.contains('transfer')) {
+      return FontAwesomeIcons.buildingColumns;
+    } else if (cat.contains('coin') || cat.contains('koin') || cat.contains('uang') || cat.contains('tunai')) {
+      return FontAwesomeIcons.coins;
     } else if (cat.contains('dana') || cat.contains('tabungan') || cat.contains('celengan') || cat.contains('wallet') || cat.contains('darurat')) {
       return FontAwesomeIcons.piggyBank;
+    } else if (cat.contains('chart') || cat.contains('grafik') || cat.contains('statistik')) {
+      return FontAwesomeIcons.chartLine;
+    } else if (cat.contains('briefcase') || cat.contains('usaha') || cat.contains('bisnis')) {
+      return FontAwesomeIcons.briefcase;
     } else if (cat.contains('laptop') || cat.contains('komputer') || cat.contains('pc') || cat.contains('gadget') || cat.contains('hp')) {
       return FontAwesomeIcons.laptop;
     } else if (cat.contains('rumah') || cat.contains('building') || cat.contains('gedung')) {
@@ -155,6 +179,8 @@ class CategoryHelper {
       case 'film': return FontAwesomeIcons.film;
       case 'train': return FontAwesomeIcons.train;
       case 'building': return FontAwesomeIcons.building;
+      case 'music': return FontAwesomeIcons.music;
+      case 'dumbbell': return FontAwesomeIcons.dumbbell;
       case 'card': return FontAwesomeIcons.creditCard;
       case 'savings': return FontAwesomeIcons.piggyBank;
       case 'business': return FontAwesomeIcons.briefcase;

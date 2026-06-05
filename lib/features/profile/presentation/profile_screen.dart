@@ -435,7 +435,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
           saved
               ? (isPickedTimePassed
-                  ? 'Aktif mulai besok'
+                  ? 'Waktu diperbarui, aktif mulai besok'
                   : (isSameTimeAsBefore ? 'Disinkronkan' : 'Tersimpan'))
               : 'Gagal dijadwalkan',
           isError: !saved,
@@ -489,7 +489,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
       if (!mounted) return;
-      CustomNotification.show(context, 'Dimatikan', isWarning: true);
+      CustomNotification.show(context, 'Pengingat Harian Dimatikan', isWarning: true);
     }
   }
 
@@ -528,7 +528,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else {
       await NotificationHelper.cancelBillReminderNotification();
       if (!mounted) return;
-      CustomNotification.show(context, 'Dimatikan', isWarning: true);
+      CustomNotification.show(context, 'Pengingat Tagihan Dimatikan', isWarning: true);
     }
   }
 

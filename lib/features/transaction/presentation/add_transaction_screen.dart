@@ -47,9 +47,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final FocusNode _amountFocusNode = FocusNode();
 
   List<Map<String, dynamic>> expenseCategories = [
-    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.redAccent},
+    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.orange.shade600},
     {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': Colors.blue},
-    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple},
+    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple.shade500},
     {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': Colors.orange},
     {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': Colors.teal},
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},

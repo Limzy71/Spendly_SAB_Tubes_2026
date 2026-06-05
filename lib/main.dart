@@ -52,7 +52,6 @@ class NotificationHelper {
     final androidImplementation =
         flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
-    // request permissions and log their results
     try {
       await androidImplementation?.requestNotificationsPermission();
     } catch (e) {
