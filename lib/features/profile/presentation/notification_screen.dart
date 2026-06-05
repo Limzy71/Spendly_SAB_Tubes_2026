@@ -71,7 +71,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Riwayat notifikasi berhasil di hapus.',
+                  'Apakah Anda yakin ingin menghapus semua riwayat notifikasi? Tindakan ini tidak dapat dibatalkan.',
                   style: TextStyle(
                     color: isDark ? Colors.white70 : Colors.grey.shade700,
                     height: 1.4,
@@ -115,15 +115,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
 
     if (confirmed != true) return;
+    setState(() {
+      _isLoadingHistory = true;
+    });
 
     await NotificationHelper.clearHistory();
     if (!mounted) return;
 
-    setState(() {
-      _history = [];
-    });
-
-    CustomNotification.show(context, 'Riwayat notifikasi berhasil dihapus.');
+    _loadHistory();
+    CustomNotification.show(context, 'Riwayat notifikasi berhasil dihapus');
   }
 
   @override
@@ -158,50 +158,54 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        physics: const ClampingScrollPhysics(),
-        children: [
-          _buildFeaturedNotifItem(
-            context,
-            Icons.celebration,
-            AppColors.primaryGreen,
-            'Selamat Datang di Spendly!',
-            'Terima kasih telah menggunakan aplikasi pencatatan keuangan ini.',
-            'Pada saat pembuatan akun',
-            isDark,
-          ),
-          _buildFeaturedNotifItem(
-            context,
-            Icons.account_balance_wallet,
-            Colors.blue,
-            'Waktu untuk Mencatat',
-            'Jangan lupa mencatat pengeluaran dan pemasukan harian Anda.',
-            'Pada saat aplikasi dibuka',
-            isDark,
-            isClickable: true,
-          ),
-          if (_isLoadingHistory)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)),
-            )
-          else if (_history.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
-              ),
-              child: Text(
-                'Belum ada riwayat notifikasi. Saat pengingat dijadwalkan atau dibuka, aktivitasnya akan muncul di sini.',
-                style: TextStyle(color: Colors.grey.shade400, height: 1.4),
-              ),
-            )
-          else
-            ..._history.take(8).map((item) => _buildHistoryItem(context, item, isDark, textColor)),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _loadHistory,
+        color: AppColors.primaryGreen,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            _buildFeaturedNotifItem(
+              context,
+              Icons.celebration,
+              AppColors.primaryGreen,
+              'Selamat Datang di Spendly!',
+              'Terima kasih telah menggunakan aplikasi pencatatan keuangan ini.',
+              'Pada saat pembuatan akun',
+              isDark,
+            ),
+            _buildFeaturedNotifItem(
+              context,
+              Icons.account_balance_wallet,
+              Colors.blue,
+              'Waktu untuk Mencatat',
+              'Jangan lupa mencatat pengeluaran dan pemasukan harian Anda.',
+              'Pada saat aplikasi dibuka',
+              isDark,
+              isClickable: true,
+            ),
+            if (_isLoadingHistory)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)),
+              )
+            else if (_history.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                ),
+                child: Text(
+                  'Belum ada riwayat notifikasi. Saat pengingat dijadwalkan atau dibuka, aktivitasnya akan muncul di sini.',
+                  style: TextStyle(color: Colors.grey.shade400, height: 1.4),
+                ),
+              )
+            else
+              ..._history.take(20).map((item) => _buildHistoryItem(context, item, isDark, textColor)),
+          ],
+        ),
       ),
     );
   }
@@ -213,14 +217,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     Color iconColor;
     IconData iconData;
+
     switch (type) {
       case 'scheduled_daily':
         iconColor = AppColors.primaryGreen;
         iconData = Icons.schedule;
         break;
+      case 'sent_daily':
+        iconColor = AppColors.primaryGreen;
+        iconData = Icons.alarm_on;
+        break;
       case 'scheduled_bill':
         iconColor = Colors.orange;
         iconData = Icons.receipt_long;
+        break;
+      case 'sent_bill':
+        iconColor = Colors.orange;
+        iconData = Icons.check_circle_outline;
         break;
       case 'opened':
         iconColor = Colors.blue;
@@ -276,15 +289,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Widget _buildFeaturedNotifItem(
-    BuildContext context,
-    IconData icon,
-    Color color,
-    String title,
-    String subtitle,
-    String time,
-    bool isDark, {
-    bool isClickable = false,
-  }) {
+      BuildContext context,
+      IconData icon,
+      Color color,
+      String title,
+      String subtitle,
+      String time,
+      bool isDark, {
+        bool isClickable = false,
+      }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -298,11 +311,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
           borderRadius: BorderRadius.circular(16),
           onTap: isClickable
               ? () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
-                  );
-                }
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
+            );
+          }
               : null,
           child: Padding(
             padding: const EdgeInsets.all(16.0),

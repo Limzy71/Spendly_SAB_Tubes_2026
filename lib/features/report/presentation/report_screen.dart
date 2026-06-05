@@ -486,6 +486,7 @@ class _ReportScreenState extends State<ReportScreen> {
               else
                 ..._topTransactions.map((tx) {
                   final catName = tx['category'] ?? 'Lainnya';
+                  final catColor = CategoryHelper.getColor(catName);
                   return GestureDetector(
                     onTap: () async {
                       final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
@@ -498,8 +499,9 @@ class _ReportScreenState extends State<ReportScreen> {
                       title: catName,
                       subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
                       amount: '- ${_formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0)}',
-                      bgIconColor: CategoryHelper.getColor(catName).withValues(alpha: 0.1),
+                      bgIconColor: catColor.withValues(alpha: 0.1),
                       icon: CategoryHelper.getIcon(catName, customIcons: _customIcons),
+                      iconColor: catColor,
                       amountColor: barRed,
                     ),
                   );
@@ -626,15 +628,36 @@ class _ReportScreenState extends State<ReportScreen> {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 36,
+                reservedSize: 75,
                 getTitlesWidget: (value, meta) {
                   if (value == 0 || value == maxVal * 1.2) return const SizedBox.shrink();
+                  
+                  // Format dengan cara custom untuk handle angka besar lebih baik
+                  String formatted;
+                  if (value >= 1000000000000) {
+                    // Triliuan
+                    formatted = '${(value / 1000000000000).toStringAsFixed(1)} t';
+                  } else if (value >= 1000000000) {
+                    // Miliaran
+                    formatted = '${(value / 1000000000).toStringAsFixed(1)} m';
+                  } else if (value >= 1000000) {
+                    // Jutaan
+                    formatted = '${(value / 1000000).toStringAsFixed(1)} jt';
+                  } else if (value >= 1000) {
+                    // Ribuan
+                    formatted = '${(value / 1000).toStringAsFixed(0)} rb';
+                  } else {
+                    formatted = value.toStringAsFixed(0);
+                  }
+                  
                   return SideTitleWidget(
                     meta: meta,
                     space: 4,
                     child: Text(
-                      NumberFormat.compactCurrency(locale: 'id_ID', symbol: '').format(value),
+                      formatted,
                       style: const TextStyle(color: Colors.grey, fontSize: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   );
                 },
