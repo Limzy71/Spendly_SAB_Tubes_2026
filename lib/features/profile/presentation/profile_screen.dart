@@ -608,7 +608,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     }
                   }
                 } catch (e) {
-                  if (mounted) CustomNotification.show(context, 'Gagal mereset data: $e', isError: true);
+                  if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mereset data');
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -677,7 +677,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 } catch (e) {
                   if (mounted) {
-                    CustomNotification.show(context, 'Gagal menghapus akun: $e', isError: true);
+                    NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus akun');
                   }
                 }
               },
@@ -791,7 +791,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 }
                               } catch (e) {
                                 if (context.mounted) {
-                                  CustomNotification.show(context, 'Gagal menyimpan foto: $e', isError: true);
+                                  NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menyimpan foto');
                                 }
                               }
                             }
@@ -1221,7 +1221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildListTile(
                 icon: FontAwesomeIcons.circleInfo,
                 title: 'Tentang Spendly',
-                subtitle: 'v1.0.7 (Kebijakan Privasi, Layanan)',
+                subtitle: 'v1.0.8 (Kebijakan Privasi, Layanan)',
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
                   Navigator.push(

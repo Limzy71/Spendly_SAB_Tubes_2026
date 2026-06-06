@@ -81,7 +81,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         CustomNotification.show(context, errorMessage, isError: true);
       }
     } catch (error) {
-      if (mounted) CustomNotification.show(context, 'Terjadi kendala jaringan atau sistem.', isError: true);
+      if (mounted) {
+        NetworkHelper.handleSupabaseError(context, error, prefix: 'Pendaftaran gagal');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -175,7 +175,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal memuat data: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memuat data');
       }
     } finally {
       if (mounted) {

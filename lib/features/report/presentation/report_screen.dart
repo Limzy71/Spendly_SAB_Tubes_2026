@@ -301,7 +301,7 @@ class _ReportScreenState extends State<ReportScreen> {
         });
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal memuat laporan: $e', isError: true);
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memuat laporan');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

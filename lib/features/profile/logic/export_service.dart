@@ -6,8 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:intl/intl.dart'; // <--- DI-DRY: Menggunakan sistem intl pusat
+import 'package:intl/intl.dart';
 import '../../../widgets/custom_notification.dart';
+import '../../../widgets/network_helper.dart';
 
 class ExportService {
   static Future<List<Map<String, dynamic>>> _fetchDataFromSupabase(int filterMode) async {
@@ -84,7 +85,7 @@ class ExportService {
         CustomNotification.show(context, 'File CSV berhasil disimpan!');
       }
     } catch (e) {
-      if (context.mounted) CustomNotification.show(context, 'Gagal memproses CSV: $e', isError: true);
+      if (context.mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memproses CSV');
     }
   }
 
@@ -151,7 +152,7 @@ class ExportService {
         CustomNotification.show(context, 'File PDF berhasil disimpan!');
       }
     } catch (e) {
-      if (context.mounted) CustomNotification.show(context, 'Gagal memproses PDF: $e', isError: true);
+      if (context.mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memproses PDF');
     }
   }
 }
