@@ -241,7 +241,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       CustomNotification.show(context, msg);
     } catch (e) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal menyimpan: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menyimpan');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

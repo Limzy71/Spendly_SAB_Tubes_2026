@@ -606,12 +606,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Mencegat error bawaan Supabase jika jaringan bermasalah
-        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
-          CustomNotification.show(context, 'Gagal memperbarui: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
-        } else {
-          CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
-        }
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -634,12 +629,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Mencegat error bawaan Supabase jika jaringan bermasalah
-        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
-          CustomNotification.show(context, 'Gagal menghapus: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
-        } else {
-          CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
-        }
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

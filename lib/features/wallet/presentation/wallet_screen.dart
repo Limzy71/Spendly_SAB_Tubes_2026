@@ -192,7 +192,7 @@ class _WalletScreenState extends State<WalletScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
-      if (mounted) CustomNotification.show(context, 'Gagal mengecek data: $e', isError: true);
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengecek data');
       return;
     }
 
@@ -319,7 +319,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       _fetchWalletData();
                       if (mounted) CustomNotification.show(context, 'Dompet berhasil diperbarui!');
                     } catch (e) {
-                      if (mounted) CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+                      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
                     } finally {
                       if (mounted) setState(() => _isLoading = false);
                     }

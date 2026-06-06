@@ -581,7 +581,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         Navigator.pop(context, 'Transaksi Berhasil Disimpan!');
       }
     } catch (e) {
-      if (mounted) CustomNotification.show(context, 'Gagal menyimpan: $e', isError: true);
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menyimpan');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

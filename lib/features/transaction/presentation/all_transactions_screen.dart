@@ -201,7 +201,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengambil data');
       }
     }
   }

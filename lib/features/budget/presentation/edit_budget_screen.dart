@@ -140,7 +140,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       CustomNotification.show(context, 'Anggaran berhasil diperbarui!');
     } catch (e) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -191,7 +191,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       }
     } catch (e) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

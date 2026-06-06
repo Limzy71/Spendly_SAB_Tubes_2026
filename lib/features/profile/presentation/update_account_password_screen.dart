@@ -50,7 +50,7 @@ class _UpdateAccountPasswordScreenState extends State<UpdateAccountPasswordScree
       }
     } catch (e) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal mengirim email reset tautan.', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengirim email reset tautan');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -90,8 +90,7 @@ class _UpdateAccountPasswordScreenState extends State<UpdateAccountPasswordScree
       }
     } catch (e) {
       if (mounted) {
-        String msg = e.toString().replaceAll('Exception: ', '');
-        CustomNotification.show(context, msg, isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengubah kata sandi');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

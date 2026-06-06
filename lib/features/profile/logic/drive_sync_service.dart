@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../widgets/custom_notification.dart';
+import '../../../widgets/network_helper.dart';
 
 class GoogleAuthClient extends http.BaseClient {
   final Map<String, String> _headers;
@@ -75,7 +76,7 @@ class DriveSyncService {
       }
     } catch (e) {
       if (context.mounted) {
-        CustomNotification.show(context, 'Gagal mencadangkan data: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mencadangkan data');
       }
     }
   }
@@ -184,7 +185,7 @@ class DriveSyncService {
       }
     } catch (e) {
       if (context.mounted) {
-        CustomNotification.show(context, 'Gagal sinkronisasi data balik: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal sinkronisasi data balik');
       }
     }
   }

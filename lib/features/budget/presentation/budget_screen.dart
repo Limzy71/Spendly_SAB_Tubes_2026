@@ -132,7 +132,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal mengambil data anggaran: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengambil data anggaran');
       }
     }
   }

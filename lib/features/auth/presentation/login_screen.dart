@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (error) {
       if (mounted) {
-        CustomNotification.show(context, 'Terjadi kendala jaringan atau sistem.', isError: true);
+        NetworkHelper.handleSupabaseError(context, error, prefix: 'Gagal masuk');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -150,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (error) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal mengirim tautan pemulihan.', isError: true);
+        NetworkHelper.handleSupabaseError(context, error, prefix: 'Gagal mengirim tautan pemulihan');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -202,8 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (error) {
       if (mounted) {
-        String err = error.toString().replaceAll('Exception: ', '');
-        CustomNotification.show(context, err, isError: true);
+        NetworkHelper.handleSupabaseError(context, error, prefix: 'Gagal masuk dengan Google');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
