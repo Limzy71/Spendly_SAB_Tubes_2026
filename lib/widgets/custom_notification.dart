@@ -69,8 +69,8 @@ class CustomNotification {
     overlay.insert(overlayEntry);
 
     Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry != null && overlayEntry!.mounted) {
-        overlayEntry!.remove();
+      if (overlayEntry != null && overlayEntry.mounted) {
+        overlayEntry.remove();
       }
     });
   }

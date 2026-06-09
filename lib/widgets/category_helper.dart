@@ -173,7 +173,6 @@ class CategoryHelper {
       case 'hospital': return FontAwesomeIcons.hospital;
       case 'edu': return FontAwesomeIcons.graduationCap;
       case 'paw': return FontAwesomeIcons.paw;
-      case 'game': return FontAwesomeIcons.gamepad;
       case 'shirt': return FontAwesomeIcons.shirt;
       case 'laptop': return FontAwesomeIcons.laptop;
       case 'film': return FontAwesomeIcons.film;

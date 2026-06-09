@@ -14,7 +14,7 @@ import '../../../../widgets/network_helper.dart';
 import '../../wallet/presentation/add_wallet_screen.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({Key? key}) : super(key: key);
+  const AddTransactionScreen({super.key});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -128,6 +128,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       {'id': 'briefcase', 'icon': FontAwesomeIcons.briefcase},
       {'id': 'giftbox', 'icon': FontAwesomeIcons.gift},
       {'id': 'arrow', 'icon': FontAwesomeIcons.arrowTrendUp},
+      {'id': 'building', 'icon': FontAwesomeIcons.building},
+      {'id': 'card', 'icon': FontAwesomeIcons.creditCard},
       {'id': 'safe', 'icon': FontAwesomeIcons.boxArchive},
     ];
   }
@@ -269,16 +271,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       List<Map<String, dynamic>> processedWallets = [];
 
       for (var w in walletResponse) {
-        int wId = w['id'] as int;
+        int wId = w['id'] as int? ?? 0;
         String wName = w['name'].toString();
-        int currentBal = w['balance'] as int;
+        int currentBal = w['balance'] as int? ?? 0;
 
         for (var tx in txResponse) {
           if (tx['wallet_id'] == wId) {
             if (tx['is_expense'] == true) {
-              currentBal -= tx['amount'] as int;
+              currentBal -= tx['amount'] as int? ?? 0;
             } else {
-              currentBal += tx['amount'] as int;
+              currentBal += tx['amount'] as int? ?? 0;
             }
           }
         }
@@ -438,6 +440,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           await prefs.setStringList(hiddenKey, hiddenCats);
                         }
 
+                        if (!mounted) return;
                         setState(() {
                           var newCategory = {
                             'name': newCatName,
@@ -456,6 +459,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           }
                           selectedCategory = newCatName;
                         });
+                        if (!ctx.mounted) return;
                         Navigator.pop(ctx);
                       }
                     },
@@ -544,9 +548,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
 
     bool hasConnection = await NetworkHelper.checkConnection(context);
-    if (!hasConnection) {
-      return;
-    }
+    if (!mounted) return;
+    if (!hasConnection) return;
 
     setState(() => _isLoading = true);
 
@@ -555,7 +558,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (userId == null) return;
 
       final cleanAmount = _amountController.text.replaceAll('.', '');
-      final amount = int.parse(cleanAmount);
+      final amount = int.tryParse(cleanAmount) ?? 0;
 
       String? imageUrl;
 
@@ -818,7 +821,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     onChanged: (value) {
                       if (value.isNotEmpty) {
                         String clean = value.replaceAll('.', '');
-                        String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                        String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                         _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                       }
                     },

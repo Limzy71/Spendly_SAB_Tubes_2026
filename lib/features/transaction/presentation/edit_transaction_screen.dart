@@ -15,7 +15,7 @@ import '../../wallet/presentation/add_wallet_screen.dart';
 class EditTransactionScreen extends StatefulWidget {
   final Map<String, dynamic> transaction;
 
-  const EditTransactionScreen({Key? key, required this.transaction}) : super(key: key);
+  const EditTransactionScreen({super.key, required this.transaction});
 
   @override
   State<EditTransactionScreen> createState() => _EditTransactionScreenState();
@@ -144,9 +144,6 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       {'id': 'arrow', 'icon': FontAwesomeIcons.arrowTrendUp},
       {'id': 'building', 'icon': FontAwesomeIcons.building},
       {'id': 'card', 'icon': FontAwesomeIcons.creditCard},
-      {'id': 'savings', 'icon': FontAwesomeIcons.piggyBank},
-      {'id': 'business', 'icon': FontAwesomeIcons.briefcase},
-      {'id': 'coins2', 'icon': FontAwesomeIcons.coins},
       {'id': 'safe', 'icon': FontAwesomeIcons.boxArchive},
     ];
   }
@@ -313,16 +310,16 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       List<Map<String, dynamic>> processedWallets = [];
 
       for (var w in walletResponse) {
-        int wId = w['id'] as int;
+        int wId = w['id'] as int? ?? 0;
         String wName = w['name'].toString();
-        int currentBal = w['balance'] as int;
+        int currentBal = w['balance'] as int? ?? 0;
 
         for (var tx in txResponse) {
           if (tx['wallet_id'] == wId) {
             if (tx['is_expense'] == true) {
-              currentBal -= tx['amount'] as int;
+              currentBal -= tx['amount'] as int? ?? 0;
             } else {
-              currentBal += tx['amount'] as int;
+              currentBal += tx['amount'] as int? ?? 0;
             }
           }
         }
@@ -467,6 +464,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                           await prefs.setStringList(hiddenKey, hiddenCats);
                         }
 
+                        if (!mounted) return;
                         setState(() {
                           var newCategory = {
                             'name': newCatName,
@@ -485,6 +483,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                           }
                           selectedCategory = newCatName;
                         });
+                        if (!ctx.mounted) return;
                         Navigator.pop(ctx);
                       }
                     },
@@ -571,6 +570,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     }
 
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     setState(() => _isLoading = true);
@@ -580,7 +580,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       if (userId == null) return;
 
       final cleanAmount = _amountController.text.replaceAll('.', '');
-      final amount = int.parse(cleanAmount);
+      final amount = int.tryParse(cleanAmount) ?? 0;
 
       String? finalImageUrl = _existingImageUrl;
 
@@ -615,6 +615,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   Future<void> _deleteTransaction() async {
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     setState(() => _isLoading = true);
@@ -728,7 +729,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                             onChanged: (value) {
                               if (value.isNotEmpty) {
                                 String clean = value.replaceAll('.', '');
-                                String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                                String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                                 _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                               }
                             },

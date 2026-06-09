@@ -65,11 +65,11 @@ class DriveSyncService {
 
       final driveFile = drive.File();
       String tanggal = DateTime.now().toString().split(' ')[0];
-      driveFile.name = "Spendly_Full_Backup_$tanggal\_${DateTime.now().millisecondsSinceEpoch}.json";
+      driveFile.name = "Spendly_Full_Backup_${tanggal}_${DateTime.now().millisecondsSinceEpoch}.json";
       driveFile.mimeType = "application/json";
 
       final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
-      await driveFile.name != null ? driveApi.files.create(driveFile, uploadMedia: media) : null;
+      await driveApi.files.create(driveFile, uploadMedia: media);
 
       if (context.mounted) {
         CustomNotification.show(context, 'Semua data berhasil dicadangkan ke Google Drive!');

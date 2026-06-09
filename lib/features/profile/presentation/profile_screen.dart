@@ -117,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 await openAppSettings();
-                if (!mounted) return;
+                if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
@@ -181,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ElevatedButton(
                 onPressed: () async {
                   await openAppSettings();
-                  if (!mounted) return;
+                  if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
@@ -206,6 +206,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return true;
     }
 
+    if (!mounted) return false;
+
     await showDialog<void>(
         context: context,
         builder: (dialogContext) {
@@ -223,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ElevatedButton(
                 onPressed: () async {
                   await openAppSettings();
-                  if (!mounted) return;
+                  if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
@@ -266,9 +268,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await NotificationHelper.cancelAllNotifications();
       }
 
-      if (_isDailyReminderEnabled && _isBillReminderEnabled) {
-        await Future.delayed(const Duration(seconds: 10));
-      }
 
       if (_isBillReminderEnabled) {
         await NotificationHelper.scheduleBillReminderNotification(_reminderTime.hour, _reminderTime.minute);
@@ -311,6 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!mounted) return;
                 if (!isOnline) return;
 
+                if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
                 setState(() => _userName = nameController.text.trim());
                 await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': nameController.text.trim()}));
@@ -332,6 +332,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final savedPin = prefs.getString('user_pin_$userId') ?? prefs.getString('user_pin');
 
     if (value == true && (savedPin == null || savedPin.isEmpty)) {
+      if (!mounted) return;
       CustomNotification.show(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
       Navigator.push(context, MaterialPageRoute(builder: (context) => const PasscodeSettingsScreen())).then((_) {
         _loadSecuritySettings();
@@ -363,6 +364,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final bool canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
 
         if (!canAuthenticate) {
+          if (!mounted) return;
           CustomNotification.show(context, 'Perangkat tidak mendukung biometrik.', isError: true);
           return;
         }
@@ -373,12 +375,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (didAuthenticate) {
           await prefs.setBool('is_biometric_enabled_$userId', true);
+          if (!mounted) return;
           setState(() => _isBiometricEnabled = true);
           CustomNotification.show(context, 'Biometrik berhasil diaktifkan!');
         } else {
           setState(() => _isBiometricEnabled = false);
         }
       } catch (e) {
+        if (!mounted) return;
         CustomNotification.show(context, 'Gagal verifikasi biometrik', isError: true);
       }
     } else {
@@ -400,7 +404,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             colorScheme: isDark
                 ? const ColorScheme.dark(primary: AppColors.primaryGreen)
                 : const ColorScheme.light(primary: AppColors.primaryGreen),
-            dialogBackgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            dialogTheme: DialogThemeData(backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white),
             timePickerTheme: TimePickerThemeData(
               backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
               dialBackgroundColor: isDark ? const Color(0xFF242424) : const Color(0xFFF1FAF5),
@@ -430,7 +434,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       try {
         final saved = await _syncReminderNotifications();
-        if (!mounted) return;
+        if (!context.mounted) return;
         CustomNotification.show(
           context,
           saved
@@ -441,7 +445,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           isError: !saved,
         );
       } catch (_) {
-        if (!mounted) return;
+        if (!context.mounted) return;
         CustomNotification.show(context, 'Gagal mengaktifkan pengingat. Cek izin notifikasi.', isError: true);
       }
     }
@@ -554,6 +558,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!mounted) return;
                 if (!isOnline) return;
 
+                if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
                 await Supabase.instance.client.auth.signOut();
                 if (!mounted) return;
@@ -589,8 +594,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!mounted) return;
                 if (!isOnline) return;
 
+                if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
                 CustomNotification.show(context, 'Sedang menghapus riwayat transaksi...', isWarning: true);
 
@@ -645,10 +652,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 bool isOnline = await NetworkHelper.checkConnection(context);
+                if (!mounted) return;
                 if (!isOnline) return;
 
+                if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
-                if (!mounted) return;
                 CustomNotification.show(context, 'Sedang menghapus akun dan data...', isWarning: true);
 
                 try {
@@ -665,7 +673,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
 
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.clear();
+                  final userId = user.id;
+                  await prefs.remove('is_pin_enabled_$userId');
+                  await prefs.remove('is_biometric_enabled_$userId');
+                  await prefs.remove('user_pin_$userId');
+                  await prefs.remove('reminder_hour_$userId');
+                  await prefs.remove('reminder_minute_$userId');
+                  await prefs.remove('daily_reminder_enabled_$userId');
+                  await prefs.remove('bill_reminder_enabled_$userId');
+                  await prefs.remove(ProfileImageCache.keyForUser(userId));
 
                   await supabase.auth.signOut();
 
@@ -741,7 +757,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         right: 0,
                         child: GestureDetector(
                           onTap: () async {
-                            final String? newPath = await showModalBottomSheet<String>(
+                            final Map<String, dynamic>? result = await showModalBottomSheet<Map<String, dynamic>>(
                               context: context,
                               backgroundColor: Theme.of(context).cardColor,
                               shape: const RoundedRectangleBorder(
@@ -750,48 +766,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               builder: (modalContext) => const UpdateProfileScreen(),
                             );
 
-                            if (newPath != null) {
+                            if (result != null) {
+                              if (!context.mounted) return;
                               bool isOnline = await NetworkHelper.checkConnection(context);
+                              if (!context.mounted) return;
                               if (!isOnline) return;
 
-                              setState(() => _profileImagePath = newPath);
+                              final action = result['action'];
+                              final user = Supabase.instance.client.auth.currentUser;
+                              if (user == null) return;
+                              final prefs = await SharedPreferences.getInstance();
+                              if (!context.mounted) return;
+                              final userId = user.id;
 
-                              CustomNotification.show(context, 'Sedang menyimpan foto...', isWarning: true);
+                              if (action == 'upload') {
+                                final String newPath = result['path']!;
+                                setState(() => _profileImagePath = newPath);
 
-                              try {
-                                final user = Supabase.instance.client.auth.currentUser;
-                                if (user == null) return;
+                                CustomNotification.show(context, 'Sedang menyimpan foto...', isWarning: true);
 
-                                final File file = File(newPath);
-                                final String fileExtension = newPath.split('.').last;
-                                final String fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+                                try {
+                                  final File file = File(newPath);
+                                  final String fileExtension = newPath.split('.').last;
+                                  final String fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
 
-                                await Supabase.instance.client.storage
-                                    .from('avatars')
-                                    .upload(fileName, file);
+                                  await Supabase.instance.client.storage
+                                      .from('avatars')
+                                      .upload(fileName, file);
 
-                                final String imageUrl = Supabase.instance.client.storage
-                                    .from('avatars')
-                                    .getPublicUrl(fileName);
+                                  final String imageUrl = Supabase.instance.client.storage
+                                      .from('avatars')
+                                      .getPublicUrl(fileName);
 
-                                await Supabase.instance.client.auth.updateUser(
-                                  UserAttributes(data: {'avatar_url': imageUrl}),
-                                );
+                                  await Supabase.instance.client.auth.updateUser(
+                                    UserAttributes(data: {'avatar_url': imageUrl}),
+                                  );
 
-                                final prefs = await SharedPreferences.getInstance();
-                                final userId = user.id;
-                                await prefs.setString(ProfileImageCache.keyForUser(userId), newPath);
-                                await prefs.remove(ProfileImageCache.legacyKey);
+                                  await prefs.setString(ProfileImageCache.keyForUser(userId), newPath);
+                                  await prefs.remove(ProfileImageCache.legacyKey);
 
-                                if (context.mounted) {
-                                  CustomNotification.show(context, 'Foto profil berhasil diperbarui!');
-                                  if (widget.onProfileUpdated != null) {
-                                    widget.onProfileUpdated!();
+                                  if (context.mounted) {
+                                    CustomNotification.show(context, 'Foto profil berhasil diperbarui!');
+                                    if (widget.onProfileUpdated != null) {
+                                      widget.onProfileUpdated!();
+                                    }
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui foto');
                                   }
                                 }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menyimpan foto');
+                              } else if (action == 'delete' || action == 'avatar') {
+                                String newUrl = action == 'delete' 
+                                  ? 'https://api.dicebear.com/7.x/notionists/png?seed=unisex&backgroundColor=f1faf5' 
+                                  : result['url']!;
+
+                                setState(() {
+                                  _profileImagePath = newUrl;
+                                });
+
+                                CustomNotification.show(context, 'Sedang memperbarui avatar...', isWarning: true);
+
+                                try {
+                                  await Supabase.instance.client.auth.updateUser(
+                                    UserAttributes(data: {'avatar_url': newUrl}),
+                                  );
+
+                                  await prefs.remove(ProfileImageCache.keyForUser(userId));
+                                  await prefs.remove(ProfileImageCache.legacyKey);
+
+                                  if (context.mounted) {
+                                    CustomNotification.show(context, 'Avatar berhasil diperbarui!');
+                                    if (widget.onProfileUpdated != null) {
+                                      widget.onProfileUpdated!();
+                                    }
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui avatar');
+                                  }
                                 }
                               }
                             }
@@ -1076,7 +1129,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   subtitle: Text('Simpan seluruh data ke Google Drive', style: GoogleFonts.plusJakartaSans()),
                                   onTap: () async {
                                     bool isOnline = await NetworkHelper.checkConnection(context);
+                                    if (!mounted) return;
                                     if (!isOnline) return;
+                                    if (!sheetContext.mounted) return;
                                     Navigator.pop(sheetContext);
                                     await DriveSyncService.backupToDrive(context);
                                   }
@@ -1179,7 +1234,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       subtitle: Text('Cocok untuk Excel / Spreadsheet', style: GoogleFonts.plusJakartaSans()),
                                       onTap: () async {
                                         bool isOnline = await NetworkHelper.checkConnection(context);
+                                        if (!mounted) return;
                                         if (!isOnline) return;
+                                        if (!sheetContext.mounted) return;
                                         Navigator.pop(sheetContext);
                                         await ExportService.exportTransactionsToCSV(context, selectedFilter);
                                       },
@@ -1190,7 +1247,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       subtitle: Text('Format rapi, siap untuk dicetak', style: GoogleFonts.plusJakartaSans()),
                                       onTap: () async {
                                         bool isOnline = await NetworkHelper.checkConnection(context);
+                                        if (!mounted) return;
                                         if (!isOnline) return;
+                                        if (!sheetContext.mounted) return;
                                         Navigator.pop(sheetContext);
                                         await ExportService.exportTransactionsToPDF(context, selectedFilter);
                                       },
@@ -1221,7 +1280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildListTile(
                 icon: FontAwesomeIcons.circleInfo,
                 title: 'Tentang Spendly',
-                subtitle: 'v1.0.8 (Kebijakan Privasi, Layanan)',
+                subtitle: 'v1.0.9 (Kebijakan Privasi, Layanan)',
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 onTap: () {
                   Navigator.push(

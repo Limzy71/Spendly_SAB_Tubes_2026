@@ -9,7 +9,7 @@ import '../../../../widgets/wallet_helper.dart';
 import '../../../../widgets/network_helper.dart';
 
 class AddWalletScreen extends StatefulWidget {
-  const AddWalletScreen({Key? key}) : super(key: key);
+  const AddWalletScreen({super.key});
 
   @override
   State<AddWalletScreen> createState() => _AddWalletScreenState();
@@ -56,6 +56,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   Future<void> _fetchExistingWallets() async {
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     try {
@@ -63,11 +64,15 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       if (userId == null) return;
 
       final response = await supabase.from('wallets').select('name').eq('user_id', userId);
+      if (!mounted) return;
       setState(() {
         _existingWallets = (response as List).map((e) => e['name'].toString().toLowerCase()).toList();
       });
     } catch (e) {
       debugPrint('Gagal mengambil data dompet: $e');
+      if (mounted) {
+        CustomNotification.show(context, 'Gagal memuat data dompet. Pastikan koneksi internet stabil.', isError: true);
+      }
     }
   }
 
@@ -181,7 +186,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       int initialBalance = 0;
       if (_balanceController.text.isNotEmpty) {
         final cleanAmount = _balanceController.text.replaceAll('.', '');
-        initialBalance = int.parse(cleanAmount);
+        initialBalance = int.tryParse(cleanAmount) ?? 0;
       }
 
       await supabase.from('wallets').insert({
@@ -265,7 +270,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                       onChanged: (value) {
                         if (value.isNotEmpty) {
                           String clean = value.replaceAll('.', '');
-                          String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                          String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                           _balanceController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                         }
                       },

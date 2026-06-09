@@ -7,14 +7,11 @@ import 'add_budget_screen.dart';
 import 'edit_budget_screen.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
-import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
-
-// IMPORT NETWORK HELPER
 import '../../../../widgets/network_helper.dart';
 
 class BudgetScreen extends StatefulWidget {
-  const BudgetScreen({Key? key}) : super(key: key);
+  const BudgetScreen({super.key});
 
   @override
   State<BudgetScreen> createState() => _BudgetScreenState();
@@ -71,6 +68,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           .select()
           .eq('user_id', userId)
           .eq('is_expense', true)
+          .neq('category', 'Transfer')
           .gte('transaction_date', firstDayOfMonth)
           .lte('transaction_date', lastDayOfMonth);
 
@@ -81,7 +79,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       for (var budget in budgetResponse) {
         String category = budget['category'] as String;
-        int limit = budget['limit_amount'] as int;
+        int limit = budget['limit_amount'] as int? ?? 0;
 
         if (accumulatedBudgets.containsKey(category)) {
           accumulatedBudgets[category]!['limit'] += limit;
@@ -99,19 +97,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
         for (var tx in transactionResponse) {
           if (tx['category']?.toString().toLowerCase() ==
               category.toLowerCase()) {
-            spent += tx['amount'] as int;
+            spent += tx['amount'] as int? ?? 0;
           }
         }
 
         data['spent'] = spent;
-        tempTotalLimit += data['limit'] as int;
+        tempTotalLimit += data['limit'] as int? ?? 0;
         tempTotalSpent += spent;
       });
 
       List<Map<String, dynamic>> processedBudgets = accumulatedBudgets.values
           .map((data) {
-        int limit = data['limit'] as int;
-        int spent = data['spent'] as int;
+        int limit = data['limit'] as int? ?? 0;
+        int spent = data['spent'] as int? ?? 0;
         return {
           'category': data['category'],
           'limit': limit,

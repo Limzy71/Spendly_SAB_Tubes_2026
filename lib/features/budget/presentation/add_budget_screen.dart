@@ -11,7 +11,7 @@ import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
 
 class AddBudgetScreen extends StatefulWidget {
-  const AddBudgetScreen({Key? key}) : super(key: key);
+  const AddBudgetScreen({super.key});
 
   @override
   State<AddBudgetScreen> createState() => _AddBudgetScreenState();
@@ -165,7 +165,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                           }
                           selectedCategory = newCatName;
                         });
-                        if (!mounted) return;
+                        if (!ctx.mounted) return;
                         Navigator.pop(ctx);
                       }
                     },
@@ -197,7 +197,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       if (userId == null) return;
 
       final cleanLimit = _limitController.text.replaceAll('.', '');
-      final limitAmount = int.parse(cleanLimit);
+      final limitAmount = int.tryParse(cleanLimit) ?? 0;
 
       final now = DateTime.now();
       final periodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
@@ -216,7 +216,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
       if (existingBudget != null) {
         isNewBudget = false;
-        final int oldLimit = existingBudget['limit_amount'] as int;
+        final int oldLimit = existingBudget['limit_amount'] as int? ?? 0;
         final int finalLimit = oldLimit + limitAmount;
 
         await supabase
@@ -375,7 +375,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                   Switch(
                     value: isAlertEnabled,
                     onChanged: (val) => setState(() => isAlertEnabled = val),
-                    activeColor: AppColors.primaryGreen,
+                    activeTrackColor: AppColors.primaryGreen.withValues(alpha: 0.5),
+                    activeThumbColor: AppColors.primaryGreen,
                   ),
                 ],
               ),
