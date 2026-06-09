@@ -59,7 +59,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text('Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 4),
-            Text('Versi 1.0.8', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
+            Text('Versi 1.0.9', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
             const SizedBox(height: 30),
 
             Text(

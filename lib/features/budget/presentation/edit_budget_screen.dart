@@ -15,12 +15,12 @@ class EditBudgetScreen extends StatefulWidget {
   final Color iconColor;
 
   const EditBudgetScreen({
-    Key? key,
+    super.key,
     required this.category,
     required this.currentLimit,
     required this.icon,
     required this.iconColor,
-  }) : super(key: key);
+  });
 
   @override
   State<EditBudgetScreen> createState() => _EditBudgetScreenState();
@@ -56,7 +56,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   String _formatNumber(String s) {
     String digits = s.replaceAll(RegExp(r'\D'), '');
     if (digits.isEmpty) return '0';
-    return NumberFormat.decimalPattern('id').format(int.parse(digits));
+    return NumberFormat.decimalPattern('id').format(int.tryParse(digits) ?? 0);
   }
 
   Future<void> _fetchTransactionHistory() async {
@@ -105,7 +105,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       if (userId == null) return;
 
       final cleanLimit = _limitController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      final newLimitAmount = int.parse(cleanLimit);
+      final newLimitAmount = int.tryParse(cleanLimit) ?? 0;
 
       final newCategoryName = _categoryController.text.trim();
 
@@ -169,8 +169,10 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     if (confirm != true) return;
 
     // 3. INTEGRASI NETWORK HELPER (Setel di sini agar ngecek internetnya setelah user yakin menghapus)
+    if (!mounted) return;
     if (!await NetworkHelper.checkConnection(context)) return;
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -336,8 +338,8 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
               itemBuilder: (context, index) {
                 final tx = _transactionHistory[index];
 
-                final amount = tx['amount'] as int;
-                final isExpense = tx['is_expense'] as bool;
+                final amount = tx['amount'] as int? ?? 0;
+                final isExpense = tx['is_expense'] as bool? ?? false;
                 final note = tx['note']?.toString() ?? '';
                 final txDate = tx['transaction_date'].toString().split('T')[0];
 

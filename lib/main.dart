@@ -55,11 +55,13 @@ class NotificationHelper {
     try {
       await androidImplementation?.requestNotificationsPermission();
     } catch (e) {
+      debugPrint('Notification Permission Error: $e');
     }
 
     try {
       await androidImplementation?.requestExactAlarmsPermission();
     } catch (e) {
+      debugPrint('Exact Alarm Permission Error: $e');
     }
 
     _isInitialized = true;
@@ -148,7 +150,8 @@ class NotificationHelper {
           type: 'sent_daily',
           payload: 'daily_reminder',
         );
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Daily Notification Error (immediate): $e');
       }
     } else if (scheduledDate.isAfter(now)) {
       _dailyReminderTimer = Timer(scheduledDate.difference(now), () async {
@@ -178,7 +181,8 @@ class NotificationHelper {
             type: 'sent_daily',
             payload: 'daily_reminder',
           );
-        } catch (_) {
+        } catch (e) {
+          debugPrint('Daily Notification Error (timer): $e');
         }
       });
     }
@@ -258,7 +262,8 @@ class NotificationHelper {
           type: 'sent_bill',
           payload: 'bill_reminder',
         );
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Bill Reminder Error (immediate): $e');
       }
     } else if (scheduledDate.isAfter(now)) {
       _billReminderTimer = Timer(scheduledDate.difference(now), () async {
@@ -288,7 +293,8 @@ class NotificationHelper {
             type: 'sent_bill',
             payload: 'bill_reminder',
           );
-        } catch (_) {
+        } catch (e) {
+          debugPrint('Bill Reminder Error (timer): $e');
         }
       });
     }

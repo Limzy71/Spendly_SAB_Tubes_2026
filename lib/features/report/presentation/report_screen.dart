@@ -9,7 +9,6 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/transaction_item.dart';
 import '../../budget/presentation/budget_screen.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
-import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
 
@@ -178,8 +177,11 @@ class _ReportScreenState extends State<ReportScreen> {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
           if (txDate.year == startDate.year) {
             int amount = int.tryParse(tx['amount'].toString()) ?? 0;
-            if (tx['is_expense'] == true) tempChartExpense[txDate.month - 1] += amount;
-            else tempChartIncome[txDate.month - 1] += amount;
+            if (tx['is_expense'] == true) {
+              tempChartExpense[txDate.month - 1] += amount;
+            } else {
+              tempChartIncome[txDate.month - 1] += amount;
+            }
           }
         }
       } else if (selectedFilter == 'Mingguan') {
@@ -203,15 +205,20 @@ class _ReportScreenState extends State<ReportScreen> {
               }
             }
             if (dayIdx != -1) {
-              if (tx['is_expense'] == true) tempChartExpense[dayIdx] += amount;
-              else tempChartIncome[dayIdx] += amount;
+              if (tx['is_expense'] == true) {
+                tempChartExpense[dayIdx] += amount;
+              } else {
+                tempChartIncome[dayIdx] += amount;
+              }
             }
           }
         }
       } else {
         int days = endDate.difference(startDate).inDays + 1;
         int segments = (days / 7).ceil();
-        if (segments == 0) segments = 1;
+        if (segments == 0) {
+          segments = 1;
+        }
 
         tempChartIncome = List.filled(segments, 0.0);
         tempChartExpense = List.filled(segments, 0.0);
@@ -219,9 +226,15 @@ class _ReportScreenState extends State<ReportScreen> {
         for (int i = 0; i < segments; i++) {
           int startDay = (i * 7) + 1;
           int endDay = (i * 7) + 7;
-          if (endDay > days) endDay = days;
+          if (endDay > days) {
+            endDay = days;
+          }
 
-          if (startDay == endDay) {
+          if (selectedFilter == 'Harian') {
+            tempChartLabels.add('Hari Ini');
+          } else if (selectedFilter == 'Kustom' && days == 1) {
+            tempChartLabels.add(DateFormat('dd MMM').format(startDate));
+          } else if (startDay == endDay) {
             tempChartLabels.add('$startDay');
           } else {
             tempChartLabels.add('$startDay-$endDay');
@@ -234,11 +247,18 @@ class _ReportScreenState extends State<ReportScreen> {
             int amount = int.tryParse(tx['amount'].toString()) ?? 0;
             int diffDays = txDate.difference(startDate).inDays;
             int segIdx = diffDays ~/ 7;
-            if (segIdx >= segments) segIdx = segments - 1;
-            if (segIdx < 0) segIdx = 0;
+            if (segIdx >= segments) {
+              segIdx = segments - 1;
+            }
+            if (segIdx < 0) {
+              segIdx = 0;
+            }
 
-            if (tx['is_expense'] == true) tempChartExpense[segIdx] += amount;
-            else tempChartIncome[segIdx] += amount;
+            if (tx['is_expense'] == true) {
+              tempChartExpense[segIdx] += amount;
+            } else {
+              tempChartIncome[segIdx] += amount;
+            }
           }
         }
       }
@@ -310,8 +330,11 @@ class _ReportScreenState extends State<ReportScreen> {
   String _formatCurrency(int amount) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
 
   String _formatDate(String dateString) {
-    try { return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(dateString)); }
-    catch (e) { return dateString; }
+    try {
+      return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(dateString));
+    } catch (e) {
+      return dateString;
+    }
   }
 
   @override
@@ -580,10 +603,16 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget _buildBarChart(Color textColor, bool isDark) {
     double maxVal = 0;
     for (int i = 0; i < _chartIncome.length; i++) {
-      if (_chartIncome[i] > maxVal) maxVal = _chartIncome[i];
-      if (_chartExpense[i] > maxVal) maxVal = _chartExpense[i];
+      if (_chartIncome[i] > maxVal) {
+        maxVal = _chartIncome[i];
+      }
+      if (_chartExpense[i] > maxVal) {
+        maxVal = _chartExpense[i];
+      }
     }
-    if (maxVal == 0) maxVal = 100000;
+    if (maxVal == 0) {
+      maxVal = 100000;
+    }
 
     List<BarChartGroupData> barGroups = [];
     for (int i = 0; i < _chartLabels.length; i++) {

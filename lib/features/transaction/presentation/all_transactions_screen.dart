@@ -14,7 +14,7 @@ import '../../../../widgets/network_helper.dart';
 class AllTransactionsScreen extends StatefulWidget {
   final String filterType;
 
-  const AllTransactionsScreen({Key? key, this.filterType = 'all'}) : super(key: key);
+  const AllTransactionsScreen({super.key, this.filterType = 'all'});
 
   @override
   State<AllTransactionsScreen> createState() => _AllTransactionsScreenState();
@@ -81,13 +81,11 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   }
 
   Future<void> _fetchAllTransactions() async {
-    setState(() => _isLoading = true);
-
     bool hasConnection = await NetworkHelper.checkConnection(context);
-    if (!hasConnection) {
-      if (mounted) setState(() => _isLoading = false);
-      return; // Hentikan proses jika internet mati
-    }
+    if (!hasConnection) return; // Hentikan proses jika internet mati
+
+    if (!mounted) return;
+    setState(() => _isLoading = true);
 
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -144,12 +142,12 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       }
 
       for (var tx in txResponse) {
-        int id = tx['id'] as int;
+        int id = tx['id'] as int? ?? 0;
         if (processedIds.contains(id)) continue;
 
-        int amount = tx['amount'] as int;
-        bool isExpense = tx['is_expense'] as bool;
-        int walletId = tx['wallet_id'] as int;
+        int amount = tx['amount'] as int? ?? 0;
+        bool isExpense = tx['is_expense'] as bool? ?? false;
+        int walletId = tx['wallet_id'] as int? ?? 0;
         String category = tx['category']?.toString() ?? '';
         DateTime txDate = DateTime.parse(tx['transaction_date']);
 
@@ -167,7 +165,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                 (t) => t['category']?.toString().toLowerCase() == 'transfer' &&
                 t['amount'] == amount &&
                 t['is_expense'] != isExpense &&
-                !processedIds.contains(t['id'] as int),
+                !processedIds.contains(int.tryParse(t['id'].toString()) ?? -1),
             orElse: () => <String, dynamic>{},
           );
 
@@ -182,7 +180,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
           displayTx.add(mergedTx);
           processedIds.add(id);
-          if (partner.isNotEmpty) processedIds.add(partner['id'] as int);
+          if (partner.isNotEmpty) processedIds.add(int.tryParse(partner['id'].toString()) ?? -1);
         } else {
           var mergedTx = Map<String, dynamic>.from(tx);
           mergedTx['wallet_name'] = walletData[walletId]?['name'] ?? 'Dompet';
@@ -355,7 +353,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
   Widget _buildTransactionItem(Map<String, dynamic> tx, Color textColor, bool isDark) {
     bool isTransfer = tx['category']?.toString().toLowerCase() == 'transfer';
-    bool isExpense = tx['is_expense'] as bool;
+    bool isExpense = tx['is_expense'] as bool? ?? false;
 
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
     Color bgIconColor = amountColor.withValues(alpha: 0.1);

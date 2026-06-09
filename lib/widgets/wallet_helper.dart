@@ -22,6 +22,7 @@ class WalletHelper {
     }
 
     String name = walletName.toLowerCase().trim();
+    if (name.isEmpty) return FontAwesomeIcons.wallet;
 
     if (name.contains('gopay') || name.contains('go-pay')) {
       return FontAwesomeIcons.wallet;
@@ -76,6 +77,7 @@ class WalletHelper {
   // 2. Kamus Pusat Warna Dompet Pintar
   static Color getColor(String walletName) {
     String name = walletName.toLowerCase().trim();
+    if (name.isEmpty) return Colors.teal.shade700;
 
     // Warna khas masing-masing brand fintech / bank Indonesia
     if (name.contains('tunai') || name.contains('cash')) {
@@ -125,6 +127,7 @@ class WalletHelper {
   // 3. Kamus Pusat Subtitle Deskripsi Dompet
   static String getSubtitle(String walletName) {
     String name = walletName.toLowerCase().trim();
+    if (name.isEmpty) return 'Bank / Rekening';
 
     if (name.contains('tunai') || name.contains('cash')) {
       return 'Uang Fisik';

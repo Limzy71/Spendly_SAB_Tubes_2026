@@ -9,7 +9,7 @@ import '../../../widgets/wallet_helper.dart';
 import '../../../widgets/network_helper.dart';
 
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({Key? key}) : super(key: key);
+  const WalletScreen({super.key});
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -136,25 +136,26 @@ class _WalletScreenState extends State<WalletScreen> {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final note = _noteController.text.isNotEmpty ? _noteController.text : 'Transfer Internal';
 
-      await supabase.from('transactions').insert({
-        'amount': amount,
-        'is_expense': true,
-        'category': 'Transfer',
-        'wallet_id': selectedFromAccountId,
-        'transaction_date': today,
-        'note': note,
-        'user_id': userId,
-      });
-
-      await supabase.from('transactions').insert({
-        'amount': amount,
-        'is_expense': false,
-        'category': 'Transfer',
-        'wallet_id': selectedToAccountId,
-        'transaction_date': today,
-        'note': note,
-        'user_id': userId,
-      });
+      await supabase.from('transactions').insert([
+        {
+          'amount': amount,
+          'is_expense': true,
+          'category': 'Transfer',
+          'wallet_id': selectedFromAccountId,
+          'transaction_date': today,
+          'note': note,
+          'user_id': userId,
+        },
+        {
+          'amount': amount,
+          'is_expense': false,
+          'category': 'Transfer',
+          'wallet_id': selectedToAccountId,
+          'transaction_date': today,
+          'note': note,
+          'user_id': userId,
+        }
+      ]);
 
       if (mounted) {
         CustomNotification.show(context, 'Transfer Berhasil!');
@@ -284,7 +285,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 onChanged: (value) {
                   if (value.isNotEmpty) {
                     String clean = value.replaceAll('.', '');
-                    String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                    String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                     editBalanceController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                   }
                 },
@@ -300,6 +301,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     if (!mounted) return;
                     if (!hasConnection) return;
 
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     setState(() => _isLoading = true);
                     try {
@@ -628,7 +630,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 onChanged: (value) {
                   if (value.isNotEmpty) {
                     String clean = value.replaceAll('.', '');
-                    String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                    String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                     _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                   }
                 },

@@ -71,7 +71,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
       for (var w in walletResponse) {
-        walletData[w['id'] as int] = {
+        int wId = int.tryParse(w['id'].toString()) ?? -1;
+        if (wId == -1) continue;
+        walletData[wId] = {
           'name': w['name'].toString(),
           'balance': int.tryParse(w['balance'].toString()) ?? 0,
         };
@@ -316,7 +318,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildTransactionItem(Map<String, dynamic> tx, Color textColor, bool isDark) {
     bool isTransfer = tx['category']?.toString().toLowerCase() == 'transfer';
-    bool isExpense = tx['is_expense'] as bool;
+    bool isExpense = tx['is_expense'] as bool? ?? false;
 
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
     Color bgIconColor = amountColor.withValues(alpha: 0.1);
@@ -382,7 +384,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             Text(
-                isTransfer ? _formatCurrency(tx['amount'] ?? 0) : "${isExpense ? '-' : '+'} ${_formatCurrency(tx['amount'] ?? 0)}",
+                isTransfer ? _formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0) : "${isExpense ? '-' : '+'} ${_formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0)}",
                 style: TextStyle(fontWeight: FontWeight.bold, color: amountColor, fontSize: 14)
             ),
           ],
