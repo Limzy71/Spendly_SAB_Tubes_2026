@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
-import '../../../../widgets/transaction_item.dart';
 import '../../budget/presentation/budget_screen.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../../../widgets/category_helper.dart';
@@ -22,6 +21,7 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   final supabase = Supabase.instance.client;
   final Color barRed = const Color(0xFFD93F3C);
+  final ScrollController _categoryScrollController = ScrollController();
 
   String selectedFilter = 'Bulanan';
   final List<String> filters = ['Harian', 'Mingguan', 'Bulanan', 'Tahunan'];
@@ -29,10 +29,17 @@ class _ReportScreenState extends State<ReportScreen> {
   DateTimeRange? _customDateRange;
 
   bool _isLoading = true;
+  bool _showExpensePie = true;
 
   int _filteredExpense = 0;
-  List<Map<String, dynamic>> _topTransactions = [];
-  Map<String, double> _categoryPercentages = {};
+  int _filteredIncome = 0;
+
+  List<Map<String, dynamic>> _topExpenseTransactions = [];
+  List<Map<String, dynamic>> _topIncomeTransactions = [];
+
+  Map<String, double> _expenseCategoryPercentages = {};
+  Map<String, double> _incomeCategoryPercentages = {};
+
   Map<String, String> _customIcons = {};
 
   List<double> _chartIncome = [];
@@ -44,6 +51,12 @@ class _ReportScreenState extends State<ReportScreen> {
     super.initState();
     initializeDateFormatting('id', null);
     _fetchReportData();
+  }
+
+  @override
+  void dispose() {
+    _categoryScrollController.dispose();
+    super.dispose();
   }
 
   String _getFilterTitleText() {
@@ -128,25 +141,16 @@ class _ReportScreenState extends State<ReportScreen> {
         }
       }
 
-      loadCustomIcons('custom_transaction_expense_categories', 'custom_transaction_expense_icon_');
-      loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
+      loadCustomIcons('custom_transaction_expense_categories_v5', 'custom_transaction_expense_icon_v5_');
+      loadCustomIcons('custom_transaction_income_categories_v5', 'custom_transaction_income_icon_v5_');
       loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
 
       _customIcons = tempIcons;
-
-      final txResponse = await supabase
-          .from('transactions')
-          .select()
-          .eq('user_id', userId)
-          .neq('category', 'Transfer');
 
       DateTime startDate = DateTime.now();
       DateTime endDate = DateTime.now();
       DateTime now = DateTime.now();
 
-      List<double> tempChartIncome = [];
-      List<double> tempChartExpense = [];
-      List<String> tempChartLabels = [];
       List<DateTime> last7Days = [];
 
       if (selectedFilter == 'Kustom' && _customDateRange != null) {
@@ -168,6 +172,21 @@ class _ReportScreenState extends State<ReportScreen> {
         startDate = DateTime(now.year, now.month, 1);
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
       }
+
+      final String startDateStr = startDate.toIso8601String().split('T')[0];
+      final String endDateStr = endDate.add(const Duration(days: 1)).toIso8601String().split('T')[0];
+
+      final txResponse = await supabase
+          .from('transactions')
+          .select()
+          .eq('user_id', userId)
+          .neq('category', 'Transfer')
+          .gte('transaction_date', startDateStr)
+          .lt('transaction_date', endDateStr);
+
+      List<double> tempChartIncome = [];
+      List<double> tempChartExpense = [];
+      List<String> tempChartLabels = [];
 
       if (selectedFilter == 'Tahunan') {
         tempChartIncome = List.filled(12, 0.0);
@@ -195,21 +214,19 @@ class _ReportScreenState extends State<ReportScreen> {
 
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
-          if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
-            int dayIdx = -1;
-            for (int i = 0; i < 7; i++) {
-              if (txDate.year == last7Days[i].year && txDate.month == last7Days[i].month && txDate.day == last7Days[i].day) {
-                dayIdx = i;
-                break;
-              }
+          int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+          int dayIdx = -1;
+          for (int i = 0; i < 7; i++) {
+            if (txDate.year == last7Days[i].year && txDate.month == last7Days[i].month && txDate.day == last7Days[i].day) {
+              dayIdx = i;
+              break;
             }
-            if (dayIdx != -1) {
-              if (tx['is_expense'] == true) {
-                tempChartExpense[dayIdx] += amount;
-              } else {
-                tempChartIncome[dayIdx] += amount;
-              }
+          }
+          if (dayIdx != -1) {
+            if (tx['is_expense'] == true) {
+              tempChartExpense[dayIdx] += amount;
+            } else {
+              tempChartIncome[dayIdx] += amount;
             }
           }
         }
@@ -243,47 +260,58 @@ class _ReportScreenState extends State<ReportScreen> {
 
         for (var tx in txResponse) {
           DateTime txDate = DateTime.parse(tx['transaction_date']);
-          if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-            int amount = int.tryParse(tx['amount'].toString()) ?? 0;
-            int diffDays = txDate.difference(startDate).inDays;
-            int segIdx = diffDays ~/ 7;
-            if (segIdx >= segments) {
-              segIdx = segments - 1;
-            }
-            if (segIdx < 0) {
-              segIdx = 0;
-            }
+          int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+          int diffDays = txDate.difference(startDate).inDays;
+          int segIdx = diffDays ~/ 7;
+          if (segIdx >= segments) {
+            segIdx = segments - 1;
+          }
+          if (segIdx < 0) {
+            segIdx = 0;
+          }
 
-            if (tx['is_expense'] == true) {
-              tempChartExpense[segIdx] += amount;
-            } else {
-              tempChartIncome[segIdx] += amount;
-            }
+          if (tx['is_expense'] == true) {
+            tempChartExpense[segIdx] += amount;
+          } else {
+            tempChartIncome[segIdx] += amount;
           }
         }
       }
 
       int tempFilteredExpense = 0;
-      Map<String, int> categoryTotals = {};
+      int tempFilteredIncome = 0;
+
+      Map<String, int> expenseCategoryTotals = {};
+      Map<String, int> incomeCategoryTotals = {};
+
       int totalExpenseForPie = 0;
-      List<Map<String, dynamic>> tempTopTx = [];
+      int totalIncomeForPie = 0;
+
+      List<Map<String, dynamic>> tempTopExpenseTx = [];
+      List<Map<String, dynamic>> tempTopIncomeTx = [];
 
       for (var tx in txResponse) {
-        DateTime txDate = DateTime.parse(tx['transaction_date']);
-        if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-          int amount = int.tryParse(tx['amount'].toString()) ?? 0;
-          bool isExpense = tx['is_expense'] == true;
-          String category = tx['category']?.toString() ?? 'Lainnya';
+        int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+        bool isExpense = tx['is_expense'] == true;
+        String category = tx['category']?.toString() ?? 'Lainnya';
 
-          if (isExpense) {
-            tempFilteredExpense += amount;
-            totalExpenseForPie += amount;
+        if (isExpense) {
+          tempFilteredExpense += amount;
+          totalExpenseForPie += amount;
 
-            if (categoryTotals.containsKey(category)) {
-              categoryTotals[category] = categoryTotals[category]! + amount;
-            } else {
-              categoryTotals[category] = amount;
-            }
+          if (expenseCategoryTotals.containsKey(category)) {
+            expenseCategoryTotals[category] = expenseCategoryTotals[category]! + amount;
+          } else {
+            expenseCategoryTotals[category] = amount;
+          }
+        } else {
+          tempFilteredIncome += amount;
+          totalIncomeForPie += amount;
+
+          if (incomeCategoryTotals.containsKey(category)) {
+            incomeCategoryTotals[category] = incomeCategoryTotals[category]! + amount;
+          } else {
+            incomeCategoryTotals[category] = amount;
           }
         }
       }
@@ -292,32 +320,45 @@ class _ReportScreenState extends State<ReportScreen> {
         ..sort((a, b) => (int.tryParse(b['amount'].toString()) ?? 0).compareTo(int.tryParse(a['amount'].toString()) ?? 0));
 
       for (var tx in sortedTxResponse) {
-        DateTime txDate = DateTime.parse(tx['transaction_date']);
-        if (txDate.isAfter(startDate.subtract(const Duration(seconds: 1))) && txDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
-          if (tx['is_expense'] == true && tempTopTx.length < 3) {
-            tempTopTx.add(tx);
-          }
+        if (tx['is_expense'] == true && tempTopExpenseTx.length < 3) {
+          tempTopExpenseTx.add(tx);
+        } else if (tx['is_expense'] == false && tempTopIncomeTx.length < 3) {
+          tempTopIncomeTx.add(tx);
         }
       }
 
-      Map<String, double> tempCategoryPercentages = {};
+      Map<String, double> tempExpensePercentages = {};
       if (totalExpenseForPie > 0) {
-        var sortedCategories = categoryTotals.entries.toList()
+        var sortedExpCategories = expenseCategoryTotals.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
 
-        for (var entry in sortedCategories) {
-          tempCategoryPercentages[entry.key] = (entry.value / totalExpenseForPie) * 100;
+        for (var entry in sortedExpCategories) {
+          tempExpensePercentages[entry.key] = (entry.value / totalExpenseForPie) * 100;
+        }
+      }
+
+      Map<String, double> tempIncomePercentages = {};
+      if (totalIncomeForPie > 0) {
+        var sortedIncCategories = incomeCategoryTotals.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        for (var entry in sortedIncCategories) {
+          tempIncomePercentages[entry.key] = (entry.value / totalIncomeForPie) * 100;
         }
       }
 
       if (mounted) {
         setState(() {
           _filteredExpense = tempFilteredExpense;
+          _filteredIncome = tempFilteredIncome;
           _chartIncome = tempChartIncome;
           _chartExpense = tempChartExpense;
           _chartLabels = tempChartLabels;
-          _categoryPercentages = tempCategoryPercentages;
-          _topTransactions = tempTopTx;
+
+          _expenseCategoryPercentages = tempExpensePercentages;
+          _incomeCategoryPercentages = tempIncomePercentages;
+          _topExpenseTransactions = tempTopExpenseTx;
+          _topIncomeTransactions = tempTopIncomeTx;
         });
       }
     } catch (e) {
@@ -337,11 +378,36 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  Widget _buildToggleItem(String title, bool active, bool isDark, Color cardColor, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+              color: active ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: active ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : []
+          ),
+          alignment: Alignment.center,
+          child: Text(
+              title,
+              style: TextStyle(color: active ? AppColors.primaryGreen : Colors.grey, fontWeight: active ? FontWeight.bold : FontWeight.normal)
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color cardColor = Theme.of(context).cardColor;
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    Color dividerColor = isDark ? Colors.white24 : Colors.grey.shade300;
+
+    Map<String, double> currentCategoryPercentages = _showExpensePie ? _expenseCategoryPercentages : _incomeCategoryPercentages;
+    List<Map<String, dynamic>> currentTopTransactions = _showExpensePie ? _topExpenseTransactions : _topIncomeTransactions;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -430,9 +496,53 @@ class _ReportScreenState extends State<ReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total Pengeluaran (${_getFilterTitleText()})', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                    const SizedBox(height: 8),
-                    Text(_formatCurrency(_filteredExpense), style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: textColor)),
+                    Text('Total Transaksi (${_getFilterTitleText()})', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(radius: 4, backgroundColor: barRed),
+                                  const SizedBox(width: 6),
+                                  const Text('Pengeluaran', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(_formatCurrency(_filteredExpense), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(width: 1, height: 40, color: dividerColor, margin: const EdgeInsets.symmetric(horizontal: 16)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const CircleAvatar(radius: 4, backgroundColor: AppColors.primaryGreen),
+                                  const SizedBox(width: 6),
+                                  const Text('Pemasukan', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(_formatCurrency(_filteredIncome), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -444,21 +554,51 @@ class _ReportScreenState extends State<ReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Kategori Pengeluaran', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          _buildToggleItem("Pengeluaran", _showExpensePie, isDark, cardColor, () {
+                            setState(() => _showExpensePie = true);
+                          }),
+                          _buildToggleItem("Pemasukan", !_showExpensePie, isDark, cardColor, () {
+                            setState(() => _showExpensePie = false);
+                          }),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 24),
 
-                    if (_categoryPercentages.isEmpty)
-                      Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("Belum ada pengeluaran\n(${_getFilterTitleText()})", textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey))))
+                    if (currentCategoryPercentages.isEmpty)
+                      Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("Belum ada data ${_showExpensePie ? 'pengeluaran' : 'pemasukan'}\n(${_getFilterTitleText()})", textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey))))
                     else ...[
-                      _buildPieChart(textColor),
+                      _buildPieChart(textColor, currentCategoryPercentages),
                       const SizedBox(height: 24),
-                      ..._categoryPercentages.entries.map((entry) {
-                        Color color = CategoryHelper.getColor(entry.key);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: _buildPieLegendItem(color, entry.key, '${entry.value.toStringAsFixed(1)}%', textColor),
-                        );
-                      }),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: RawScrollbar(
+                          controller: _categoryScrollController,
+                          thumbVisibility: true,
+                          radius: const Radius.circular(8),
+                          thickness: 4,
+                          thumbColor: Colors.grey.withValues(alpha: 0.3),
+                          child: SingleChildScrollView(
+                            controller: _categoryScrollController,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(right: 12),
+                            child: Column(
+                              children: currentCategoryPercentages.entries.map((entry) {
+                                Color color = CategoryHelper.getColor(entry.key);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12.0),
+                                  child: _buildPieLegendItem(color, entry.key, '${entry.value.toStringAsFixed(1)}%', textColor),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ),
                     ]
                   ],
                 ),
@@ -499,17 +639,21 @@ class _ReportScreenState extends State<ReportScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Pengeluaran Terbesar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                  Text('${_showExpensePie ? "Pengeluaran" : "Pemasukan"} Terbesar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
                 ],
               ),
               const SizedBox(height: 12),
 
-              if (_topTransactions.isEmpty)
+              if (currentTopTransactions.isEmpty)
                 Text("Belum ada data transaksi (${_getFilterTitleText()}).", style: const TextStyle(color: Colors.grey))
               else
-                ..._topTransactions.map((tx) {
+                ...currentTopTransactions.map((tx) {
                   final catName = tx['category'] ?? 'Lainnya';
                   final catColor = CategoryHelper.getColor(catName);
+                  final isExp = tx['is_expense'] == true;
+                  final prefix = isExp ? '-' : '+';
+                  final amtColor = isExp ? barRed : AppColors.primaryGreen;
+
                   return GestureDetector(
                     onTap: () async {
                       final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
@@ -518,14 +662,68 @@ class _ReportScreenState extends State<ReportScreen> {
                         _fetchReportData();
                       }
                     },
-                    child: TransactionItem(
-                      title: catName,
-                      subtitle: '${_formatDate(tx['transaction_date'])} • ${tx['note'] ?? ''}',
-                      amount: '- ${_formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0)}',
-                      bgIconColor: catColor.withValues(alpha: 0.1),
-                      icon: CategoryHelper.getIcon(catName, customIcons: _customIcons),
-                      iconColor: catColor,
-                      amountColor: barRed,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: isDark ? [] : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: catColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: FaIcon(
+                              CategoryHelper.getIcon(catName, customIcons: _customIcons),
+                              color: catColor,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  catName,
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${_formatDate(tx['transaction_date'])} | ${tx['wallet_name'] ?? ''}',
+                                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                '$prefix ${_formatCurrency(int.tryParse(tx['amount'].toString()) ?? 0)}',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: amtColor),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }),
@@ -538,9 +736,9 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildPieChart(Color textColor) {
+  Widget _buildPieChart(Color textColor, Map<String, double> percentages) {
     List<PieChartSectionData> sections = [];
-    _categoryPercentages.forEach((key, value) {
+    percentages.forEach((key, value) {
       sections.add(
           PieChartSectionData(
             color: CategoryHelper.getColor(key),
@@ -556,22 +754,22 @@ class _ReportScreenState extends State<ReportScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 45),
-                child: FittedBox(
+          SizedBox(
+            width: 100,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                      _formatCurrency(_filteredExpense),
+                      _formatCurrency(_showExpensePie ? _filteredExpense : _filteredIncome),
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)
                   ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              const Text('TOTAL', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-            ],
+                const SizedBox(height: 2),
+                const Text('TOTAL', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+              ],
+            ),
           ),
           PieChart(PieChartData(
               sectionsSpace: 0,
@@ -629,6 +827,7 @@ class _ReportScreenState extends State<ReportScreen> {
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
+          minY: 0,
           maxY: maxVal * 1.2,
           barTouchData: BarTouchData(
             enabled: true,
@@ -647,38 +846,39 @@ class _ReportScreenState extends State<ReportScreen> {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                reservedSize: 28,
+                interval: 1,
                 getTitlesWidget: (double value, TitleMeta meta) {
                   int idx = value.toInt();
                   String text = (idx >= 0 && idx < _chartLabels.length) ? _chartLabels[idx] : '';
-                  return SideTitleWidget(meta: meta, space: 8, child: Text(text, style: const TextStyle(color: Colors.grey, fontSize: 11)));
+                  return SideTitleWidget(
+                      meta: meta,
+                      space: 8,
+                      child: Text(text, style: const TextStyle(color: Colors.grey, fontSize: 9))
+                  );
                 },
               ),
             ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 75,
+                reservedSize: 42,
                 getTitlesWidget: (value, meta) {
                   if (value == 0 || value == maxVal * 1.2) return const SizedBox.shrink();
-                  
-                  // Format dengan cara custom untuk handle angka besar lebih baik
+
                   String formatted;
                   if (value >= 1000000000000) {
-                    // Triliuan
-                    formatted = '${(value / 1000000000000).toStringAsFixed(1)} t';
+                    formatted = '${(value / 1000000000000).toStringAsFixed(1).replaceAll('.0', '')} T';
                   } else if (value >= 1000000000) {
-                    // Miliaran
-                    formatted = '${(value / 1000000000).toStringAsFixed(1)} m';
+                    formatted = '${(value / 1000000000).toStringAsFixed(1).replaceAll('.0', '')} M';
                   } else if (value >= 1000000) {
-                    // Jutaan
-                    formatted = '${(value / 1000000).toStringAsFixed(1)} jt';
+                    formatted = '${(value / 1000000).toStringAsFixed(1).replaceAll('.0', '')} Jt';
                   } else if (value >= 1000) {
-                    // Ribuan
-                    formatted = '${(value / 1000).toStringAsFixed(0)} rb';
+                    formatted = '${(value / 1000).toStringAsFixed(0)} Rb';
                   } else {
                     formatted = value.toStringAsFixed(0);
                   }
-                  
+
                   return SideTitleWidget(
                     meta: meta,
                     space: 4,
@@ -698,7 +898,6 @@ class _ReportScreenState extends State<ReportScreen> {
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
-            horizontalInterval: (maxVal / 4) > 0 ? (maxVal / 4) : 100000,
             getDrawingHorizontalLine: (value) {
               return FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1, dashArray: [5, 5]);
             },

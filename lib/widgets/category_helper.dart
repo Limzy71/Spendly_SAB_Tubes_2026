@@ -12,62 +12,103 @@ class CategoryHelper {
     'gaji',
     'bonus',
     'investasi',
-    'dana',
-    'bca',
+    'penjualan',
+    'pencairan',
     'baru',
   };
 
-  // 1. Fungsi Pusat untuk Warna Pintar (REVISI PRIORITAS)
+  static Color getColorForIcon(String iconId) {
+    switch (iconId) {
+    // PENGELUARAN (20 Icon Super Kontras)
+      case 'utensils': return const Color(0xFFFF9800);
+      case 'car': return const Color(0xFF2196F3);
+      case 'bag': return const Color(0xFF9C27B0);
+      case 'invoice': return const Color(0xFFF44336);
+      case 'film': return const Color(0xFF009688);
+      case 'coffee': return const Color(0xFF795548);
+      case 'plane': return const Color(0xFF03A9F4);
+      case 'house': return const Color(0xFF3F51B5);
+      case 'hospital': return const Color(0xFFE91E63);
+      case 'edu': return const Color(0xFF00BCD4);
+      case 'paw': return const Color(0xFFFF5722);
+      case 'game': return const Color(0xFF673AB7);
+      case 'shirt': return const Color(0xFF4DB6AC);
+      case 'laptop': return const Color(0xFF607D8B);
+      case 'train': return const Color(0xFFFFC107);
+      case 'building': return const Color(0xFF827717);
+      case 'star': return const Color(0xFFFFEA00);
+      case 'music': return const Color(0xFF8BC34A);
+      case 'dumbbell': return const Color(0xFFD50000);
+      case 'book': return const Color(0xFF00E5FF);
+
+    // PEMASUKAN (12 Icon Super Kontras)
+      case 'coins': return const Color(0xFFFFB300);
+      case 'piggy': return const Color(0xFFF06292);
+      case 'salary': return AppColors.primaryGreen;
+      case 'chart': return const Color(0xFF5C6BC0);
+      case 'briefcase': return const Color(0xFF8D6E63);
+      case 'giftbox': return const Color(0xFFEF5350);
+      case 'arrow': return const Color(0xFF448AFF);
+      case 'store': return const Color(0xFFAB47BC);
+      case 'receipt': return const Color(0xFF26A69A);
+      case 'hand_holding': return const Color(0xFF66BB6A);
+      case 'money_check': return const Color(0xFF1565C0);
+      case 'sack': return const Color(0xFFE65100);
+
+      default: return const Color(0xFF9E9E9E);
+    }
+  }
+
   static Color getColor(String category, {Map<String, String>? customIcons}) {
     String cat = category.toLowerCase().trim();
 
-    // LAYER 1: Smart Keyword Matching (DIPINDAH KE ATAS AGAR LEBIH PINTAR)
-    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum') || cat.contains('kopi') || cat.contains('resto') || cat.contains('cafe') || cat.contains('sarapan') || cat.contains('kuliner')) {
-      return Colors.orange.shade600;
-    } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir') || cat.contains('mobil') || cat.contains('motor') || cat.contains('ojek') || cat.contains('grab') || cat.contains('gojek') || cat.contains('bengkel') || cat.contains('service')) {
-      return Colors.blue.shade600;
-    } else if (cat.contains('belanja') || cat.contains('shop') || cat.contains('kebutuhan') || cat.contains('baju') || cat.contains('sepatu') || cat.contains('skincare') || cat.contains('pasar') || cat.contains('mall') || cat.contains('indomaret') || cat.contains('alfamart')) {
-      return Colors.purple.shade500;
-    } else if (cat.contains('tagihan') || cat.contains('listrik') || cat.contains('air') || cat.contains('pdam') || cat.contains('wifi') || cat.contains('internet') || cat.contains('pulsa') || cat.contains('kuota') || cat.contains('kos') || cat.contains('kontrakan')) {
-      return Colors.red.shade600;
-    } else if (cat.contains('hiburan') || cat.contains('nonton') || cat.contains('game') || cat.contains('bioskop') || cat.contains('netflix') || cat.contains('spotify') || cat.contains('liburan') || cat.contains('wisata') || cat.contains('healing') || cat.contains('main')) {
-      return Colors.teal.shade500;
-    } else if (cat.contains('sehat') || cat.contains('sakit') || cat.contains('dokter') || cat.contains('obat') || cat.contains('apotek') || cat.contains('klinik') || cat.contains('rs') || cat.contains('vitamin') || cat.contains('gym')) {
-      return Colors.pink.shade400;
-    } else if (cat.contains('edukasi') || cat.contains('kuliah') || cat.contains('sekolah') || cat.contains('buku') || cat.contains('kursus') || cat.contains('spp') || cat.contains('tugas') || cat.contains('ukt')) {
-      return Colors.indigo.shade500;
-    } else if (cat.contains('musik') || cat.contains('music') || cat.contains('konser') || cat.contains('lagu') || cat.contains('band')) {
-      return Colors.purple.shade300;
-    } else if (cat.contains('olahraga') || cat.contains('dumbbell') || cat.contains('fitness') || cat.contains('fitnes')) {
-      return Colors.red.shade500;
-    } else if (cat.contains('investasi') || cat.contains('saham') || cat.contains('reksadana') || cat.contains('crypto') || cat.contains('emas') || cat.contains('reksa')) {
-      return Colors.cyan.shade600;
-    } else if (cat.contains('gaji') || cat.contains('salary') || cat.contains('upah') || cat.contains('payday')) {
-      return AppColors.primaryGreen;
-    } else if (cat.contains('bonus') || cat.contains('hadiah') || cat.contains('gift') || cat.contains('thr') || cat.contains('reward')) {
-      return Colors.amber.shade600;
-    } else if (cat.contains('bank') || cat.contains('bca') || cat.contains('rekening') || cat.contains('transfer')) {
-      return Colors.teal;
-    } else if (cat.contains('coin') || cat.contains('koin') || cat.contains('uang') || cat.contains('tunai')) {
-      return Colors.amber.shade800;
-    } else if (cat.contains('dana') || cat.contains('tabungan') || cat.contains('celengan') || cat.contains('darurat') || cat.contains('wallet')) {
-      return Colors.blue.shade800;
-    } else if (cat.contains('chart') || cat.contains('grafik') || cat.contains('statistik') || cat.contains('laporan')) {
-      return Colors.blueAccent;
-    } else if (cat.contains('briefcase') || cat.contains('usaha') || cat.contains('bisnis') || cat.contains('pekerjaan')) {
-      return Colors.amber.shade700;
-    }
-
-    // LAYER 2: Jika kata kunci tidak ada, baru cek apakah ini kategori kustom (Baru)
     if (customIcons != null && customIcons.containsKey(cat)) {
-      return AppColors.primaryGreen; // Default kustom tetap hijau jika tidak ada keyword cocok
+      return getColorForIcon(customIcons[cat]!);
     }
 
-    // LAYER 3: Fallback warna abu-abu elegan
+    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum') || cat.contains('kopi') || cat.contains('resto') || cat.contains('cafe') || cat.contains('sarapan') || cat.contains('kuliner')) {
+      return getColorForIcon('utensils');
+    } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir') || cat.contains('mobil') || cat.contains('motor') || cat.contains('ojek') || cat.contains('grab') || cat.contains('gojek') || cat.contains('bengkel') || cat.contains('service')) {
+      return getColorForIcon('car');
+    } else if (cat.contains('belanja') || cat.contains('shop') || cat.contains('kebutuhan') || cat.contains('baju') || cat.contains('sepatu') || cat.contains('skincare') || cat.contains('pasar') || cat.contains('mall') || cat.contains('indomaret') || cat.contains('alfamart')) {
+      return getColorForIcon('bag');
+    } else if (cat.contains('tagihan') || cat.contains('listrik') || cat.contains('air') || cat.contains('pdam') || cat.contains('wifi') || cat.contains('internet') || cat.contains('pulsa') || cat.contains('kuota') || cat.contains('kos') || cat.contains('kontrakan')) {
+      return getColorForIcon('invoice');
+    } else if (cat.contains('hiburan') || cat.contains('nonton') || cat.contains('game') || cat.contains('bioskop') || cat.contains('netflix') || cat.contains('spotify') || cat.contains('liburan') || cat.contains('wisata') || cat.contains('healing') || cat.contains('main')) {
+      return getColorForIcon('film');
+    } else if (cat.contains('sehat') || cat.contains('sakit') || cat.contains('dokter') || cat.contains('obat') || cat.contains('apotek') || cat.contains('klinik') || cat.contains('rs') || cat.contains('vitamin') || cat.contains('gym')) {
+      return getColorForIcon('hospital');
+    } else if (cat.contains('edukasi') || cat.contains('kuliah') || cat.contains('sekolah') || cat.contains('buku') || cat.contains('kursus') || cat.contains('spp') || cat.contains('tugas') || cat.contains('ukt')) {
+      return getColorForIcon('edu');
+    } else if (cat.contains('musik') || cat.contains('music') || cat.contains('konser') || cat.contains('lagu') || cat.contains('band')) {
+      return getColorForIcon('music');
+    } else if (cat.contains('olahraga') || cat.contains('dumbbell') || cat.contains('fitness') || cat.contains('fitnes')) {
+      return getColorForIcon('dumbbell');
+    } else if (cat.contains('investasi') || cat.contains('saham') || cat.contains('reksadana') || cat.contains('crypto') || cat.contains('emas') || cat.contains('reksa')) {
+      return getColorForIcon('arrow');
+    } else if (cat.contains('gaji') || cat.contains('salary') || cat.contains('upah') || cat.contains('payday')) {
+      return getColorForIcon('salary');
+    } else if (cat.contains('bonus') || cat.contains('hadiah') || cat.contains('gift') || cat.contains('thr') || cat.contains('reward')) {
+      return getColorForIcon('giftbox');
+    } else if (cat.contains('penjualan') || cat.contains('dagang') || cat.contains('jualan') || cat.contains('toko') || cat.contains('bisnis') || cat.contains('usaha')) {
+      return getColorForIcon('store');
+    } else if (cat.contains('pencairan') || cat.contains('cair') || cat.contains('withdraw') || cat.contains('wd') || cat.contains('tarik')) {
+      return getColorForIcon('piggy');
+    } else if (cat.contains('bank') || cat.contains('bca') || cat.contains('rekening') || cat.contains('transfer')) {
+      return getColorForIcon('money_check');
+    } else if (cat.contains('coin') || cat.contains('koin') || cat.contains('uang') || cat.contains('tunai')) {
+      return getColorForIcon('coins');
+    } else if (cat.contains('dana') || cat.contains('tabungan') || cat.contains('celengan') || cat.contains('wallet') || cat.contains('darurat')) {
+      return getColorForIcon('piggy');
+    } else if (cat.contains('chart') || cat.contains('grafik') || cat.contains('statistik') || cat.contains('laporan')) {
+      return getColorForIcon('chart');
+    } else if (cat.contains('briefcase') || cat.contains('pekerjaan')) {
+      return getColorForIcon('briefcase');
+    }
+
     return const Color(0xFF607D8B);
   }
 
-  // 2. Fungsi Pusat untuk Ikon Pintar (SAMA, PRIORITAS KEYWORD DI ATAS)
   static dynamic getIcon(String category, {Map<String, String>? customIcons}) {
     String cat = category.toLowerCase().trim();
 
@@ -82,11 +123,6 @@ class CategoryHelper {
       }
     }
 
-    if (cat == 'bca') {
-      return FontAwesomeIcons.buildingColumns;
-    }
-
-    // Prioritaskan Smart Keyword Matching agar ikon otomatis muncul meskipun kategori kustom
     if (cat.contains('makan') || cat.contains('jajan') || cat.contains('kuliner') || cat.contains('sarapan') || cat.contains('resto')) {
       return FontAwesomeIcons.utensils;
     } else if (cat.contains('minum') || cat.contains('kopi') || cat.contains('cafe') || cat.contains('boba')) {
@@ -127,6 +163,10 @@ class CategoryHelper {
       return FontAwesomeIcons.moneyBillWave;
     } else if (cat.contains('bonus') || cat.contains('hadiah') || cat.contains('gift') || cat.contains('thr') || cat.contains('reward')) {
       return FontAwesomeIcons.gift;
+    } else if (cat.contains('penjualan') || cat.contains('dagang') || cat.contains('jualan') || cat.contains('toko') || cat.contains('bisnis') || cat.contains('usaha')) {
+      return FontAwesomeIcons.store;
+    } else if (cat.contains('pencairan') || cat.contains('cair') || cat.contains('withdraw') || cat.contains('wd') || cat.contains('tarik')) {
+      return FontAwesomeIcons.piggyBank;
     } else if (cat.contains('bank') || cat.contains('bca') || cat.contains('rekening') || cat.contains('transfer')) {
       return FontAwesomeIcons.buildingColumns;
     } else if (cat.contains('coin') || cat.contains('koin') || cat.contains('uang') || cat.contains('tunai')) {
@@ -135,7 +175,7 @@ class CategoryHelper {
       return FontAwesomeIcons.piggyBank;
     } else if (cat.contains('chart') || cat.contains('grafik') || cat.contains('statistik')) {
       return FontAwesomeIcons.chartLine;
-    } else if (cat.contains('briefcase') || cat.contains('usaha') || cat.contains('bisnis')) {
+    } else if (cat.contains('briefcase') || cat.contains('pekerjaan')) {
       return FontAwesomeIcons.briefcase;
     } else if (cat.contains('laptop') || cat.contains('komputer') || cat.contains('pc') || cat.contains('gadget') || cat.contains('hp')) {
       return FontAwesomeIcons.laptop;
@@ -146,11 +186,8 @@ class CategoryHelper {
     return FontAwesomeIcons.boxArchive;
   }
 
-  // 3. Pustaka Penerjemah ID Ikon Kustom
   static dynamic getCustomIconById(String id) {
     switch (id) {
-      case 'bank': return FontAwesomeIcons.buildingColumns;
-      case 'wallet': return FontAwesomeIcons.wallet;
       case 'coins': return FontAwesomeIcons.coins;
       case 'piggy': return FontAwesomeIcons.piggyBank;
       case 'salary': return FontAwesomeIcons.moneyBillWave;
@@ -180,11 +217,12 @@ class CategoryHelper {
       case 'building': return FontAwesomeIcons.building;
       case 'music': return FontAwesomeIcons.music;
       case 'dumbbell': return FontAwesomeIcons.dumbbell;
-      case 'card': return FontAwesomeIcons.creditCard;
-      case 'savings': return FontAwesomeIcons.piggyBank;
-      case 'business': return FontAwesomeIcons.briefcase;
-      case 'coins2': return FontAwesomeIcons.coins;
       case 'safe': return FontAwesomeIcons.boxArchive;
+      case 'store': return FontAwesomeIcons.store;
+      case 'receipt': return FontAwesomeIcons.receipt;
+      case 'hand_holding': return FontAwesomeIcons.handHoldingDollar;
+      case 'money_check': return FontAwesomeIcons.moneyCheckDollar;
+      case 'sack': return FontAwesomeIcons.sackDollar;
       default: return FontAwesomeIcons.star;
     }
   }

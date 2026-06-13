@@ -21,13 +21,15 @@ class _MainNavigationState extends State<MainNavigation> {
   Key _dashboardKey = UniqueKey();
   Key _reportKey = UniqueKey();
   Key _walletKey = UniqueKey();
+  final Key _profileKey = UniqueKey();
   Key _appBarKey = UniqueKey();
 
   void _onItemTapped(int index) {
     setState(() {
-      if (index == 0 && _selectedIndex != 0) _dashboardKey = UniqueKey();
-      if (index == 1 && _selectedIndex != 1) _reportKey = UniqueKey();
-      if (index == 2 && _selectedIndex != 2) _walletKey = UniqueKey();
+      if (index == 0) _dashboardKey = UniqueKey();
+      if (index == 1) _reportKey = UniqueKey();
+      if (index == 2) _walletKey = UniqueKey();
+
       _selectedIndex = index;
     });
   }
@@ -56,7 +58,7 @@ class _MainNavigationState extends State<MainNavigation> {
           DashboardScreen(key: _dashboardKey),
           ReportScreen(key: _reportKey),
           WalletScreen(key: _walletKey),
-          ProfileScreen(onProfileUpdated: _refreshAppBar),
+          ProfileScreen(key: _profileKey, onProfileUpdated: _refreshAppBar),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -72,6 +74,7 @@ class _MainNavigationState extends State<MainNavigation> {
               _dashboardKey = UniqueKey();
               _reportKey = UniqueKey();
               _walletKey = UniqueKey();
+              _appBarKey = UniqueKey();
             });
 
             if (context.mounted) {

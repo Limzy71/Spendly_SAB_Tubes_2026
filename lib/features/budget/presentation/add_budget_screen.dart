@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,8 +8,6 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
-
-// IMPORT NETWORK HELPER
 import '../../../../widgets/network_helper.dart';
 
 class AddBudgetScreen extends StatefulWidget {
@@ -23,13 +23,16 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   String? selectedCategory;
   bool isAlertEnabled = true;
   bool _isLoading = false;
-  final TextEditingController _limitController = TextEditingController(text: "2.000.000");
+  final TextEditingController _limitController = TextEditingController(text: "");
+  final FocusNode _limitFocusNode = FocusNode();
+  final ScrollController _categoryScrollController = ScrollController();
 
   List<Map<String, dynamic>> categories = [
-    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.orange},
-    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': Colors.green},
-    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': Colors.blue},
-    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple},
+    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': const Color(0xFFFF9800)},
+    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': const Color(0xFF2196F3)},
+    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': const Color(0xFF9C27B0)},
+    {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': const Color(0xFFF44336)},
+    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': const Color(0xFF009688)},
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
@@ -39,23 +42,77 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     _loadCustomCategories();
   }
 
+  @override
+  void dispose() {
+    _limitController.dispose();
+    _limitFocusNode.dispose();
+    _categoryScrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadCustomCategories() async {
     final prefs = await SharedPreferences.getInstance();
-    List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+    List<String> customCats = prefs.getStringList('custom_transaction_expense_categories_v5') ?? [];
+    List<String> hiddenCats = prefs.getStringList('custom_transaction_expense_categories_hidden_v5') ?? [];
 
     if (!mounted) return;
     setState(() {
       for (String catName in customCats) {
+        if (hiddenCats.contains(catName)) continue;
         if (!categories.any((c) => c['name'] == catName)) {
-          String iconId = prefs.getString('custom_budget_icon_$catName') ?? 'star';
+          String iconId = prefs.getString('custom_transaction_expense_icon_v5_$catName') ?? 'invoice';
           categories.insert(categories.length - 1, {
             'name': catName,
             'icon': CategoryHelper.getCustomIconById(iconId),
-            'color': AppColors.primaryGreen,
+            'color': CategoryHelper.getColorForIcon(iconId),
           });
         }
       }
     });
+  }
+
+  void _confirmDeleteCategory(String catName) {
+    if (categories.length <= 2) {
+      CustomNotification.show(context, 'Minimal harus ada 1 kategori tersisa!', isWarning: true);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Kategori?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Hapus kategori "$catName" dari daftar pilihan? (Ini juga akan menghapusnya dari pilihan transaksi)'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+
+              final prefs = await SharedPreferences.getInstance();
+              final hiddenCats = prefs.getStringList('custom_transaction_expense_categories_hidden_v5') ?? [];
+              if (!hiddenCats.contains(catName)) {
+                hiddenCats.add(catName);
+                await prefs.setStringList('custom_transaction_expense_categories_hidden_v5', hiddenCats);
+              }
+
+              setState(() {
+                categories.removeWhere((c) => c['name'] == catName);
+                if (selectedCategory == catName && categories.isNotEmpty) {
+                  selectedCategory = categories.first['name'];
+                }
+              });
+
+              if (mounted) {
+                CustomNotification.show(context, 'Kategori "$catName" berhasil dihapus.');
+              }
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddCategoryDialog() {
@@ -63,7 +120,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     final List<Map<String, dynamic>> availableIcons = [
-      {'id': 'star', 'icon': FontAwesomeIcons.star},
+      {'id': 'utensils', 'icon': FontAwesomeIcons.utensils},
+      {'id': 'car', 'icon': FontAwesomeIcons.car},
+      {'id': 'bag', 'icon': FontAwesomeIcons.bagShopping},
+      {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
+      {'id': 'film', 'icon': FontAwesomeIcons.film},
       {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
       {'id': 'plane', 'icon': FontAwesomeIcons.plane},
       {'id': 'house', 'icon': FontAwesomeIcons.house},
@@ -73,11 +134,12 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
       {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
       {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
-      {'id': 'film', 'icon': FontAwesomeIcons.film},
       {'id': 'train', 'icon': FontAwesomeIcons.train},
       {'id': 'building', 'icon': FontAwesomeIcons.building},
-      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
-      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
+      {'id': 'star', 'icon': FontAwesomeIcons.star},
+      {'id': 'music', 'icon': FontAwesomeIcons.music},
+      {'id': 'dumbbell', 'icon': FontAwesomeIcons.dumbbell},
+      {'id': 'book', 'icon': FontAwesomeIcons.book},
     ];
 
     String tempIconId = availableIcons[0]['id'];
@@ -114,6 +176,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         runSpacing: 12,
                         children: availableIcons.map((item) {
                           bool isSelected = tempIconId == item['id'];
+                          Color iconColor = CategoryHelper.getColorForIcon(item['id']);
+
                           return GestureDetector(
                             onTap: () => setStateDialog(() {
                               tempIconId = item['id'];
@@ -122,11 +186,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.2) : Colors.transparent,
+                                color: isSelected ? iconColor.withValues(alpha: 0.2) : Colors.transparent,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                                border: Border.all(color: isSelected ? iconColor : Colors.grey.shade300, width: isSelected ? 2 : 1),
                               ),
-                              child: FaIcon(item['icon'], color: isSelected ? AppColors.primaryGreen : Colors.grey, size: 20),
+                              child: FaIcon(item['icon'], color: iconColor, size: 20),
                             ),
                           );
                         }).toList(),
@@ -146,12 +210,12 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         String newCatName = catController.text.trim();
 
                         final prefs = await SharedPreferences.getInstance();
-                        List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
+                        List<String> customCats = prefs.getStringList('custom_transaction_expense_categories_v5') ?? [];
 
                         if (!customCats.contains(newCatName)) {
                           customCats.add(newCatName);
-                          await prefs.setStringList('custom_budget_categories', customCats);
-                          await prefs.setString('custom_budget_icon_$newCatName', tempIconId);
+                          await prefs.setStringList('custom_transaction_expense_categories_v5', customCats);
+                          await prefs.setString('custom_transaction_expense_icon_v5_$newCatName', tempIconId);
                         }
 
                         if (!mounted) return;
@@ -160,7 +224,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                             categories.insert(categories.length - 1, {
                               'name': newCatName,
                               'icon': tempIcon,
-                              'color': AppColors.primaryGreen,
+                              'color': CategoryHelper.getColorForIcon(tempIconId),
                             });
                           }
                           selectedCategory = newCatName;
@@ -185,7 +249,6 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       return;
     }
 
-    // INTEGRASI NETWORK HELPER SEBELUM LOADING DIMULAI
     bool isOnline = await NetworkHelper.checkConnection(context);
     if (!mounted) return;
     if (!isOnline) return;
@@ -265,90 +328,120 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             const Text('BATAS ANGGARAN BULANAN',
                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
-              ),
-              child: Row(
-                children: [
-                  const Text('Rp', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _limitController,
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: '0',
-                          hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => FocusScope.of(context).requestFocus(_limitFocusNode),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                ),
+                child: SizedBox(
+                  height: 60,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: IntrinsicWidth(
+                            child: TextField(
+                              controller: _limitController,
+                              focusNode: _limitFocusNode,
+                              style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [LengthLimitingTextInputFormatter(18)],
+                              decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: '0',
+                                  hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
+                              ),
+                              onChanged: (value) {
+                                if (value.isNotEmpty) {
+                                  String clean = value.replaceAll('.', '');
+                                  clean = clean.replaceFirst(RegExp(r'^0+'), '');
+                                  if (clean.isEmpty) {
+                                    _limitController.value = const TextEditingValue(text: '', selection: TextSelection.collapsed(offset: 0));
+                                    return;
+                                  }
+                                  String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
+                                  _limitController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                                }
+                              },
+                            ),
+                          ),
+                        ),
                       ),
-                      onChanged: (value) {
-                        String digits = value.replaceAll(RegExp(r'\D'), '');
-                        if (digits.isEmpty) {
-                          _limitController.text = '';
-                          return;
-                        }
-                        String formatted = '';
-                        int count = 0;
-                        for (int i = digits.length - 1; i >= 0; i--) {
-                          if (count != 0 && count % 3 == 0) formatted = '.$formatted';
-                          formatted = digits[i] + formatted;
-                          count++;
-                        }
-                        _limitController.value = TextEditingValue(
-                          text: formatted,
-                          selection: TextSelection.collapsed(offset: formatted.length),
-                        );
-                      },
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            const Text('PILIH KATEGORI',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                Text('PILIH KATEGORI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                Text('Tahan untuk hapus', style: TextStyle(fontSize: 9, color: Colors.grey)),
+              ],
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(8),
+              constraints: const BoxConstraints(maxHeight: 280),
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
-              child: Column(
-                children: categories.map((cat) {
-                  bool isSelected = selectedCategory == cat['name'];
-                  bool isNew = cat['name'] == 'Baru';
+              child: RawScrollbar(
+                controller: _categoryScrollController,
+                thumbVisibility: true,
+                radius: const Radius.circular(8),
+                thickness: 4,
+                thumbColor: Colors.grey.withValues(alpha: 0.3),
+                child: SingleChildScrollView(
+                  controller: _categoryScrollController,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Column(
+                    children: categories.map((cat) {
+                      bool isSelected = selectedCategory == cat['name'];
+                      bool isNew = cat['name'] == 'Baru';
 
-                  return ListTile(
-                    onTap: () {
-                      if (isNew) {
-                        _showAddCategoryDialog();
-                      } else {
-                        setState(() => selectedCategory = cat['name']);
-                      }
-                    },
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: cat['color'].withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: FaIcon(cat['icon'], color: cat['color'] == Colors.green ? AppColors.primaryGreen : cat['color'], size: 20),
-                    ),
-                    title: Text(cat['name'], style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
-                    trailing: isNew
-                        ? const Icon(Icons.chevron_right, color: Colors.grey)
-                        : (isSelected
-                        ? const FaIcon(FontAwesomeIcons.circleCheck, color: AppColors.primaryGreen)
-                        : const FaIcon(FontAwesomeIcons.circle, color: Colors.grey)),
-                  );
-                }).toList(),
+                      return ListTile(
+                        onTap: () {
+                          if (isNew) {
+                            _showAddCategoryDialog();
+                          } else {
+                            setState(() => selectedCategory = cat['name']);
+                          }
+                        },
+                        onLongPress: isNew ? null : () => _confirmDeleteCategory(cat['name']),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: cat['color'].withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: FaIcon(cat['icon'], color: cat['color'] == Colors.green ? AppColors.primaryGreen : cat['color'], size: 20),
+                        ),
+                        title: Text(cat['name'], style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
+                        trailing: isNew
+                            ? const Icon(Icons.chevron_right, color: Colors.grey)
+                            : (isSelected
+                            ? const FaIcon(FontAwesomeIcons.circleCheck, color: AppColors.primaryGreen)
+                            : const FaIcon(FontAwesomeIcons.circle, color: Colors.grey)),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),
