@@ -7,14 +7,11 @@ import 'add_budget_screen.dart';
 import 'edit_budget_screen.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
-import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
-
-// IMPORT NETWORK HELPER
 import '../../../../widgets/network_helper.dart';
 
 class BudgetScreen extends StatefulWidget {
-  const BudgetScreen({Key? key}) : super(key: key);
+  const BudgetScreen({super.key});
 
   @override
   State<BudgetScreen> createState() => _BudgetScreenState();
@@ -36,7 +33,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   Future<void> _fetchBudgetData() async {
-    // INTEGRASI NETWORK HELPER SEBELUM FETCH DATA
     if (!await NetworkHelper.checkConnection(context)) {
       if (mounted) setState(() => _isLoading = false);
       return;
@@ -49,11 +45,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
       if (userId == null) return;
 
       final prefs = await SharedPreferences.getInstance();
-      List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
       Map<String, String> tempIcons = {};
-      for (String cat in customCats) {
-        tempIcons[cat.toLowerCase()] = prefs.getString('custom_budget_icon_$cat') ?? 'star';
+
+      void loadCustomIcons(String listKey, String iconPrefix) {
+        final customCats = prefs.getStringList(listKey) ?? [];
+        for (final cat in customCats) {
+          tempIcons[cat.toLowerCase()] = prefs.getString('$iconPrefix$cat') ?? 'star';
+        }
       }
+
+      loadCustomIcons('custom_transaction_expense_categories_v5', 'custom_transaction_expense_icon_v5_');
 
       final DateTime now = DateTime.now();
       final String currentPeriodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
@@ -71,6 +72,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           .select()
           .eq('user_id', userId)
           .eq('is_expense', true)
+          .neq('category', 'Transfer')
           .gte('transaction_date', firstDayOfMonth)
           .lte('transaction_date', lastDayOfMonth);
 
@@ -81,7 +83,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       for (var budget in budgetResponse) {
         String category = budget['category'] as String;
-        int limit = budget['limit_amount'] as int;
+        int limit = budget['limit_amount'] as int? ?? 0;
 
         if (accumulatedBudgets.containsKey(category)) {
           accumulatedBudgets[category]!['limit'] += limit;
@@ -99,19 +101,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
         for (var tx in transactionResponse) {
           if (tx['category']?.toString().toLowerCase() ==
               category.toLowerCase()) {
-            spent += tx['amount'] as int;
+            spent += tx['amount'] as int? ?? 0;
           }
         }
 
         data['spent'] = spent;
-        tempTotalLimit += data['limit'] as int;
+        tempTotalLimit += data['limit'] as int? ?? 0;
         tempTotalSpent += spent;
       });
 
       List<Map<String, dynamic>> processedBudgets = accumulatedBudgets.values
           .map((data) {
-        int limit = data['limit'] as int;
-        int spent = data['spent'] as int;
+        int limit = data['limit'] as int? ?? 0;
+        int spent = data['spent'] as int? ?? 0;
         return {
           'category': data['category'],
           'limit': limit,
@@ -132,7 +134,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal mengambil data anggaran: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengambil data anggaran');
       }
     }
   }

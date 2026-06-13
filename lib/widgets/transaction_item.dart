@@ -8,6 +8,7 @@ class TransactionItem extends StatelessWidget {
   final Color bgIconColor;
   final dynamic icon;
   final Color amountColor;
+  final Color? iconColor;
 
   const TransactionItem({
     super.key,
@@ -17,6 +18,7 @@ class TransactionItem extends StatelessWidget {
     required this.bgIconColor,
     required this.icon,
     required this.amountColor,
+    this.iconColor,
   });
 
   @override
@@ -45,7 +47,7 @@ class TransactionItem extends StatelessWidget {
               color: bgIconColor,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: FaIcon(icon, size: 20, color: isDark ? Colors.white : Colors.black87),
+            child: FaIcon(icon, size: 20, color: iconColor ?? (isDark ? Colors.white : Colors.black87)),
           ),
           const SizedBox(width: 16),
           Expanded(

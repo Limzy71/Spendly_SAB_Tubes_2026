@@ -1,9 +1,28 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class CustomNotification {
+  static OverlayEntry? _currentOverlay;
+  static Timer? _currentTimer;
+  static String? _currentMessage;
+
   static void show(BuildContext context, String message, {bool isError = false, bool isWarning = false}) {
+    if (_currentOverlay != null) {
+      if (_currentMessage == message) {
+        _currentTimer?.cancel();
+        _currentTimer = Timer(const Duration(seconds: 3), () {
+          _removeOverlay();
+        });
+        return;
+      } else {
+        _currentTimer?.cancel();
+        _removeOverlay();
+      }
+    }
+
+    _currentMessage = message;
+
     final overlay = Overlay.of(context);
-    OverlayEntry? overlayEntry;
 
     Color bgColor = const Color(0xFF00AA5B);
     IconData icon = Icons.check;
@@ -16,7 +35,7 @@ class CustomNotification {
       icon = Icons.warning_amber_rounded;
     }
 
-    overlayEntry = OverlayEntry(
+    _currentOverlay = OverlayEntry(
       builder: (context) => Positioned(
         top: MediaQuery.of(context).padding.top + 16,
         left: 16,
@@ -66,12 +85,18 @@ class CustomNotification {
       ),
     );
 
-    overlay.insert(overlayEntry);
+    overlay.insert(_currentOverlay!);
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (overlayEntry != null && overlayEntry!.mounted) {
-        overlayEntry!.remove();
-      }
+    _currentTimer = Timer(const Duration(seconds: 3), () {
+      _removeOverlay();
     });
+  }
+
+  static void _removeOverlay() {
+    if (_currentOverlay != null && _currentOverlay!.mounted) {
+      _currentOverlay!.remove();
+    }
+    _currentOverlay = null;
+    _currentMessage = null;
   }
 }

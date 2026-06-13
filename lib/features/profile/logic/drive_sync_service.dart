@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-// PERBAIKAN 1: Tambahkan alias "as g_auth"
 import 'package:google_sign_in/google_sign_in.dart' as g_auth;
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../widgets/custom_notification.dart';
+import '../../../widgets/network_helper.dart';
 
 class GoogleAuthClient extends http.BaseClient {
   final Map<String, String> _headers;
@@ -22,7 +22,6 @@ class GoogleAuthClient extends http.BaseClient {
 }
 
 class DriveSyncService {
-  // PERBAIKAN 2: Gunakan awalan g_auth.
   static final g_auth.GoogleSignIn _googleSignIn = g_auth.GoogleSignIn(
     scopes: [drive.DriveApi.driveFileScope],
   );
@@ -43,9 +42,13 @@ class DriveSyncService {
 
   static Future<void> backupToDrive(BuildContext context) async {
     try {
-      // PERBAIKAN 3: Gunakan tipe data g_auth.GoogleSignInAccount
       final g_auth.GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account == null) return;
+      if (account == null) {
+        if (context.mounted) {
+          CustomNotification.show(context, 'Pencadangan Google Drive dibatalkan', isWarning: true);
+        }
+        return;
+      }
 
       if (context.mounted) {
         CustomNotification.show(context, 'Membaca seluruh data database...', isWarning: true);
@@ -54,7 +57,6 @@ class DriveSyncService {
       final allData = await _fetchAllSupabaseData();
       String jsonData = jsonEncode(allData);
 
-      // Error authHeaders sudah otomatis teratasi
       final authHeaders = await account.authHeaders;
       final driveApi = drive.DriveApi(GoogleAuthClient(authHeaders));
 
@@ -64,27 +66,31 @@ class DriveSyncService {
 
       final driveFile = drive.File();
       String tanggal = DateTime.now().toString().split(' ')[0];
-      driveFile.name = "Spendly_Full_Backup_$tanggal\_${DateTime.now().millisecondsSinceEpoch}.json";
+      driveFile.name = "Spendly_Full_Backup_${tanggal}_${DateTime.now().millisecondsSinceEpoch}.json";
       driveFile.mimeType = "application/json";
 
       final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
-      await driveFile.name != null ? driveApi.files.create(driveFile, uploadMedia: media) : null;
+      await driveApi.files.create(driveFile, uploadMedia: media);
 
       if (context.mounted) {
         CustomNotification.show(context, 'Semua data berhasil dicadangkan ke Google Drive!');
       }
     } catch (e) {
       if (context.mounted) {
-        CustomNotification.show(context, 'Gagal mencadangkan data: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mencadangkan data');
       }
     }
   }
 
   static Future<void> restoreFromDrive(BuildContext context) async {
     try {
-      // PERBAIKAN 4: Gunakan tipe data g_auth.GoogleSignInAccount
       final g_auth.GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account == null) return;
+      if (account == null) {
+        if (context.mounted) {
+          CustomNotification.show(context, 'Sinkronisasi Google Drive dibatalkan', isWarning: true);
+        }
+        return;
+      }
 
       if (context.mounted) {
         CustomNotification.show(context, 'Mencari daftar cadangan di Google Drive...', isWarning: true);
@@ -149,7 +155,12 @@ class DriveSyncService {
         },
       );
 
-      if (selectedFile == null) return;
+      if (selectedFile == null) {
+        if (context.mounted) {
+          CustomNotification.show(context, 'Pemilihan file cadangan dibatalkan.', isWarning: true);
+        }
+        return;
+      }
 
       final String fileId = selectedFile.id!;
 
@@ -184,7 +195,7 @@ class DriveSyncService {
       }
     } catch (e) {
       if (context.mounted) {
-        CustomNotification.show(context, 'Gagal sinkronisasi data balik: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal sinkronisasi data balik');
       }
     }
   }

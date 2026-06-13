@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,7 +16,7 @@ import '../../wallet/presentation/add_wallet_screen.dart';
 class EditTransactionScreen extends StatefulWidget {
   final Map<String, dynamic> transaction;
 
-  const EditTransactionScreen({Key? key, required this.transaction}) : super(key: key);
+  const EditTransactionScreen({super.key, required this.transaction});
 
   @override
   State<EditTransactionScreen> createState() => _EditTransactionScreenState();
@@ -24,13 +25,13 @@ class EditTransactionScreen extends StatefulWidget {
 class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final supabase = Supabase.instance.client;
 
-  static const String _expenseCategoryListKey = 'custom_transaction_expense_categories';
-  static const String _incomeCategoryListKey = 'custom_transaction_income_categories';
-  static const String _expenseCategoryHiddenKey = 'custom_transaction_expense_categories_hidden';
-  static const String _incomeCategoryHiddenKey = 'custom_transaction_income_categories_hidden';
-  static const String _expenseCategoryIconPrefix = 'custom_transaction_expense_icon_';
-  static const String _incomeCategoryIconPrefix = 'custom_transaction_income_icon_';
-  static const String _legacyMigrationKey = 'custom_transaction_categories_migrated_v1';
+  static const String _expenseCategoryListKey = 'custom_transaction_expense_categories_v5';
+  static const String _incomeCategoryListKey = 'custom_transaction_income_categories_v5';
+  static const String _expenseCategoryHiddenKey = 'custom_transaction_expense_categories_hidden_v5';
+  static const String _incomeCategoryHiddenKey = 'custom_transaction_income_categories_hidden_v5';
+  static const String _expenseCategoryIconPrefix = 'custom_transaction_expense_icon_v5_';
+  static const String _incomeCategoryIconPrefix = 'custom_transaction_income_icon_v5_';
+  static const String _legacyMigrationKey = 'custom_transaction_categories_migrated_v5';
 
   late bool isExpense;
   late String selectedCategory;
@@ -51,20 +52,20 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final FocusNode _amountFocusNode = FocusNode();
 
   List<Map<String, dynamic>> expenseCategories = [
-    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': Colors.redAccent},
-    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': Colors.blue},
-    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': Colors.purple},
-    {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': Colors.orange},
-    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': Colors.teal},
+    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': const Color(0xFFFF9800)},
+    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': const Color(0xFF2196F3)},
+    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': const Color(0xFF9C27B0)},
+    {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': const Color(0xFFF44336)},
+    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': const Color(0xFF009688)},
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
   List<Map<String, dynamic>> incomeCategories = [
     {'name': 'Gaji', 'icon': FontAwesomeIcons.moneyBillWave, 'color': AppColors.primaryGreen},
-    {'name': 'Bonus', 'icon': FontAwesomeIcons.gift, 'color': Colors.amber.shade600},
-    {'name': 'Investasi', 'icon': FontAwesomeIcons.arrowTrendUp, 'color': Colors.blueAccent},
-    {'name': 'Dana', 'icon': FontAwesomeIcons.wallet, 'color': Colors.indigo},
-    {'name': 'BCA', 'icon': FontAwesomeIcons.buildingColumns, 'color': Colors.teal},
+    {'name': 'Bonus', 'icon': FontAwesomeIcons.gift, 'color': const Color(0xFFEF5350)},
+    {'name': 'Investasi', 'icon': FontAwesomeIcons.arrowTrendUp, 'color': const Color(0xFF448AFF)},
+    {'name': 'Penjualan', 'icon': FontAwesomeIcons.store, 'color': const Color(0xFFAB47BC)},
+    {'name': 'Pencairan', 'icon': FontAwesomeIcons.piggyBank, 'color': const Color(0xFFF06292)},
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
@@ -110,49 +111,47 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   List<Map<String, dynamic>> _customIconsForType(bool expense) {
     if (expense) {
       return [
-        {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
-        {'id': 'cart', 'icon': FontAwesomeIcons.cartShopping},
         {'id': 'utensils', 'icon': FontAwesomeIcons.utensils},
         {'id': 'car', 'icon': FontAwesomeIcons.car},
         {'id': 'bag', 'icon': FontAwesomeIcons.bagShopping},
+        {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
         {'id': 'film', 'icon': FontAwesomeIcons.film},
-        {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
-        {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
-        {'id': 'plane', 'icon': FontAwesomeIcons.plane},
-        {'id': 'train', 'icon': FontAwesomeIcons.train},
-        {'id': 'wifi', 'icon': FontAwesomeIcons.wifi},
-        {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
-        {'id': 'house', 'icon': FontAwesomeIcons.house},
-        {'id': 'book', 'icon': FontAwesomeIcons.book},
         {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
-        {'id': 'star', 'icon': FontAwesomeIcons.star},
-        {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
-        {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+        {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+        {'id': 'house', 'icon': FontAwesomeIcons.house},
+        {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
         {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
+        {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+        {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
+        {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+        {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
+        {'id': 'train', 'icon': FontAwesomeIcons.train},
+        {'id': 'building', 'icon': FontAwesomeIcons.building},
+        {'id': 'star', 'icon': FontAwesomeIcons.star},
+        {'id': 'music', 'icon': FontAwesomeIcons.music},
+        {'id': 'dumbbell', 'icon': FontAwesomeIcons.dumbbell},
+        {'id': 'book', 'icon': FontAwesomeIcons.book},
       ];
     }
 
     return [
-      {'id': 'bank', 'icon': FontAwesomeIcons.buildingColumns},
-      {'id': 'wallet', 'icon': FontAwesomeIcons.wallet},
-      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
-      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
       {'id': 'salary', 'icon': FontAwesomeIcons.moneyBillWave},
-      {'id': 'chart', 'icon': FontAwesomeIcons.chartLine},
-      {'id': 'briefcase', 'icon': FontAwesomeIcons.briefcase},
       {'id': 'giftbox', 'icon': FontAwesomeIcons.gift},
       {'id': 'arrow', 'icon': FontAwesomeIcons.arrowTrendUp},
-      {'id': 'building', 'icon': FontAwesomeIcons.building},
-      {'id': 'card', 'icon': FontAwesomeIcons.creditCard},
-      {'id': 'savings', 'icon': FontAwesomeIcons.piggyBank},
-      {'id': 'business', 'icon': FontAwesomeIcons.briefcase},
-      {'id': 'coins2', 'icon': FontAwesomeIcons.coins},
-      {'id': 'safe', 'icon': FontAwesomeIcons.boxArchive},
+      {'id': 'store', 'icon': FontAwesomeIcons.store},
+      {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
+      {'id': 'coins', 'icon': FontAwesomeIcons.coins},
+      {'id': 'chart', 'icon': FontAwesomeIcons.chartLine},
+      {'id': 'briefcase', 'icon': FontAwesomeIcons.briefcase},
+      {'id': 'receipt', 'icon': FontAwesomeIcons.receipt},
+      {'id': 'hand_holding', 'icon': FontAwesomeIcons.handHoldingDollar},
+      {'id': 'money_check', 'icon': FontAwesomeIcons.moneyCheckDollar},
+      {'id': 'sack', 'icon': FontAwesomeIcons.sackDollar},
     ];
   }
 
   String _defaultIconIdForType(bool expense) {
-    return expense ? 'invoice' : 'bank';
+    return expense ? 'invoice' : 'salary';
   }
 
   Future<void> _migrateLegacyCategoriesIfNeeded(SharedPreferences prefs) async {
@@ -160,15 +159,15 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       return;
     }
 
-    final legacyCategories = prefs.getStringList('custom_budget_categories') ?? [];
-    if (legacyCategories.isEmpty) {
-      await prefs.setBool(_legacyMigrationKey, true);
-      return;
-    }
-
     Future<void> migrateForType({required bool expense}) async {
       final listKey = _categoryListKey(expense);
       final iconPrefix = expense ? _expenseCategoryIconPrefix : _incomeCategoryIconPrefix;
+
+      final oldListKey = expense ? 'custom_transaction_expense_categories_v4' : 'custom_transaction_income_categories_v4';
+      final oldIconPrefix = expense ? 'custom_transaction_expense_icon_v4_' : 'custom_transaction_income_icon_v4_';
+
+      final legacyCategories = prefs.getStringList(oldListKey) ?? [];
+
       final currentCategories = prefs.getStringList(listKey) ?? [];
       final mergedCategories = [...currentCategories];
 
@@ -177,7 +176,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           mergedCategories.add(catName);
         }
 
-        final legacyIconId = prefs.getString('custom_budget_icon_$catName') ?? _defaultIconIdForType(expense);
+        final legacyIconId = prefs.getString('$oldIconPrefix$catName') ?? _defaultIconIdForType(expense);
         final newIconKey = '$iconPrefix$catName';
         if (!prefs.containsKey(newIconKey)) {
           await prefs.setString(newIconKey, legacyIconId);
@@ -228,7 +227,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           final newCat = {
             'name': catName,
             'icon': CategoryHelper.getCustomIconById(iconId),
-            'color': expense ? Colors.redAccent : AppColors.primaryGreen,
+            'color': CategoryHelper.getColor(catName, customIcons: _customIcons),
           };
 
           targetList.insert(targetList.length - 1, newCat);
@@ -243,17 +242,15 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         targetList.insert(0, {
           'name': selectedCategory,
           'icon': CategoryHelper.getIcon(selectedCategory, customIcons: _customIcons),
-          'color': CategoryHelper.getColor(selectedCategory),
+          'color': CategoryHelper.getColor(selectedCategory, customIcons: _customIcons),
         });
       }
     });
   }
 
-  // --- FITUR BARU: HAPUS KATEGORI ---
   void _confirmDeleteCategory(String catName) {
     List<Map<String, dynamic>> currentList = isExpense ? expenseCategories : incomeCategories;
 
-    // Validasi: Harus tersisa minimal 1 kategori utama di luar tombol 'Baru'
     if (currentList.length <= 2) {
       CustomNotification.show(context, 'Minimal harus ada 1 kategori tersisa!', isWarning: true);
       return;
@@ -313,16 +310,16 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       List<Map<String, dynamic>> processedWallets = [];
 
       for (var w in walletResponse) {
-        int wId = w['id'] as int;
+        int wId = w['id'] as int? ?? 0;
         String wName = w['name'].toString();
-        int currentBal = w['balance'] as int;
+        int currentBal = w['balance'] as int? ?? 0;
 
         for (var tx in txResponse) {
           if (tx['wallet_id'] == wId) {
             if (tx['is_expense'] == true) {
-              currentBal -= tx['amount'] as int;
+              currentBal -= tx['amount'] as int? ?? 0;
             } else {
-              currentBal += tx['amount'] as int;
+              currentBal += tx['amount'] as int? ?? 0;
             }
           }
         }
@@ -333,6 +330,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           'balance': currentBal,
         });
       }
+
+      processedWallets.sort((a, b) => (b['balance'] as int).compareTo(a['balance'] as int));
 
       if (mounted) {
         setState(() {
@@ -403,6 +402,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     children: [
                       TextField(
                         controller: catController,
+                        maxLength: 16,
                         style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                         decoration: const InputDecoration(
                           hintText: 'Contoh: Hadiah',
@@ -410,30 +410,35 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                           focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 10),
                       const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                       const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 14,
-                        runSpacing: 14,
-                        children: availableIcons.map((item) {
-                          bool isSelected = tempIconId == item['id'];
-                          return GestureDetector(
-                            onTap: () => setStateDialog(() {
-                              tempIconId = item['id'];
-                              tempIcon = item['icon'];
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.2) : Colors.transparent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                      Center(
+                        child: Wrap(
+                          spacing: 14,
+                          runSpacing: 14,
+                          alignment: WrapAlignment.center,
+                          children: availableIcons.map((item) {
+                            bool isSelected = tempIconId == item['id'];
+                            Color iconColor = CategoryHelper.getColorForIcon(item['id']);
+
+                            return GestureDetector(
+                              onTap: () => setStateDialog(() {
+                                tempIconId = item['id'];
+                                tempIcon = item['icon'];
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? iconColor.withValues(alpha: 0.2) : Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: isSelected ? iconColor : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                                ),
+                                child: FaIcon(item['icon'], color: iconColor, size: 20),
                               ),
-                              child: FaIcon(item['icon'], color: isSelected ? AppColors.primaryGreen : Colors.grey, size: 20),
-                            ),
-                          );
-                        }).toList(),
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ],
                   ),
@@ -448,6 +453,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     onPressed: () async {
                       if (catController.text.trim().isNotEmpty) {
                         String newCatName = catController.text.trim();
+                        List<Map<String, dynamic>> targetList = isExpense ? expenseCategories : incomeCategories;
+
+                        bool exists = targetList.any((c) => c['name'].toString().toLowerCase() == newCatName.toLowerCase());
+                        if (exists) {
+                          CustomNotification.show(context, 'Kategori "$newCatName" sudah ada di daftar!', isWarning: true);
+                          return;
+                        }
 
                         final prefs = await SharedPreferences.getInstance();
                         final listKey = _categoryListKey(isExpense);
@@ -467,11 +479,12 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                           await prefs.setStringList(hiddenKey, hiddenCats);
                         }
 
+                        if (!mounted) return;
                         setState(() {
                           var newCategory = {
                             'name': newCatName,
                             'icon': tempIcon,
-                            'color': isExpense ? Colors.redAccent : AppColors.primaryGreen,
+                            'color': CategoryHelper.getColorForIcon(tempIconId),
                           };
 
                           if (isExpense) {
@@ -485,6 +498,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                           }
                           selectedCategory = newCatName;
                         });
+                        if (!ctx.mounted) return;
                         Navigator.pop(ctx);
                       }
                     },
@@ -517,42 +531,55 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Pilih Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              if (_wallets.isEmpty)
+          child: Container(
+            constraints: const BoxConstraints(
+              maxHeight: 380,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 const Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text('Belum ada dompet', style: TextStyle(color: Colors.grey)),
-                )
-              else
-                ..._wallets.map((wallet) {
-                  return InkWell(
-                    onTap: () {
-                      setState(() => selectedWalletId = wallet['id']);
-                      Navigator.pop(ctx);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                          Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                        ],
-                      ),
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('Pilih Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                if (_wallets.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Text('Belum ada dompet', style: TextStyle(color: Colors.grey)),
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _wallets.length,
+                      itemBuilder: (context, index) {
+                        final wallet = _wallets[index];
+                        return InkWell(
+                          onTap: () {
+                            setState(() => selectedWalletId = wallet['id']);
+                            Navigator.pop(ctx);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                                Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                }),
-              const SizedBox(height: 20),
-            ],
+                  ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         );
       },
@@ -570,7 +597,31 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       return;
     }
 
+    final cleanAmount = _amountController.text.replaceAll('.', '');
+    final amount = int.tryParse(cleanAmount) ?? 0;
+
+    final selectedWallet = _wallets.firstWhere((w) => w['id'] == selectedWalletId);
+    int availableBalance = selectedWallet['balance'] as int? ?? 0;
+
+    int oldAmount = widget.transaction['amount'] ?? 0;
+    bool oldIsExpense = widget.transaction['is_expense'] ?? true;
+    int oldWalletId = widget.transaction['wallet_id'];
+
+    if (selectedWalletId == oldWalletId) {
+      if (oldIsExpense) {
+        availableBalance += oldAmount;
+      } else {
+        availableBalance -= oldAmount;
+      }
+    }
+
+    if (isExpense && amount > availableBalance) {
+      CustomNotification.show(context, 'Saldo dompet tidak mencukupi!', isWarning: true);
+      return;
+    }
+
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     setState(() => _isLoading = true);
@@ -578,9 +629,6 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
-
-      final cleanAmount = _amountController.text.replaceAll('.', '');
-      final amount = int.parse(cleanAmount);
 
       String? finalImageUrl = _existingImageUrl;
 
@@ -591,11 +639,14 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         finalImageUrl = supabase.storage.from('receipts').getPublicUrl(fileName);
       }
 
+      final walletName = selectedWallet['name'];
+
       await supabase.from('transactions').update({
         'amount': amount,
         'is_expense': isExpense,
         'category': selectedCategory,
         'wallet_id': selectedWalletId,
+        'wallet_name': walletName,
         'transaction_date': selectedDate.toIso8601String().split('T')[0],
         'note': _noteController.text.isEmpty ? null : _noteController.text,
         'image_path': finalImageUrl,
@@ -606,12 +657,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Mencegat error bawaan Supabase jika jaringan bermasalah
-        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
-          CustomNotification.show(context, 'Gagal memperbarui: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
-        } else {
-          CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
-        }
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -620,6 +666,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   Future<void> _deleteTransaction() async {
     bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
     if (!hasConnection) return;
 
     setState(() => _isLoading = true);
@@ -634,12 +681,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Mencegat error bawaan Supabase jika jaringan bermasalah
-        if (e.toString().contains('ClientException') || e.toString().contains('Failed to fetch')) {
-          CustomNotification.show(context, 'Gagal menghapus: Koneksi ke server terputus. Silakan periksa internet Anda.', isError: true);
-        } else {
-          CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
-        }
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -699,59 +741,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => FocusScope.of(context).requestFocus(_amountFocusNode),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
-                      child: Row(
-                        children: [
-                          _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
-                          _buildTabItem("Pemasukan", !isExpense, isDark, cardColor),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    const Text('NOMINAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                        const SizedBox(width: 10),
-                        IntrinsicWidth(
-                          child: TextField(
-                            controller: _amountController,
-                            focusNode: _amountFocusNode,
-                            keyboardType: TextInputType.number,
-                            textCapitalization: TextCapitalization.sentences,
-                            style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
-                            cursorColor: AppColors.primaryGreen,
-                            decoration: InputDecoration(border: InputBorder.none, hintText: "0", hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)),
-                            onChanged: (value) {
-                              if (value.isNotEmpty) {
-                                String clean = value.replaceAll('.', '');
-                                String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
-                                _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
+            getAmountInputSection(isDark, cardColor, textColor),
+            const SizedBox(height: 35),
             const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Text('KATEGORI (Tekan Tahan untuk Hapus)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))
@@ -759,14 +750,16 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Wrap(
-                spacing: 8.0,
-                runSpacing: 16.0,
-                alignment: WrapAlignment.start,
-                children: currentCategories.map((cat) {
-                  bool isNew = cat['name'] == 'Baru';
-                  return _buildCatItem(cat['icon'], cat['name'], cat['color'], isDark, cardColor, itemWidth, isNew: isNew);
-                }).toList(),
+              child: Center(
+                child: Wrap(
+                  spacing: 8.0,
+                  runSpacing: 16.0,
+                  alignment: WrapAlignment.center,
+                  children: currentCategories.map((cat) {
+                    bool isNew = cat['name'] == 'Baru';
+                    return _buildCatItem(cat['icon'], cat['name'], cat['color'], isDark, cardColor, itemWidth, isNew: isNew);
+                  }).toList(),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -781,11 +774,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     InkWell(
                       onTap: (_walletsLoaded && _wallets.isNotEmpty)
                           ? _showWalletSelector
-                              : () async {
-                                  final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
-                                  if (!mounted) return;
-                                  if (result == true) _fetchWallets();
-                                },
+                          : () async {
+                        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+                        if (!mounted) return;
+                        if (result == true) _fetchWallets();
+                      },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
@@ -796,31 +789,31 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                               child: !_walletsLoaded
                                   ? const Text("Memuat dompet...", style: TextStyle(color: Colors.grey, fontSize: 14))
                                   : (_wallets.isEmpty
-                                      ? Row(
-                                          children: [
-                                            Expanded(child: Text("Belum ada dompet. Silakan buat terlebih dahulu.", style: TextStyle(color: Colors.grey, fontSize: 14))),
-                                            TextButton(
-                                              onPressed: () async {
-                                                final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
-                                                if (!mounted) return;
-                                                if (result == true) _fetchWallets();
-                                              },
-                                              child: const Text('Buat Dompet', style: TextStyle(color: AppColors.primaryGreen)),
-                                            )
-                                          ],
-                                        )
-                                      : Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              selectedWalletId == null
-                                                  ? "Pilih Dompet"
-                                                  : _wallets.firstWhere((w) => w['id'] == selectedWalletId, orElse: () => {'name': 'Pilih Dompet'})['name'],
-                                              style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
-                                            ),
-                                            const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-                                          ],
-                                        )),
+                                  ? Row(
+                                children: [
+                                  Expanded(child: Text("Belum ada dompet. Silakan buat terlebih dahulu.", style: TextStyle(color: Colors.grey, fontSize: 14))),
+                                  TextButton(
+                                    onPressed: () async {
+                                      final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddWalletScreen()));
+                                      if (!mounted) return;
+                                      if (result == true) _fetchWallets();
+                                    },
+                                    child: const Text('Buat Dompet', style: TextStyle(color: AppColors.primaryGreen)),
+                                  )
+                                ],
+                              )
+                                  : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    selectedWalletId == null
+                                        ? "Pilih Dompet"
+                                        : _wallets.firstWhere((w) => w['id'] == selectedWalletId, orElse: () => {'name': 'Pilih Dompet'})['name'],
+                                    style: TextStyle(fontSize: 14, color: selectedWalletId == null ? Colors.grey : textColor),
+                                  ),
+                                  const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                                ],
+                              )),
                             ),
                           ],
                         ),
@@ -835,8 +828,14 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                           children: [
                             const FaIcon(FontAwesomeIcons.calendarDays, color: AppColors.primaryGreen, size: 20),
                             const SizedBox(width: 15),
-                            Text(DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate), style: TextStyle(fontSize: 14, color: textColor)),
-                            const Spacer(),
+                            Expanded(
+                              child: Text(
+                                DateFormat('EEEE, dd MMMM yyyy', 'id').format(selectedDate),
+                                style: TextStyle(fontSize: 14, color: textColor),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
                             const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
                           ],
                         ),
@@ -861,8 +860,15 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                       controller: _noteController,
                       maxLines: 2,
                       textInputAction: TextInputAction.done,
+                      textCapitalization: TextCapitalization.sentences,
                       style: TextStyle(color: textColor),
-                      decoration: InputDecoration(hintText: "Beli apa hari ini?", hintStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white30 : Colors.grey), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none),
+                      decoration: InputDecoration(
+                          hintText: isExpense ? "Beli apa hari ini?" : "Dapat uang dari mana?",
+                          hintStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white30 : Colors.grey),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none
+                      ),
                     ),
                     Divider(height: 20, color: dividerColor, thickness: 1),
                     InkWell(
@@ -925,6 +931,76 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     );
   }
 
+  Widget getAmountInputSection(bool isDark, Color cardColor, Color textColor) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => FocusScope.of(context).requestFocus(_amountFocusNode),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(color: cardColor, boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5), borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                children: [
+                  _buildTabItem("Pengeluaran", isExpense, isDark, cardColor),
+                  _buildTabItem("Pemasukan", !isExpense, isDark, cardColor),
+                ],
+              ),
+            ),
+            const SizedBox(height: 25),
+            const Text('NOMINAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+            const SizedBox(height: 10),
+
+            SizedBox(
+              height: 60,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: IntrinsicWidth(
+                        child: TextField(
+                          controller: _amountController,
+                          focusNode: _amountFocusNode,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [LengthLimitingTextInputFormatter(18)],
+                          style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
+                          cursorColor: AppColors.primaryGreen,
+                          decoration: InputDecoration(border: InputBorder.none, hintText: "0", hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)),
+                          onChanged: (value) {
+                            if (value.isNotEmpty) {
+                              String clean = value.replaceAll('.', '');
+                              clean = clean.replaceFirst(RegExp(r'^0+'), '');
+                              if (clean.isEmpty) {
+                                _amountController.value = const TextEditingValue(text: '', selection: TextSelection.collapsed(offset: 0));
+                                return;
+                              }
+                              String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
+                              _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTabItem(String title, bool active, bool isDark, Color cardColor) {
     return Expanded(
       child: GestureDetector(
@@ -948,7 +1024,6 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Widget _buildCatItem(dynamic icon, String label, Color color, bool isDark, Color cardColor, double itemWidth, {bool isNew = false}) {
-    bool isSelected = selectedCategory == label;
     return GestureDetector(
       onTap: () {
         if (isNew) {
@@ -969,10 +1044,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             Container(
               padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: isNew ? cardColor : (isSelected ? color.withValues(alpha: 0.2) : cardColor),
+                color: isNew ? cardColor : (selectedCategory == label ? color.withValues(alpha: 0.2) : cardColor),
                 shape: BoxShape.circle,
-                border: isNew ? Border.all(color: Colors.grey.shade500) : (isSelected ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent)),
-                boxShadow: (isDark || isSelected) ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+                border: isNew ? Border.all(color: Colors.grey.shade500) : (selectedCategory == label ? Border.all(color: color, width: 2) : Border.all(color: Colors.transparent)),
+                boxShadow: (isDark || selectedCategory == label) ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
               ),
               child: FaIcon(icon, color: color, size: 24),
             ),
@@ -980,7 +1055,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: isSelected ? (isDark ? Colors.white : Colors.black87) : Colors.grey),
+              style: TextStyle(fontSize: 11, color: selectedCategory == label ? (isDark ? Colors.white : Colors.black87) : Colors.grey),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -9,7 +10,7 @@ import '../../../widgets/wallet_helper.dart';
 import '../../../widgets/network_helper.dart';
 
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({Key? key}) : super(key: key);
+  const WalletScreen({super.key});
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -52,7 +53,7 @@ class _WalletScreenState extends State<WalletScreen> {
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return; // Langsung lompat ke finally
+      if (userId == null) return;
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
       final txResponse = await supabase.from('transactions').select().eq('user_id', userId);
@@ -84,10 +85,12 @@ class _WalletScreenState extends State<WalletScreen> {
           'name': wName,
           'balance': currentBal,
           'subtitle': WalletHelper.getSubtitle(wName),
-          'icon': WalletHelper.getIcon(iconName, wName),
+          'icon': WalletHelper.getIcon(iconName, wName, color: WalletHelper.getColor(wName), size: 16),
           'color': WalletHelper.getColor(wName),
         });
       }
+
+      processedWallets.sort((a, b) => (b['balance'] as int).compareTo(a['balance'] as int));
 
       if (mounted) {
         setState(() {
@@ -118,6 +121,8 @@ class _WalletScreenState extends State<WalletScreen> {
     final amount = int.tryParse(cleanAmount) ?? 0;
 
     final fromWallet = _wallets.firstWhere((w) => w['id'] == selectedFromAccountId);
+    final toWallet = _wallets.firstWhere((w) => w['id'] == selectedToAccountId);
+
     if (amount > fromWallet['balance']) {
       CustomNotification.show(context, 'Gagal: Saldo dompet asal tidak mencukupi!', isError: true);
       return;
@@ -136,25 +141,28 @@ class _WalletScreenState extends State<WalletScreen> {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final note = _noteController.text.isNotEmpty ? _noteController.text : 'Transfer Internal';
 
-      await supabase.from('transactions').insert({
-        'amount': amount,
-        'is_expense': true,
-        'category': 'Transfer',
-        'wallet_id': selectedFromAccountId,
-        'transaction_date': today,
-        'note': note,
-        'user_id': userId,
-      });
-
-      await supabase.from('transactions').insert({
-        'amount': amount,
-        'is_expense': false,
-        'category': 'Transfer',
-        'wallet_id': selectedToAccountId,
-        'transaction_date': today,
-        'note': note,
-        'user_id': userId,
-      });
+      await supabase.from('transactions').insert([
+        {
+          'amount': amount,
+          'is_expense': true,
+          'category': 'Transfer',
+          'wallet_id': selectedFromAccountId,
+          'wallet_name': fromWallet['name'],
+          'transaction_date': today,
+          'note': note,
+          'user_id': userId,
+        },
+        {
+          'amount': amount,
+          'is_expense': false,
+          'category': 'Transfer',
+          'wallet_id': selectedToAccountId,
+          'wallet_name': toWallet['name'],
+          'transaction_date': today,
+          'note': note,
+          'user_id': userId,
+        }
+      ]);
 
       if (mounted) {
         CustomNotification.show(context, 'Transfer Berhasil!');
@@ -179,44 +187,32 @@ class _WalletScreenState extends State<WalletScreen> {
     if (!mounted) return;
     if (!hasConnection) return;
 
-    setState(() => _isLoading = true);
-    try {
-      final txCheck = await supabase.from('transactions').select('id').eq('wallet_id', id);
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (txCheck.isNotEmpty) {
-        if (!mounted) return;
-        CustomNotification.show(context, 'Gagal: Dompet masih memiliki riwayat transaksi!', isError: true);
-        return;
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-      if (mounted) CustomNotification.show(context, 'Gagal mengecek data: $e', isError: true);
-      return;
-    }
-
     bool confirm = await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Dompet?'),
-        content: Text('Anda yakin ingin menghapus dompet "$name"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Dompet?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        content: Text('Anda yakin ingin menghapus dompet "$name"? Riwayat transaksi akan tetap tersimpan.', style: const TextStyle(fontSize: 14)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     ) ?? false;
+
     if (!mounted) return;
 
     if (confirm) {
       setState(() => _isLoading = true);
       try {
+        await supabase.from('transactions').update({'wallet_id': null}).eq('wallet_id', id);
+
         await supabase.from('wallets').delete().eq('id', id);
+
         _fetchWalletData();
         if (mounted) CustomNotification.show(context, 'Dompet berhasil dihapus.');
       } catch (e) {
@@ -277,6 +273,7 @@ class _WalletScreenState extends State<WalletScreen> {
               TextField(
                 controller: editBalanceController,
                 keyboardType: TextInputType.number,
+                inputFormatters: [LengthLimitingTextInputFormatter(18)],
                 decoration: const InputDecoration(
                   prefixText: 'Rp ',
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
@@ -284,7 +281,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 onChanged: (value) {
                   if (value.isNotEmpty) {
                     String clean = value.replaceAll('.', '');
-                    String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                    String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                     editBalanceController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                   }
                 },
@@ -300,6 +297,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     if (!mounted) return;
                     if (!hasConnection) return;
 
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     setState(() => _isLoading = true);
                     try {
@@ -316,10 +314,14 @@ class _WalletScreenState extends State<WalletScreen> {
                         'balance': newBaseBalance,
                       }).eq('id', wallet['id']);
 
+                      await supabase.from('transactions').update({
+                        'wallet_name': editNameController.text.trim(),
+                      }).eq('wallet_id', wallet['id']);
+
                       _fetchWalletData();
                       if (mounted) CustomNotification.show(context, 'Dompet berhasil diperbarui!');
                     } catch (e) {
-                      if (mounted) CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+                      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
                     } finally {
                       if (mounted) setState(() => _isLoading = false);
                     }
@@ -339,97 +341,112 @@ class _WalletScreenState extends State<WalletScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         final selectableWallets = _wallets
             .where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId)
             .toList();
-        final bool needsScrollableList = selectableWallets.length > 3;
 
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Text(
-                  isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 340),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text(
+                    isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-              if (_wallets.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.account_balance_wallet_outlined, size: 42, color: Colors.grey),
-                      SizedBox(height: 12),
-                      Text('Belum ada dompet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      SizedBox(height: 6),
-                      Text(
-                        'Tambahkan dompet terlebih dahulu agar transfer bisa dilakukan.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                )
-              else if (selectableWallets.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.swap_horiz, size: 42, color: Colors.grey),
-                      SizedBox(height: 12),
-                      Text('Tidak ada dompet tujuan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      SizedBox(height: 6),
-                      Text(
-                        'Buat dompet lain dulu supaya transfer antar dompet bisa dipilih.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                SizedBox(
-                  height: needsScrollableList ? MediaQuery.of(ctx).size.height * 0.5 : null,
-                  child: ListView.separated(
-                    shrinkWrap: !needsScrollableList,
-                    physics: needsScrollableList ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
-                    itemCount: selectableWallets.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 24, endIndent: 24),
-                    itemBuilder: (context, index) {
-                      final wallet = selectableWallets[index];
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            if (isFromAccount) {
-                              selectedFromAccountId = wallet['id'];
-                            } else {
-                              selectedToAccountId = wallet['id'];
-                            }
-                          });
-                          Navigator.pop(ctx);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(wallet['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                              Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                            ],
-                          ),
+                if (_wallets.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 42, color: Colors.grey),
+                        SizedBox(height: 12),
+                        Text('Belum ada dompet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                        SizedBox(height: 6),
+                        Text(
+                          'Tambahkan dompet terlebih dahulu agar transfer bisa dilakukan.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
                         ),
-                      );
-                    },
+                      ],
+                    ),
+                  )
+                else if (selectableWallets.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.swap_horiz, size: 42, color: Colors.grey),
+                        SizedBox(height: 12),
+                        Text('Tidak ada dompet tujuan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                        SizedBox(height: 6),
+                        Text(
+                          'Buat dompet lain dulu supaya transfer antar dompet bisa dipilih.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: selectableWallets.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1, indent: 24, endIndent: 24),
+                      itemBuilder: (context, index) {
+                        final wallet = selectableWallets[index];
+                        return InkWell(
+                          onTap: () {
+                            setState(() {
+                              if (isFromAccount) {
+                                selectedFromAccountId = wallet['id'];
+                              } else {
+                                selectedToAccountId = wallet['id'];
+                              }
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  flex: 1,
+                                  child: Text(wallet['name'], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 1,
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         );
       },
@@ -437,6 +454,20 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   String _formatCurrency(int amount) {
+    bool isNegative = amount < 0;
+    int absAmount = amount.abs();
+
+    if (absAmount >= 1000000000000000) {
+      return isNegative ? '-Rp 999 T+' : 'Rp 999 T+';
+    } else if (absAmount >= 1000000000000) {
+      double inT = absAmount / 1000000000000;
+      String formatted = inT.toStringAsFixed(2).replaceAll('.', ',');
+      if (formatted.endsWith(',00')) {
+        formatted = formatted.substring(0, formatted.length - 3);
+      }
+      return isNegative ? '-Rp $formatted T' : 'Rp $formatted T';
+    }
+
     return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
@@ -454,7 +485,7 @@ class _WalletScreenState extends State<WalletScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
             : SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,7 +503,14 @@ class _WalletScreenState extends State<WalletScreen> {
                   children: [
                     const Text('Total Saldo', style: TextStyle(color: Colors.white70, fontSize: 14)),
                     const SizedBox(height: 8),
-                    Text(_formatCurrency(_totalBalance), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(_formatCurrency(_totalBalance), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -482,7 +520,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         children: [
                           Icon(Icons.arrow_upward, color: Colors.white, size: 14),
                           SizedBox(width: 4),
-                          Text('Dinikmati', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text('Tersedia', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -516,14 +554,25 @@ class _WalletScreenState extends State<WalletScreen> {
               if (_wallets.isEmpty)
                 const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: Text("Belum ada dompet terdaftar.")))
               else
-                ..._wallets.map((wallet) => _buildWalletItem(
-                  wallet: wallet,
-                  isDarkMode: isDarkMode,
-                )),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 340),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _wallets.length,
+                    itemBuilder: (context, index) {
+                      return _buildWalletItem(
+                        wallet: _wallets[index],
+                        isDarkMode: isDarkMode,
+                      );
+                    },
+                  ),
+                ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               Divider(thickness: 1, color: isDarkMode ? Colors.white12 : const Color(0xFFEEEEEE)),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               Row(
                 children: [
@@ -571,12 +620,17 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        selectedFromAccountId == null
-                            ? "Pilih Dompet Asal"
-                            : _wallets.firstWhere((w) => w['id'] == selectedFromAccountId, orElse: () => {'name': 'Pilih Dompet Asal'})['name'],
-                        style: TextStyle(fontSize: 14, color: selectedFromAccountId == null ? Colors.grey.shade500 : textColor),
+                      Expanded(
+                        child: Text(
+                          selectedFromAccountId == null
+                              ? "Pilih Dompet Asal"
+                              : _wallets.firstWhere((w) => w['id'] == selectedFromAccountId, orElse: () => {'name': 'Pilih Dompet Asal'})['name'],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14, color: selectedFromAccountId == null ? Colors.grey.shade500 : textColor),
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                     ],
                   ),
@@ -597,12 +651,17 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        selectedToAccountId == null
-                            ? "Pilih Dompet Tujuan"
-                            : _wallets.firstWhere((w) => w['id'] == selectedToAccountId, orElse: () => {'name': 'Pilih Dompet Tujuan'})['name'],
-                        style: TextStyle(fontSize: 14, color: selectedToAccountId == null ? Colors.grey.shade500 : textColor),
+                      Expanded(
+                        child: Text(
+                          selectedToAccountId == null
+                              ? "Pilih Dompet Tujuan"
+                              : _wallets.firstWhere((w) => w['id'] == selectedToAccountId, orElse: () => {'name': 'Pilih Dompet Tujuan'})['name'],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14, color: selectedToAccountId == null ? Colors.grey.shade500 : textColor),
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                     ],
                   ),
@@ -614,6 +673,7 @@ class _WalletScreenState extends State<WalletScreen> {
               TextFormField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
+                inputFormatters: [LengthLimitingTextInputFormatter(18)],
                 style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                 decoration: InputDecoration(
                   prefixIcon: Padding(padding: const EdgeInsets.only(left: 16.0, right: 8.0), child: Text('Rp', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, fontSize: 16))),
@@ -628,7 +688,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 onChanged: (value) {
                   if (value.isNotEmpty) {
                     String clean = value.replaceAll('.', '');
-                    String formatted = NumberFormat.decimalPattern('id').format(int.parse(clean));
+                    String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                     _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                   }
                 },
@@ -672,30 +732,48 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildWalletItem({required Map<String, dynamic> wallet, required bool isDarkMode}) {
     return InkWell(
       onTap: () => _showEditWalletOptions(wallet),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200)),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+            color: isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200)
+        ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: wallet['color'].withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-              child: FaIcon(wallet['icon'], color: wallet['color'], size: 20),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: wallet['color'].withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10)
+              ),
+              child: wallet['icon'],
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
+              flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(wallet['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                  Text(wallet['name'], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)),
                   const SizedBox(height: 2),
-                  Text(wallet['subtitle'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text(wallet['subtitle'], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.grey, fontSize: 11)),
                 ],
               ),
             ),
-            Text(_formatCurrency(wallet['balance']), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 4,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(_formatCurrency(wallet['balance']), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                ),
+              ),
+            ),
           ],
         ),
       ),

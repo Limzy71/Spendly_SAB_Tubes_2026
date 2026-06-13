@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
-
-// IMPORT NETWORK HELPER
 import '../../../../widgets/network_helper.dart';
 
 class EditBudgetScreen extends StatefulWidget {
@@ -15,12 +14,12 @@ class EditBudgetScreen extends StatefulWidget {
   final Color iconColor;
 
   const EditBudgetScreen({
-    Key? key,
+    super.key,
     required this.category,
     required this.currentLimit,
     required this.icon,
     required this.iconColor,
-  }) : super(key: key);
+  });
 
   @override
   State<EditBudgetScreen> createState() => _EditBudgetScreenState();
@@ -54,13 +53,13 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   }
 
   String _formatNumber(String s) {
-    String digits = s.replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return '0';
-    return NumberFormat.decimalPattern('id').format(int.parse(digits));
+    String clean = s.replaceAll(RegExp(r'\D'), '');
+    clean = clean.replaceFirst(RegExp(r'^0+'), '');
+    if (clean.isEmpty) return '0';
+    return NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
   }
 
   Future<void> _fetchTransactionHistory() async {
-    // 1. INTEGRASI NETWORK HELPER
     bool isOnline = await NetworkHelper.checkConnection(context);
     if (!mounted) return;
     if (!isOnline) {
@@ -93,10 +92,9 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   }
 
   Future<void> _updateBudget() async {
-    // 2. INTEGRASI NETWORK HELPER
-    bool isOnline2 = await NetworkHelper.checkConnection(context);
+    bool isOnline = await NetworkHelper.checkConnection(context);
     if (!mounted) return;
-    if (!isOnline2) return;
+    if (!isOnline) return;
 
     setState(() => _isLoading = true);
 
@@ -105,7 +103,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       if (userId == null) return;
 
       final cleanLimit = _limitController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      final newLimitAmount = int.parse(cleanLimit);
+      final newLimitAmount = int.tryParse(cleanLimit) ?? 0;
 
       final newCategoryName = _categoryController.text.trim();
 
@@ -140,7 +138,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       CustomNotification.show(context, 'Anggaran berhasil diperbarui!');
     } catch (e) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal memperbarui: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -168,9 +166,10 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
 
     if (confirm != true) return;
 
-    // 3. INTEGRASI NETWORK HELPER (Setel di sini agar ngecek internetnya setelah user yakin menghapus)
+    if (!mounted) return;
     if (!await NetworkHelper.checkConnection(context)) return;
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -191,7 +190,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       }
     } catch (e) {
       if (mounted) {
-        CustomNotification.show(context, 'Gagal menghapus: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -270,35 +269,47 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
-              child: Row(
-                children: [
-                  const Text('Rp', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _limitController,
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: '0',
-                          hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
+              child: SizedBox(
+                height: 60,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: IntrinsicWidth(
+                          child: TextFormField(
+                            controller: _limitController,
+                            style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [LengthLimitingTextInputFormatter(18)],
+                            decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: '0',
+                                hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
+                            ),
+                            onChanged: (value) {
+                              if (value.isNotEmpty) {
+                                String clean = value.replaceAll('.', '');
+                                clean = clean.replaceFirst(RegExp(r'^0+'), '');
+                                if (clean.isEmpty) {
+                                  _limitController.value = const TextEditingValue(text: '', selection: TextSelection.collapsed(offset: 0));
+                                  return;
+                                }
+                                String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
+                                _limitController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                              }
+                            },
+                          ),
+                        ),
                       ),
-                      onChanged: (value) {
-                        String digits = value.replaceAll(RegExp(r'\D'), '');
-                        if (digits.isEmpty) {
-                          _limitController.text = '';
-                          return;
-                        }
-                        String formatted = _formatNumber(digits);
-                        _limitController.value = TextEditingValue(
-                          text: formatted,
-                          selection: TextSelection.collapsed(offset: formatted.length),
-                        );
-                      },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 40),
@@ -336,8 +347,8 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
               itemBuilder: (context, index) {
                 final tx = _transactionHistory[index];
 
-                final amount = tx['amount'] as int;
-                final isExpense = tx['is_expense'] as bool;
+                final amount = tx['amount'] as int? ?? 0;
+                final isExpense = tx['is_expense'] as bool? ?? false;
                 final note = tx['note']?.toString() ?? '';
                 final txDate = tx['transaction_date'].toString().split('T')[0];
 

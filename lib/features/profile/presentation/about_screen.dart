@@ -59,7 +59,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text('Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 4),
-            Text('Versi 1.0.7', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
+            Text('Versi 1.0.10', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
             const SizedBox(height: 30),
 
             Text(
@@ -94,7 +94,7 @@ class AboutScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('La Ode Muh. Ikhsan Mbala', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
-                              Text('Project Manager / Back-End', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)), // <-- Update Role
+                              Text('Project Manager / Full-stack', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)), // <-- Update Role
                             ],
                           ),
                         ),

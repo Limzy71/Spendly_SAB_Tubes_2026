@@ -6,8 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:intl/intl.dart'; // <--- DI-DRY: Menggunakan sistem intl pusat
+import 'package:intl/intl.dart';
 import '../../../widgets/custom_notification.dart';
+import '../../../widgets/network_helper.dart';
 
 class ExportService {
   static Future<List<Map<String, dynamic>>> _fetchDataFromSupabase(int filterMode) async {
@@ -28,12 +29,10 @@ class ExportService {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  // Helper untuk format mata uang seragam
   static String _formatCurrency(int amount) {
     return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   }
 
-  // Helper untuk format tanggal laporan yang rapi
   static String _formatDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '-';
     try {
@@ -65,7 +64,7 @@ class ExportService {
           _formatDate(item['transaction_date']),
           item['category'] ?? '-',
           tipeTransaksi,
-          _formatCurrency(amount), // <--- SEKARANG RAPI: Rp 50.000
+          _formatCurrency(amount),
           item['note'] ?? '-',
         ]);
       }
@@ -80,11 +79,15 @@ class ExportService {
       final params = SaveFileDialogParams(sourceFilePath: tempFile.path, fileName: fileName);
       final finalPath = await FlutterFileDialog.saveFile(params: params);
 
-      if (finalPath != null && context.mounted) {
-        CustomNotification.show(context, 'File CSV berhasil disimpan!');
+      if (context.mounted) {
+        if (finalPath != null) {
+          CustomNotification.show(context, 'File CSV berhasil disimpan!');
+        } else {
+          CustomNotification.show(context, 'Penyimpanan file CSV dibatalkan', isWarning: true);
+        }
       }
     } catch (e) {
-      if (context.mounted) CustomNotification.show(context, 'Gagal memproses CSV: $e', isError: true);
+      if (context.mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memproses CSV');
     }
   }
 
@@ -111,7 +114,7 @@ class ExportService {
           _formatDate(item['transaction_date']?.toString()),
           item['category']?.toString() ?? '-',
           tipeTransaksi,
-          _formatCurrency(amount), // <--- SEKARANG RAPI: Rp 50.000
+          _formatCurrency(amount),
           item['note']?.toString() ?? '-',
         ]);
       }
@@ -147,11 +150,15 @@ class ExportService {
       final params = SaveFileDialogParams(sourceFilePath: tempFile.path, fileName: fileName);
       final finalPath = await FlutterFileDialog.saveFile(params: params);
 
-      if (finalPath != null && context.mounted) {
-        CustomNotification.show(context, 'File PDF berhasil disimpan!');
+      if (context.mounted) {
+        if (finalPath != null) {
+          CustomNotification.show(context, 'File PDF berhasil disimpan!');
+        } else {
+          CustomNotification.show(context, 'Penyimpanan file PDF dibatalkan', isWarning: true);
+        }
       }
     } catch (e) {
-      if (context.mounted) CustomNotification.show(context, 'Gagal memproses PDF: $e', isError: true);
+      if (context.mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memproses PDF');
     }
   }
 }

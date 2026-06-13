@@ -26,6 +26,10 @@ class FaqScreen extends StatelessWidget {
         'answer': 'Bisa! Spendly menyediakan fitur "Transfer Antar Akun" (misalnya dari BCA ke GoPay). Transaksi ini hanya memindahkan saldo dan tidak akan dihitung sebagai pengeluaran Anda.'
       },
       {
+        'question': 'Apakah Spendly bisa digunakan tanpa internet (Offline)?',
+        'answer': 'Untuk saat ini, Spendly membutuhkan koneksi internet aktif karena semua data transaksi Anda langsung disimpan dan disinkronkan secara aman ke server Cloud kami secara real-time.'
+      },
+      {
         'question': 'Apakah data keuangan saya di Spendly aman?',
         'answer': 'Sangat aman. Spendly dilengkapi dengan fitur keamanan tingkat tinggi. Anda dapat mengaktifkan Passcode/PIN 4-6 digit serta menggunakan Autentikasi Biometrik (Sidik Jari / Face ID) melalui menu Pengaturan Akun di halaman Profil.'
       },
@@ -50,8 +54,16 @@ class FaqScreen extends StatelessWidget {
         'answer': 'Tentu! Anda bisa menekan tombol "Baru" dengan ikon Plus (+) saat memilih kategori atau dompet. Untuk menghapus kategori yang sudah Anda buat, cukup tekan dan tahan (Long Press) pada ikon kategori tersebut.'
       },
       {
+        'question': 'Bagaimana jika saya lupa kata sandi (password)?',
+        'answer': 'Anda dapat menekan tombol "Lupa Password" pada halaman Login. Kami akan mengirimkan tautan (link) ke email Anda yang terdaftar untuk mengatur ulang kata sandi yang baru.'
+      },
+      {
         'question': 'Apakah Spendly mendukung Mode Gelap (Dark Mode)?',
         'answer': 'Ya! Anda dapat dengan mudah mengubah tampilan aplikasi menjadi Gelap (Dark) atau Terang (Light) melalui menu "Tema Aplikasi" yang berada di halaman Profil Anda.'
+      },
+      {
+        'question': 'Bagaimana cara menghapus akun Spendly saya secara permanen?',
+        'answer': 'Anda dapat menghapus akun melalui halaman Profil > Pengaturan Akun > Hapus Akun. Harap berhati-hati, karena tindakan ini bersifat permanen dan seluruh data keuangan Anda akan dihapus dari server kami dan tidak dapat dipulihkan.'
       },
     ];
 
@@ -134,7 +146,7 @@ class FaqScreen extends StatelessWidget {
 
                 ElevatedButton.icon(
                   onPressed: () async {
-                    const String emailTujuan = 'email.spendly@gmail.com';
+                    const String emailTujuan = 'spendly.id@gmail.com';
                     const String subjek = 'Bantuan Aplikasi Spendly';
 
                     final Uri emailUri = Uri.parse('mailto:$emailTujuan?subject=${Uri.encodeComponent(subjek)}');

@@ -14,7 +14,7 @@ import '../../../../widgets/network_helper.dart';
 class AllTransactionsScreen extends StatefulWidget {
   final String filterType;
 
-  const AllTransactionsScreen({Key? key, this.filterType = 'all'}) : super(key: key);
+  const AllTransactionsScreen({super.key, this.filterType = 'all'});
 
   @override
   State<AllTransactionsScreen> createState() => _AllTransactionsScreenState();
@@ -81,13 +81,11 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   }
 
   Future<void> _fetchAllTransactions() async {
-    setState(() => _isLoading = true);
-
     bool hasConnection = await NetworkHelper.checkConnection(context);
-    if (!hasConnection) {
-      if (mounted) setState(() => _isLoading = false);
-      return; // Hentikan proses jika internet mati
-    }
+    if (!hasConnection) return;
+
+    if (!mounted) return;
+    setState(() => _isLoading = true);
 
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -143,13 +141,20 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         endDate = null;
       }
 
+      String getWalletName(Map<String, dynamic> t) {
+        String savedName = t['wallet_name']?.toString() ?? '';
+        if (savedName.trim().isNotEmpty) return savedName;
+        int wId = int.tryParse(t['wallet_id'].toString()) ?? -1;
+        if (walletData.containsKey(wId)) return walletData[wId]!['name'];
+        return 'Dompet (Dihapus)';
+      }
+
       for (var tx in txResponse) {
-        int id = tx['id'] as int;
+        int id = tx['id'] as int? ?? 0;
         if (processedIds.contains(id)) continue;
 
-        int amount = tx['amount'] as int;
-        bool isExpense = tx['is_expense'] as bool;
-        int walletId = tx['wallet_id'] as int;
+        int amount = tx['amount'] as int? ?? 0;
+        bool isExpense = tx['is_expense'] as bool? ?? false;
         String category = tx['category']?.toString() ?? '';
         DateTime txDate = DateTime.parse(tx['transaction_date']);
 
@@ -167,25 +172,27 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                 (t) => t['category']?.toString().toLowerCase() == 'transfer' &&
                 t['amount'] == amount &&
                 t['is_expense'] != isExpense &&
-                !processedIds.contains(t['id'] as int),
+                !processedIds.contains(int.tryParse(t['id'].toString()) ?? -1),
             orElse: () => <String, dynamic>{},
           );
 
           var mergedTx = Map<String, dynamic>.from(tx);
           if (isExpense) {
-            mergedTx['from_wallet'] = walletData[walletId]?['name'] ?? 'Dompet';
-            mergedTx['to_wallet'] = partner.isNotEmpty ? (walletData[partner['wallet_id']]?['name'] ?? 'Dompet') : 'Dompet';
+            mergedTx['from_wallet'] = getWalletName(tx);
+            mergedTx['to_wallet'] = partner.isNotEmpty ? getWalletName(partner) : 'Dompet (Dihapus)';
           } else {
-            mergedTx['to_wallet'] = walletData[walletId]?['name'] ?? 'Dompet';
-            mergedTx['from_wallet'] = partner.isNotEmpty ? (walletData[partner['wallet_id']]?['name'] ?? 'Dompet') : 'Dompet';
+            mergedTx['to_wallet'] = getWalletName(tx);
+            mergedTx['from_wallet'] = partner.isNotEmpty ? getWalletName(partner) : 'Dompet (Dihapus)';
           }
+
+          mergedTx['partner_id'] = partner.isNotEmpty ? partner['id'] : null;
 
           displayTx.add(mergedTx);
           processedIds.add(id);
-          if (partner.isNotEmpty) processedIds.add(partner['id'] as int);
+          if (partner.isNotEmpty) processedIds.add(int.tryParse(partner['id'].toString()) ?? -1);
         } else {
           var mergedTx = Map<String, dynamic>.from(tx);
-          mergedTx['wallet_name'] = walletData[walletId]?['name'] ?? 'Dompet';
+          mergedTx['wallet_name'] = getWalletName(tx);
           displayTx.add(mergedTx);
           processedIds.add(id);
         }
@@ -201,7 +208,61 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        CustomNotification.show(context, 'Gagal mengambil data: $e', isError: true);
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengambil data');
+      }
+    }
+  }
+
+  Future<bool?> _showDeleteConfirmationDialog(bool isTransfer) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Transaksi?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(isTransfer
+            ? 'Hapus riwayat transfer ini? Saldo yang dipindahkan akan otomatis dikembalikan ke dompet asal.'
+            : 'Data pengeluaran/pemasukan ini akan dihapus secara permanen dan saldo akan disesuaikan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executeDeleteTransaction(Map<String, dynamic> tx) async {
+    bool hasConnection = await NetworkHelper.checkConnection(context);
+    if (!mounted) return;
+    if (!hasConnection) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      bool isTransfer = tx['category']?.toString().toLowerCase() == 'transfer';
+      int mainId = tx['id'];
+
+      if (isTransfer && tx['partner_id'] != null) {
+        int partnerId = tx['partner_id'];
+        await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
+        await supabase.from('transactions').delete().eq('id', partnerId).eq('user_id', userId);
+      } else {
+        await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
+      }
+
+      if (mounted) {
+        CustomNotification.show(context, 'Transaksi berhasil dihapus.');
+        _fetchAllTransactions();
+      }
+    } catch (e) {
+      if (mounted) {
+        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus');
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -355,7 +416,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
   Widget _buildTransactionItem(Map<String, dynamic> tx, Color textColor, bool isDark) {
     bool isTransfer = tx['category']?.toString().toLowerCase() == 'transfer';
-    bool isExpense = tx['is_expense'] as bool;
+    bool isExpense = tx['is_expense'] as bool? ?? false;
 
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
     Color bgIconColor = amountColor.withValues(alpha: 0.1);
@@ -371,58 +432,84 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     String subtitle = "${_formatDate(tx['transaction_date'] ?? "")}$walletNameStr";
     String transferPath = isTransfer ? "${tx['from_wallet']} → ${tx['to_wallet']}" : "";
 
-    return InkWell(
-      onTap: () async {
-        if (isTransfer) {
-          CustomNotification.show(context, 'Transaksi Transfer tidak dapat diedit. Silakan hapus dan buat ulang jika terjadi kesalahan.', isWarning: true);
-          return;
-        }
-
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
-        if (!mounted) return;
-        if (result != null) {
-          _fetchAllTransactions();
-          String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
-          CustomNotification.show(context, msg);
-        }
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
+    return Dismissible(
+      key: Key('tx_${tx['id']}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))]),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: bgIconColor, borderRadius: BorderRadius.circular(12)),
-                child: FaIcon(icon, color: amountColor, size: 20)
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  if (note.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text('"$note"', style: const TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ],
-                  if (isTransfer) ...[
-                    const SizedBox(height: 6),
-                    Text(transferPath, style: TextStyle(color: Colors.blue.shade400, fontSize: 11, fontWeight: FontWeight.w600)),
-                  ]
-                ],
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.centerRight,
+        child: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.white),
+      ),
+      confirmDismiss: (direction) async {
+        return await _showDeleteConfirmationDialog(isTransfer);
+      },
+      onDismissed: (direction) {
+        _executeDeleteTransaction(tx);
+      },
+      child: InkWell(
+        onTap: () async {
+          if (isTransfer) {
+            CustomNotification.show(context, 'Transfer tidak bisa diedit. Tahan atau geser ke kiri untuk menghapus.', isWarning: true);
+            return;
+          }
+
+          final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
+          if (!mounted) return;
+          if (result != null) {
+            _fetchAllTransactions();
+            String msg = result is String ? result : 'Transaksi Berhasil Diperbarui!';
+            CustomNotification.show(context, msg);
+          }
+        },
+        onLongPress: () async {
+          bool? confirm = await _showDeleteConfirmationDialog(isTransfer);
+          if (confirm == true) {
+            _executeDeleteTransaction(tx);
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16), boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))]),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: bgIconColor, borderRadius: BorderRadius.circular(12)),
+                  child: FaIcon(icon, color: amountColor, size: 20)
               ),
-            ),
-            Text(
-                isTransfer ? _formatCurrency(tx['amount'] ?? 0) : "${isExpense ? '-' : '+'} ${_formatCurrency(tx['amount'] ?? 0)}",
-                style: TextStyle(fontWeight: FontWeight.bold, color: amountColor, fontSize: 14)
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    if (note.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text('"$note"', style: const TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                    if (isTransfer) ...[
+                      const SizedBox(height: 6),
+                      Text(transferPath, style: TextStyle(color: Colors.blue.shade400, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ]
+                  ],
+                ),
+              ),
+              Text(
+                  isTransfer ? _formatCurrency(tx['amount'] ?? 0) : "${isExpense ? '-' : '+'} ${_formatCurrency(tx['amount'] ?? 0)}",
+                  style: TextStyle(fontWeight: FontWeight.bold, color: amountColor, fontSize: 14)
+              ),
+            ],
+          ),
         ),
       ),
     );
