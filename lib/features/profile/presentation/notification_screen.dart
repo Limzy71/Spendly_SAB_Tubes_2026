@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../theme/app_colors.dart';
-import '../../../main.dart';
-import '../../../../widgets/custom_notification.dart';
 import '../../transaction/presentation/add_transaction_screen.dart';
+import '../../transaction/presentation/edit_transaction_screen.dart';
+import '../../../../widgets/network_helper.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -12,118 +16,186 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  List<Map<String, dynamic>> _history = [];
-  bool _isLoadingHistory = true;
+  final supabase = Supabase.instance.client;
+
+  List<Map<String, dynamic>> _activities = [];
+  bool _isLoading = true;
+  bool _hasTransactionToday = false;
+  bool _isUpdateAvailable = false;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _checkAppUpdate();
+    _loadActivityData();
   }
 
-  Future<void> _loadHistory() async {
-    final history = await NotificationHelper.loadHistory();
-    if (!mounted) return;
-    setState(() {
-      _history = history;
-      _isLoadingHistory = false;
-    });
+  Future<void> _checkAppUpdate() async {
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      String currentVersion = packageInfo.version;
+
+      final response = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'latest_version')
+          .maybeSingle();
+
+      if (response != null && response['value'] != null) {
+        String latestVersion = response['value'];
+        if (currentVersion != latestVersion) {
+          if (mounted) {
+            setState(() {
+              _isUpdateAvailable = true;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
-  Future<void> _clearCurrentAccountHistory() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
-
-        return Dialog(
-          backgroundColor: Theme.of(dialogContext).cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.delete_forever_rounded, color: Colors.red),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Hapus Riwayat?',
-                        style: TextStyle(
-                          color: Theme.of(dialogContext).textTheme.bodyLarge?.color,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Apakah Anda yakin ingin menghapus semua riwayat notifikasi? Tindakan ini tidak dapat dibatalkan.',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.grey.shade700,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Theme.of(dialogContext).textTheme.bodyLarge?.color,
-                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Batal'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(dialogContext, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Hapus'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-    setState(() {
-      _isLoadingHistory = true;
-    });
-
-    await NotificationHelper.clearHistory();
+  Future<void> _loadActivityData() async {
+    bool isOnline = await NetworkHelper.checkConnection(context);
     if (!mounted) return;
+    if (!isOnline) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
-    _loadHistory();
-    CustomNotification.show(context, 'Riwayat notifikasi berhasil dihapus');
+    setState(() => _isLoading = true);
+
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      List<Map<String, dynamic>> tempActivities = [];
+      DateTime now = DateTime.now();
+      bool hasTxToday = false;
+
+      final todayStr = now.toIso8601String().split('T')[0];
+      final firstDayOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+
+      final txResponse = await supabase
+          .from('transactions')
+          .select()
+          .eq('user_id', userId)
+          .eq('transaction_date', todayStr)
+          .neq('category', 'Transfer')
+          .order('created_at', ascending: false)
+          .limit(10);
+
+      if (txResponse.isNotEmpty) {
+        hasTxToday = true;
+      }
+
+      for (var tx in txResponse) {
+        bool isExpense = tx['is_expense'] == true;
+        int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+        String cat = tx['category'] ?? 'Lainnya';
+        String timeStr = tx['created_at'].toString();
+
+        tempActivities.add({
+          'type': isExpense ? 'expense' : 'income',
+          'title': isExpense ? 'Pengeluaran Baru' : 'Pemasukan Baru',
+          'body': 'Mencatat $cat sebesar ${_formatCurrency(amount)}',
+          'timestamp': DateTime.parse(timeStr),
+          'icon': isExpense ? FontAwesomeIcons.arrowTrendDown : FontAwesomeIcons.arrowTrendUp,
+          'color': isExpense ? Colors.red : AppColors.primaryGreen,
+          'transaction_data': tx,
+        });
+      }
+
+      final currentMonthStr = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
+      final budgetResponse = await supabase
+          .from('budgets')
+          .select()
+          .eq('user_id', userId)
+          .eq('period_month', currentMonthStr);
+
+      final monthTxResponse = await supabase
+          .from('transactions')
+          .select()
+          .eq('user_id', userId)
+          .eq('is_expense', true)
+          .neq('category', 'Transfer')
+          .gte('transaction_date', firstDayOfMonth)
+          .lte('transaction_date', lastDayOfMonth);
+
+      Map<String, int> spentPerCat = {};
+      for (var tx in monthTxResponse) {
+        String cat = tx['category'].toString().toLowerCase();
+        int amount = int.tryParse(tx['amount'].toString()) ?? 0;
+        spentPerCat[cat] = (spentPerCat[cat] ?? 0) + amount;
+      }
+
+      for (var b in budgetResponse) {
+        String cat = b['category'].toString();
+        int limit = int.tryParse(b['limit_amount'].toString()) ?? 0;
+        int spent = spentPerCat[cat.toLowerCase()] ?? 0;
+
+        if (limit > 0) {
+          double percentage = spent / limit;
+          if (percentage >= 0.8) {
+            tempActivities.add({
+              'type': 'budget_alert',
+              'title': 'Peringatan Anggaran',
+              'body': 'Anggaran $cat sudah terpakai ${(percentage * 100).toInt()}%. Hati-hati overbudget!',
+              'timestamp': now,
+              'icon': FontAwesomeIcons.triangleExclamation,
+              'color': Colors.orange,
+              'transaction_data': null,
+            });
+          }
+        }
+      }
+
+      final walletResponse = await supabase
+          .from('wallets')
+          .select()
+          .eq('user_id', userId)
+          .gte('created_at', '${now.toIso8601String().split('T')[0]}T00:00:00');
+
+      for (var w in walletResponse) {
+        tempActivities.add({
+          'type': 'wallet_new',
+          'title': 'Dompet Baru Dibuat',
+          'body': 'Berhasil menambahkan dompet ${w['name']}',
+          'timestamp': DateTime.parse(w['created_at'].toString()),
+          'icon': FontAwesomeIcons.wallet,
+          'color': Colors.blue,
+          'transaction_data': null,
+        });
+      }
+
+      tempActivities.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+
+      if (mounted) {
+        setState(() {
+          _activities = tempActivities;
+          _hasTransactionToday = hasTxToday;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _formatCurrency(int amount) {
+    return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+  }
+
+  String _getTimeAgo(DateTime date) {
+    Duration diff = DateTime.now().difference(date);
+    if (diff.inDays > 0) return '${diff.inDays} hari yang lalu';
+    if (diff.inHours > 0) return '${diff.inHours} jam yang lalu';
+    if (diff.inMinutes > 0) return '${diff.inMinutes} menit yang lalu';
+    return 'Baru saja';
   }
 
   @override
@@ -141,55 +213,57 @@ class _NotificationScreenState extends State<NotificationScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Notifikasi', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18)),
-        actions: [
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: textColor),
-            onSelected: (value) {
-              if (value == 'clear') {
-                _clearCurrentAccountHistory();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem<String>(
-                value: 'clear',
-                child: Text('Hapus Riwayat'),
-              ),
-            ],
-          ),
-        ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadHistory,
+        onRefresh: _loadActivityData,
         color: AppColors.primaryGreen,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            if (_isUpdateAvailable)
+              _buildFeaturedNotifItem(
+                context,
+                FontAwesomeIcons.rocket,
+                AppColors.primaryGreen,
+                'Update Tersedia! 🎉',
+                'Versi terbaru Spendly sudah tersedia di Play Store. Segera perbarui untuk menikmati fitur baru!',
+                'Pesan Sistem',
+                isDark,
+              ),
+
             _buildFeaturedNotifItem(
               context,
-              Icons.celebration,
+              FontAwesomeIcons.champagneGlasses,
               AppColors.primaryGreen,
               'Selamat Datang di Spendly!',
               'Terima kasih telah menggunakan aplikasi pencatatan keuangan ini.',
-              'Pada saat pembuatan akun',
+              'Awal pembuatan akun',
               isDark,
             ),
-            _buildFeaturedNotifItem(
-              context,
-              Icons.account_balance_wallet,
-              Colors.blue,
-              'Waktu untuk Mencatat',
-              'Jangan lupa mencatat pengeluaran dan pemasukan harian Anda.',
-              'Pada saat aplikasi dibuka',
-              isDark,
-              isClickable: true,
-            ),
-            if (_isLoadingHistory)
+
+            if (!_isLoading && !_hasTransactionToday)
+              _buildFeaturedNotifItem(
+                context,
+                FontAwesomeIcons.wallet,
+                Colors.blue,
+                'Waktu untuk Mencatat',
+                'Anda belum mencatat pengeluaran atau pemasukan hari ini. Yuk catat sekarang!',
+                'Pengingat Harian',
+                isDark,
+                isClickable: true,
+              ),
+
+            const SizedBox(height: 16),
+            const Text('Aktivitas Anda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.grey)),
+            const SizedBox(height: 12),
+
+            if (_isLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)),
               )
-            else if (_history.isEmpty)
+            else if (_activities.isEmpty)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -198,51 +272,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
                 ),
                 child: Text(
-                  'Belum ada riwayat notifikasi. Saat pengingat dijadwalkan atau dibuka, aktivitasnya akan muncul di sini.',
-                  style: TextStyle(color: Colors.grey.shade400, height: 1.4),
+                  'Belum ada aktivitas hari ini. Tambahkan transaksi, buat dompet, atau atur anggaran untuk melihat riwayat aktivitas di sini.',
+                  style: TextStyle(color: Colors.grey.shade500, height: 1.4),
+                  textAlign: TextAlign.center,
                 ),
               )
             else
-              ..._history.take(20).map((item) => _buildHistoryItem(context, item, isDark, textColor)),
+              ..._activities.map((item) => _buildActivityItem(context, item, isDark, textColor)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHistoryItem(BuildContext context, Map<String, dynamic> item, bool isDark, Color textColor) {
-    final type = (item['type'] as String?) ?? 'opened';
-    final timestamp = DateTime.tryParse((item['timestamp'] as String?) ?? '') ?? DateTime.now();
-    final formattedTime = '${timestamp.day.toString().padLeft(2, '0')}/${timestamp.month.toString().padLeft(2, '0')} • ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-
-    Color iconColor;
-    IconData iconData;
-
-    switch (type) {
-      case 'scheduled_daily':
-        iconColor = AppColors.primaryGreen;
-        iconData = Icons.schedule;
-        break;
-      case 'sent_daily':
-        iconColor = AppColors.primaryGreen;
-        iconData = Icons.alarm_on;
-        break;
-      case 'scheduled_bill':
-        iconColor = Colors.orange;
-        iconData = Icons.receipt_long;
-        break;
-      case 'sent_bill':
-        iconColor = Colors.orange;
-        iconData = Icons.check_circle_outline;
-        break;
-      case 'opened':
-        iconColor = Colors.blue;
-        iconData = Icons.notifications_active;
-        break;
-      default:
-        iconColor = Colors.grey;
-        iconData = Icons.notifications;
-    }
+  Widget _buildActivityItem(BuildContext context, Map<String, dynamic> item, bool isDark, Color textColor) {
+    Color iconColor = item['color'];
+    dynamic iconData = item['icon'];
+    bool isTransaction = item['type'] == 'expense' || item['type'] == 'income';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -251,38 +297,61 @@ class _NotificationScreenState extends State<NotificationScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: iconColor.withValues(alpha: 0.12),
-              child: Icon(iconData, color: iconColor),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    (item['title'] as String?) ?? '-',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    (item['body'] as String?) ?? '-',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    formattedTime,
-                    style: TextStyle(color: iconColor, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: isTransaction && item['transaction_data'] != null
+              ? () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditTransactionScreen(
+                  transaction: item['transaction_data'],
+                ),
               ),
+            ).then((_) => _loadActivityData());
+          }
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: iconColor.withValues(alpha: 0.12),
+                  child: FaIcon(iconData, color: iconColor, size: 18),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['title'],
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item['body'],
+                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _getTimeAgo(item['timestamp']),
+                        style: TextStyle(color: iconColor, fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isTransaction)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0),
+                    child: Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -290,7 +359,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Widget _buildFeaturedNotifItem(
       BuildContext context,
-      IconData icon,
+      dynamic icon,
       Color color,
       String title,
       String subtitle,
@@ -314,7 +383,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
-            );
+            ).then((_) => _loadActivityData());
           }
               : null,
           child: Padding(
@@ -322,7 +391,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: Icon(icon, color: color)),
+                CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: FaIcon(icon, color: color, size: 18)),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(

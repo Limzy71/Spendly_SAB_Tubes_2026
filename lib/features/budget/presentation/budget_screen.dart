@@ -33,7 +33,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   Future<void> _fetchBudgetData() async {
-    // INTEGRASI NETWORK HELPER SEBELUM FETCH DATA
     if (!await NetworkHelper.checkConnection(context)) {
       if (mounted) setState(() => _isLoading = false);
       return;
@@ -46,11 +45,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
       if (userId == null) return;
 
       final prefs = await SharedPreferences.getInstance();
-      List<String> customCats = prefs.getStringList('custom_budget_categories') ?? [];
       Map<String, String> tempIcons = {};
-      for (String cat in customCats) {
-        tempIcons[cat.toLowerCase()] = prefs.getString('custom_budget_icon_$cat') ?? 'star';
+
+      void loadCustomIcons(String listKey, String iconPrefix) {
+        final customCats = prefs.getStringList(listKey) ?? [];
+        for (final cat in customCats) {
+          tempIcons[cat.toLowerCase()] = prefs.getString('$iconPrefix$cat') ?? 'star';
+        }
       }
+
+      loadCustomIcons('custom_transaction_expense_categories_v5', 'custom_transaction_expense_icon_v5_');
 
       final DateTime now = DateTime.now();
       final String currentPeriodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];

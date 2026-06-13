@@ -34,7 +34,7 @@ class NotificationHelper {
 
   static Future<bool> canScheduleExactAlarms() async {
     final androidImplementation =
-        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
     return await androidImplementation?.canScheduleExactNotifications() ?? true;
   }
@@ -50,7 +50,7 @@ class NotificationHelper {
     );
 
     final androidImplementation =
-        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
     try {
       await androidImplementation?.requestNotificationsPermission();
@@ -232,10 +232,11 @@ class NotificationHelper {
     await ensureInitialized();
 
     final now = tz.TZDateTime.now(tz.local);
-    final scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    final baseDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    final scheduledDate = baseDate.add(const Duration(minutes: 1));
 
     _billReminderTimer?.cancel();
-    if (now.hour == hour && now.minute == minute) {
+    if (now.hour == scheduledDate.hour && now.minute == scheduledDate.minute) {
       try {
         const AndroidNotificationDetails immediateAndroidDetails = AndroidNotificationDetails(
           _billChannelId,
@@ -334,7 +335,7 @@ class NotificationHelper {
 
     await recordHistory(
       title: 'Pengingat Tagihan dijadwalkan',
-      body: 'Akan mengikuti jadwal harian pada ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}.',
+      body: 'Akan mengikuti jadwal harian pada ${scheduledDate.hour.toString().padLeft(2, '0')}:${scheduledDate.minute.toString().padLeft(2, '0')}.',
       type: 'scheduled_bill',
       payload: 'bill_reminder',
     );
