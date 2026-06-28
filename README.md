@@ -1,16 +1,16 @@
 # 💰 Spendly: Pengelola Keuangan Pribadi
 
-**Spendly** adalah aplikasi cerdas yang dirancang untuk membantu Anda mengelola keuangan pribadi dengan cara yang simpel, rapi, dan menyenangkan. Ucapkan selamat tinggal pada kesulitan melacak pengeluaran bulanan[span_1](start_span)[span_1](end_span)!
+**Spendly** adalah aplikasi cerdas yang dirancang untuk membantu Anda mengelola keuangan pribadi dengan cara yang simpel, rapi, dan menyenangkan. Ucapkan selamat tinggal pada kesulitan melacak pengeluaran bulanan!
 
 ---
 
 ## ✨ Mengapa Spendly?
-Kami memahami bahwa mengatur keuangan bisa menjadi hal yang merepotkan. Spendly hadir dengan desain yang simpel, rapi, dan mudah digunakan agar Anda bisa mencatat, memantau, dan mengelola uang dengan lebih menyenangkan[span_2](start_span)[span_2](end_span).
+Kami memahami bahwa mengatur keuangan bisa menjadi hal yang merepotkan. Spendly hadir dengan desain yang simpel, rapi, dan mudah digunakan agar Anda bisa mencatat, memantau, dan mengelola uang dengan lebih menyenangkan.
 
 ## 🚀 Fitur Unggulan
 
 ### 1. Beranda & Pemantauan Saldo Menyeluruh
-*   **Total Saldo Terpadu:** Lihat total keseluruhan uang Anda yang digabungkan dari semua tempat[span_3](start_span)[span_3](end_span).
+*   **Total Saldo Terpadu:** Lihat total keseluruhan uang Anda yang digabungkan dari semua tempat.
 *   **Pemisahan Dompet yang Rapi:** Saldo Anda otomatis dikelompokkan menjadi tiga bagian: Uang Tunai, Bank (Rekening), dan E-Wallet[span_4](start_span)[span_4](end_span).
 *   **Ringkasan Cepat:** Pantau total uang yang masuk dan uang yang keluar bulan ini, beserta daftar transaksi terakhir[span_5](start_span)[span_5](end_span).
 
