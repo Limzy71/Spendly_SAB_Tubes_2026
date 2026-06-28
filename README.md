@@ -1,68 +1,53 @@
 # 💰 Spendly: Pengelola Keuangan Pribadi
 
-**Spendly** adalah aplikasi cerdas yang dirancang untuk membantu Anda mengelola keuangan pribadi dengan cara yang simpel, rapi, dan menyenangkan. Ucapkan selamat tinggal pada kesulitan melacak pengeluaran bulanan!
-
-## ✨ Mengapa Spendly?
-Kami memahami bahwa mengatur keuangan bisa menjadi hal yang merepotkan. Spendly hadir dengan antarmuka yang intuitif agar Anda bisa mencatat, memantau, dan mengelola uang tanpa stres.
+**Spendly** adalah aplikasi cerdas yang dirancang untuk membantu Anda mengelola keuangan pribadi dengan cara yang simpel, rapi, dan menyenangkan. Ucapkan selamat tinggal pada kesulitan melacak pengeluaran bulanan[span_1](start_span)[span_1](end_span)!
 
 ---
+
+## ✨ Mengapa Spendly?
+Kami memahami bahwa mengatur keuangan bisa menjadi hal yang merepotkan. Spendly hadir dengan desain yang simpel, rapi, dan mudah digunakan agar Anda bisa mencatat, memantau, dan mengelola uang dengan lebih menyenangkan[span_2](start_span)[span_2](end_span).
 
 ## 🚀 Fitur Unggulan
 
 ### 1. Beranda & Pemantauan Saldo Menyeluruh
-*   **Total Saldo Terpadu:** Lihat total keseluruhan uang Anda dari semua akun dalam satu layar.
-*   **Pemisahan Dompet Rapi:** Saldo dikelompokkan otomatis ke dalam **Tunai**, **Bank**, dan **E-Wallet**.
-*   **Ringkasan Cepat:** Pantau pemasukan, pengeluaran, dan transaksi terakhir secara *real-time*.
+*   **Total Saldo Terpadu:** Lihat total keseluruhan uang Anda yang digabungkan dari semua tempat[span_3](start_span)[span_3](end_span).
+*   **Pemisahan Dompet yang Rapi:** Saldo Anda otomatis dikelompokkan menjadi tiga bagian: Uang Tunai, Bank (Rekening), dan E-Wallet[span_4](start_span)[span_4](end_span).
+*   **Ringkasan Cepat:** Pantau total uang yang masuk dan uang yang keluar bulan ini, beserta daftar transaksi terakhir[span_5](start_span)[span_5](end_span).
 
-### 2. Pencatatan Transaksi Cepat
-*   **Kategori Kustom:** Bebas membuat kategori pengeluaran dengan pilihan ikon menarik.
-*   **Lampiran Struk:** Ambil foto bukti fisik dan simpan langsung di catatan transaksi Anda.
-*   **Format Cerdas:** Sistem otomatis merapikan format angka agar input nominal lebih nyaman.
+### 2. Catat Transaksi Super Cepat & Lengkap
+*   **Kategori Bebas Sesuai Keinginan:** Bebas membuat kategori baru dengan memilih puluhan ikon menarik[span_6](start_span)[span_6](end_span).
+*   **Lampirkan Foto Struk:** Foto dan lampirkan langsung struk belanja ke dalam catatan transaksi[span_7](start_span)[span_7](end_span).
+*   **Pintar & Anti-Typo:** Sistem otomatis merapikan format angka agar tidak salah ketik nominal[span_8](start_span)[span_8](end_span).
 
-### 3. Budgeting (Anggaran) Anti Boncos
-*   **Batas Pengeluaran:** Atur jatah maksimal untuk kategori tertentu setiap bulan.
-*   **Progress Bar:** Pantau sisa kuota belanja Anda dengan visual yang jelas.
-*   **Pengingat Otomatis:** Dapatkan alarm peringatan jika pengeluaran sudah menyentuh 80% dari batas.
+### 3. Atur Anggaran (Budgeting)
+*   **Batas Pengeluaran Bulanan:** Tentukan jatah maksimal untuk kategori tertentu[span_9](start_span)[span_9](end_span).
+*   **Pantau Sisa Kuota:** Terdapat *progress bar* yang menunjukkan berapa persen uang yang sudah terpakai[span_10](start_span)[span_10](end_span).
+*   **Pengingat Otomatis:** Spendly akan memberi tahu Anda jika pengeluaran sudah menyentuh 80% dari batas yang ditentukan[span_11](start_span)[span_11](end_span).
 
 ### 4. Transfer Antar Dompet
-*   Pindahkan saldo (misalnya dari Bank ke E-Wallet) tanpa mengacaukan laporan pengeluaran bulanan Anda. Sistem secara cerdas akan menyesuaikan saldo di kedua dompet secara otomatis.
+*   Pindahkan saldo dari satu akun ke akun lain tanpa mengacaukan laporan pengeluaran bulanan Anda[span_12](start_span)[span_12](end_span).
 
-### 5. Analisis Laporan Keuangan
-*   **Visualisasi:** Grafik Donat untuk melihat kategori terboros dan Grafik Tren untuk memantau arus kas Anda.
-*   **Filter Fleksibel:** Laporan harian, mingguan, bulanan, tahunan, hingga rentang tanggal kustom.
+### 5. Laporan Keuangan & Analisis Visual
+*   **Grafik Donat (Donut Chart):** Melihat kategori apa yang paling banyak menguras kantong[span_13](start_span)[span_13](end_span).
+*   **Grafik Tren (Bar Chart):** Membandingkan pemasukan vs pengeluaran[span_14](start_span)[span_14](end_span).
+*   **Filter Waktu Fleksibel:** Cek laporan harian, mingguan, bulanan, tahunan, atau tanggal spesifik[span_15](start_span)[span_15](end_span).
 
-### 6. Privasi & Keamanan Data
-*   **Keamanan Ganda:** Kunci aplikasi dengan PIN 6-digit atau autentikasi biometrik (Sidik Jari/Wajah).
-*   **Sinkronisasi Cloud:** Cadangkan data Anda ke Google Drive agar tidak hilang saat berganti perangkat.
-*   **Ekspor Data:** Simpan laporan keuangan Anda ke format PDF yang rapi atau CSV untuk diolah di Excel.
+### 6. Privasi Aman & Data Tidak Akan Hilang
+*   **Keamanan Ganda:** Kunci aplikasi menggunakan PIN 6-digit atau biometrik (Sidik Jari/Wajah)[span_16](start_span)[span_16](end_span).
+*   **Cadangkan ke Google Drive:** Data aman dan bisa dikembalikan kapan saja[span_17](start_span)[span_17](end_span).
+*   **Ekspor Laporan:** Ekspor riwayat transaksi menjadi file PDF atau CSV dengan satu tombol[span_18](start_span)[span_18](end_span).
+
+---
+
+## 👨‍💻 Tim Pengembang
+Aplikasi ini dikembangkan oleh:
+*   **Dhaffa Galang Fahriza** - Data Administrator & QA
+*   **Murod Fikri Fadlulrohman** - Front-End & UI/UX
+*   **La Ode Muh. Ikhsan Mbala** - Project Manajer
+
+*Dikembangkan sebagai bagian dari proyek Universitas Pasundan (UNPAS) - 2026.*
 
 ---
 
 ## 💡 Tips Pengguna
-1.  **Mulai Sekarang:** Tambahkan dompet pertama Anda dan buat kategori sesuai kebutuhan.
-2.  **Rutin Mencatat:** Aktifkan fitur pengingat harian agar laporan keuangan Anda selalu akurat.
-3.  **Ekspor:** Gunakan fitur ekspor di akhir bulan untuk rekapitulasi keuangan Anda.
-
-*Pegang kendali penuh atas uang Anda bersama Spendly!*
-
----
-*Dibuat dengan sepenuh hati untuk membantu pengelolaan keuangan yang lebih baik.*
-
-
-# spendly
-
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Jangan ragu untuk bereksplorasi! Coba tambahkan dompet pertama Anda, buat beberapa kategori pengeluaran, dan mulailah mencatat transaksi pertama Anda hari ini. Pegang kendali penuh atas uangmu bersama Spendly[span_19](start_span)[span_19](end_span)!
