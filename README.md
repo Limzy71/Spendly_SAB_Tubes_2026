@@ -41,9 +41,9 @@ Kami memahami bahwa mengatur keuangan bisa menjadi hal yang merepotkan. Spendly 
 
 ## 👨‍💻 Tim Pengembang
 Aplikasi ini dikembangkan oleh:
+*   **La Ode Muh. Ikhsan Mbala** - Project Manajer & Full Stack
 *   **Dhaffa Galang Fahriza** - Data Administrator & QA
 *   **Murod Fikri Fadlulrohman** - Front-End & UI/UX
-*   **La Ode Muh. Ikhsan Mbala** - Project Manajer
 
 *Dikembangkan sebagai bagian dari proyek Universitas Pasundan (UNPAS) - 2026.*
 
