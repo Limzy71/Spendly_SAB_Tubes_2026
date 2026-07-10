@@ -54,11 +54,13 @@ class _CustomAppBarState extends State<CustomAppBar> {
   }
 
   Future<void> _checkUnreadNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
-
+    if (!mounted || !context.mounted) return;
     bool isOnline = await NetworkHelper.checkConnection(context);
     if (!isOnline) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
 
     try {
       final todayStr = DateTime.now().toIso8601String().split('T')[0];
@@ -181,6 +183,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
           ),
           onPressed: () async {
             if (!mounted) return;
+            final navigator = Navigator.of(context);
             final userId = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
             final prefs = await SharedPreferences.getInstance();
 
@@ -191,8 +194,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
             }
 
             if (!mounted) return;
-            await Navigator.push(
-              context,
+            await navigator.push(
               MaterialPageRoute(builder: (context) => const NotificationScreen()),
             );
 
