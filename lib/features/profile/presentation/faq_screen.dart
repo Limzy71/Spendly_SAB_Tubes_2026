@@ -125,7 +125,12 @@ class FaqScreen extends StatelessWidget {
           ),
 
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: 20 + MediaQuery.paddingOf(context).bottom,
+            ),
             decoration: BoxDecoration(
               color: isDark ? Colors.black26 : Colors.grey.shade50,
               border: Border(top: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
