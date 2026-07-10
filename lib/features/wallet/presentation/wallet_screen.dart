@@ -187,12 +187,54 @@ class _WalletScreenState extends State<WalletScreen> {
     if (!mounted) return;
     if (!hasConnection) return;
 
+    setState(() => _isLoading = true);
+
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final txCheck = await supabase.from('transactions').select('id').eq('wallet_id', id).limit(1);
+
+      if (txCheck.isNotEmpty) {
+        setState(() => _isLoading = false);
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Tindakan Ditolak', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            content: const Text(
+              'Dompet ini tidak dapat dihapus karena masih terhubung dengan riwayat transaksi (pemasukan, pengeluaran, atau transfer).\n\nSilakan hapus atau pindahkan transaksi tersebut ke dompet lain terlebih dahulu.',
+              style: TextStyle(fontSize: 14, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Mengerti', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mengecek data');
+      return;
+    }
+
+    setState(() => _isLoading = false);
+    if (!mounted) return;
+
     bool confirm = await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Hapus Dompet?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        content: Text('Anda yakin ingin menghapus dompet "$name"? Riwayat transaksi akan tetap tersimpan.', style: const TextStyle(fontSize: 14)),
+        content: Text('Anda yakin ingin menghapus dompet "$name"?', style: const TextStyle(fontSize: 14)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -209,8 +251,6 @@ class _WalletScreenState extends State<WalletScreen> {
     if (confirm) {
       setState(() => _isLoading = true);
       try {
-        await supabase.from('transactions').update({'wallet_id': null}).eq('wallet_id', id);
-
         await supabase.from('wallets').delete().eq('id', id);
 
         _fetchWalletData();
@@ -281,6 +321,10 @@ class _WalletScreenState extends State<WalletScreen> {
                 onChanged: (value) {
                   if (value.isNotEmpty) {
                     String clean = value.replaceAll('.', '');
+                    if (clean.startsWith('0') && clean.length > 1) {
+                      clean = clean.replaceFirst(RegExp(r'^0+'), '');
+                      if (clean.isEmpty) clean = '0';
+                    }
                     String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                     editBalanceController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                   }
@@ -688,6 +732,10 @@ class _WalletScreenState extends State<WalletScreen> {
                 onChanged: (value) {
                   if (value.isNotEmpty) {
                     String clean = value.replaceAll('.', '');
+                    if (clean.startsWith('0') && clean.length > 1) {
+                      clean = clean.replaceFirst(RegExp(r'^0+'), '');
+                      if (clean.isEmpty) clean = '0';
+                    }
                     String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
                     _amountController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                   }

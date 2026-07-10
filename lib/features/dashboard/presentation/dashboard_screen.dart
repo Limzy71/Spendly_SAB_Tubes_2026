@@ -167,9 +167,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         String name = data['name'].toLowerCase();
         int bal = data['balance'];
         grandTotal += bal;
-        if (name.contains('tunai')) { tempTunai += bal; }
-        else if (name.contains('gopay') || name.contains('ovo') || name.contains('dana')) { tempEwallet += bal; }
-        else { tempBank += bal; }
+
+        bool isTunai = name.contains('tunai') || name.contains('cash') || name.contains('dompet');
+        bool isEwallet = name.contains('gopay') || name.contains('ovo') ||
+            name.contains('dana') || name.contains('shopee') ||
+            name.contains('spay') || name.contains('linkaja') ||
+            name.contains('e-wallet') || name.contains('ewallet') ||
+            name.contains('pay') || name.contains('qris');
+
+        if (isTunai) {
+          tempTunai += bal;
+        } else if (isEwallet) {
+          tempEwallet += bal;
+        } else {
+          tempBank += bal;
+        }
       });
 
       if (mounted) {
