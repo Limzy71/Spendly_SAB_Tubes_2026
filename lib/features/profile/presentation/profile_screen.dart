@@ -1141,14 +1141,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'Jika dua pengingat aktif, notifikasi dikirim selang 1 menit.',
-                        style: GoogleFonts.plusJakartaSans(fontSize: 10, color: Colors.grey),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
                     Divider(height: 1, thickness: 1, color: isDark ? Colors.white12 : const Color(0xFFF0F0F0)),
                     ListTile(
                       onTap: () {
@@ -1356,7 +1348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildListTile(
                   icon: FontAwesomeIcons.circleInfo,
                   title: 'Tentang Spendly',
-                  subtitle: 'v1.0.10 (Kebijakan Privasi, Layanan)',
+                  subtitle: 'v1.0.11 (Kebijakan Privasi, Layanan)',
                   trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                   onTap: () {
                     Navigator.push(

@@ -48,3 +48,10 @@ app.*.map.json
 *.jks
 *.keystore
 android/key.properties
+/android/build/
+
+# Environment & Secrets
+.env
+.env.*
+*.env
+lib/config/supabase_config.dart
