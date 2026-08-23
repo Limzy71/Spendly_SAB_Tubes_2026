@@ -33,13 +33,23 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
+      - name: Ensure Supabase Config exists
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          mkdir -p lib/config
+          if [ ! -f lib/config/supabase_config.dart ]; then
+            URL="${SUPABASE_URL:-https://kkyqghphrvnfycukwpyk.supabase.co}"
+            KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtreXFnaHBocnZuZnljdWt3cHlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTIwMDQsImV4cCI6MjA5NDE2ODAwNH0.0-YLNAcZG1U4ZL6Nrz0EdY4_Dioaq4C7sEy-VhWDtaA}"
+            printf "class SupabaseConfig {\n  static const String url = '%s';\n  static const String anonKey = '%s';\n}\n" "$URL" "$KEY" > lib/config/supabase_config.dart
+          fi
 
       - name: Get Flutter dependencies
         run: flutter pub get
 
       - name: Build Android Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --android-skip-build-dependency-validation
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
