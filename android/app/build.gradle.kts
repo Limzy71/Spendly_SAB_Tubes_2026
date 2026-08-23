@@ -13,6 +13,18 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+val releaseKeyAlias = keystoreProperties.getProperty("keyAlias")
+val releaseKeyPassword = keystoreProperties.getProperty("keyPassword")
+val releaseStorePassword = keystoreProperties.getProperty("storePassword")
+val releaseStoreFile = keystoreProperties
+    .getProperty("storeFile")
+    ?.takeIf { it.isNotBlank() }
+    ?.let { rootProject.file(it) }
+val hasReleaseSigning = !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    releaseStoreFile?.exists() == true
+
 android {
     namespace = "com.penacode.spendly"
     compileSdk = flutter.compileSdkVersion
@@ -37,17 +49,23 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties.getProperty("keyAlias")
-            keyPassword = keystoreProperties.getProperty("keyPassword")
-            storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
-            storePassword = keystoreProperties.getProperty("storePassword")
+        if (hasReleaseSigning) {
+            create("release") {
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
