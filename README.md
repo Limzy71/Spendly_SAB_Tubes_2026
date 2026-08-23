@@ -1,11 +1,24 @@
 # 💰 Spendly: Pengelola Keuangan Pribadi
 
-**Spendly** adalah aplikasi cerdas yang dirancang untuk membantu Anda mengelola keuangan pribadi dengan cara yang simpel, rapi, dan menyenangkan. Ucapkan selamat tinggal pada kesulitan melacak pengeluaran bulanan!
+**Spendly** adalah aplikasi cerdas berbasis Flutter dan Supabase yang dirancang untuk membantu Anda mengelola keuangan pribadi dengan cara yang simpel, rapi, dan menyenangkan.
+
+---
+
+## 📥 Download & Install Aplikasi (Android)
+
+Anda dapat langsung mengunduh dan menginstal file APK Spendly ke HP Android Anda:
+
+1. Buka tab **[Releases](https://github.com/Limzy71/Spendly_SAB_Tubes_2026/releases)** di repositori GitHub ini.
+2. Unduh file **`app-release.apk`** dari rilis versi terbaru.
+3. Buka file `.apk` yang telah diunduh di HP Android Anda dan pilih **Install**.
+   *(Jika muncul peringatan keamanan sumber tidak dikenal, pilih "Izinkan" / "Tetap Install")*.
 
 ---
 
 ## ✨ Mengapa Spendly?
 Kami memahami bahwa mengatur keuangan bisa menjadi hal yang merepotkan. Spendly hadir dengan desain yang simpel, rapi, dan mudah digunakan agar Anda bisa mencatat, memantau, dan mengelola uang dengan lebih menyenangkan.
+
+---
 
 ## 🚀 Fitur Unggulan
 
@@ -33,9 +46,16 @@ Kami memahami bahwa mengatur keuangan bisa menjadi hal yang merepotkan. Spendly 
 *   **Filter Waktu Fleksibel:** Cek laporan harian, mingguan, bulanan, tahunan, atau tanggal spesifik.
 
 ### 6. Privasi Aman & Data Tidak Akan Hilang
-*   **Keamanan Ganda:** Kunci aplikasi menggunakan PIN 6-digit atau biometrik (Sidik Jari/Wajah.
+*   **Keamanan Ganda:** Kunci aplikasi menggunakan PIN 6-digit atau biometrik (Sidik Jari/Wajah).
 *   **Cadangkan ke Google Drive:** Data aman dan bisa dikembalikan kapan saja.
 *   **Ekspor Laporan:** Ekspor riwayat transaksi menjadi file PDF atau CSV dengan satu tombol.
+
+---
+
+## 🛠️ Tech Stack
+- **Framework**: [Flutter](https://flutter.dev/) (Dart)
+- **Backend & Database**: [Supabase](https://supabase.com/)
+- **CI/CD**: GitHub Actions (Otomatis Build APK)
 
 ---
 

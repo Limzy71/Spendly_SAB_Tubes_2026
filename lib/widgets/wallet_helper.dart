@@ -24,7 +24,7 @@ class WalletHelper {
       assetPath = 'assets/images/logos/ovo.svg';
     } else if (name.contains('dana') && !name.contains('danamon')) {
       assetPath = 'assets/images/logos/dana.svg';
-    } else if (name.contains('shopee') || name.contains('spay')) {
+    } else if (name.contains('shopee') || name.contains('spay') || name.contains('shope')) {
       assetPath = 'assets/images/logos/shopeepay.svg';
     } else if (name.contains('linkaja')) {
       assetPath = 'assets/images/logos/linkaja.svg';
@@ -129,7 +129,7 @@ class WalletHelper {
 
     if (name.contains('tunai') || name.contains('cash') || name.contains('dompet')) {
       iconData = FontAwesomeIcons.moneyBillWave;
-    } else if (name.contains('gopay') || name.contains('go-pay') || name.contains('ovo') || (name.contains('dana') && !name.contains('danamon')) || name.contains('shopee') || name.contains('spay') || name.contains('linkaja') || name.contains('isaku') || name.contains('flip') || name.contains('skrill')) {
+    } else if (name.contains('gopay') || name.contains('go-pay') || name.contains('ovo') || (name.contains('dana') && !name.contains('danamon')) || name.contains('shopee') || name.contains('spay') || name.contains('shope') || name.contains('linkaja') || name.contains('isaku') || name.contains('flip') || name.contains('skrill')) {
       iconData = FontAwesomeIcons.wallet;
     } else if (name.contains('paypal')) {
       iconData = FontAwesomeIcons.paypal;
@@ -171,7 +171,7 @@ class WalletHelper {
     if (name.contains('gopay') || name.contains('go-pay')) return const Color(0xFF00AED6);
     if (name.contains('ovo')) return const Color(0xFF4C2A86);
     if (name.contains('dana') && !name.contains('danamon')) return const Color(0xFF108EE9);
-    if (name.contains('shopee') || name.contains('spay')) return const Color(0xFFEE4D2D);
+    if (name.contains('shopee') || name.contains('spay') || name.contains('shope')) return const Color(0xFFEE4D2D);
     if (name.contains('seabank') || name.contains('sea bank')) return const Color(0xFFFF6B00);
     if (name.contains('flip')) return const Color(0xFFFD6542);
     if (name.contains('linkaja')) return const Color(0xFFE02424);
@@ -210,7 +210,7 @@ class WalletHelper {
 
     if (name.contains('tunai') || name.contains('cash') || name.contains('dompet')) {
       return 'Uang Fisik';
-    } else if (name.contains('gopay') || name.contains('ovo') || (name.contains('dana') && !name.contains('danamon')) || name.contains('shopee') || name.contains('spay') || name.contains('linkaja') || name.contains('paypal') || name.contains('wallet') || name.contains('pay') || name.contains('flip') || name.contains('isaku') || name.contains('skrill')) {
+    } else if (name.contains('gopay') || name.contains('ovo') || (name.contains('dana') && !name.contains('danamon')) || name.contains('shopee') || name.contains('spay') || name.contains('shope') || name.contains('linkaja') || name.contains('paypal') || name.contains('wallet') || name.contains('pay') || name.contains('flip') || name.contains('isaku') || name.contains('skrill')) {
       return 'E-Wallet';
     } else if (name.contains('jago') || name.contains('seabank') || name.contains('sea bank') || name.contains('blu') || name.contains('jenius') || name.contains('neo') || name.contains('allo') || name.contains('digital') || name.contains('krom') || name.contains('super')) {
       return 'Digital Bank';
