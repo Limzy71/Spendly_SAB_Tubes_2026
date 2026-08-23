@@ -33,7 +33,22 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
+      - name: Ensure Supabase Config exists
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          mkdir -p lib/config
+          if [ ! -f lib/config/supabase_config.dart ]; then
+            URL="${SUPABASE_URL:-https://kkyqghphrvnfycukwpyk.supabase.co}"
+            KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtreXFnaHBocnZuZnljdWt3cHlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTIwMDQsImV4cCI6MjA5NDE2ODAwNH0.0-YLNAcZG1U4ZL6Nrz0EdY4_Dioaq4C7sEy-VhWDtaA}"
+            cat <<EOF > lib/config/supabase_config.dart
+          class SupabaseConfig {
+            static const String url = '$URL';
+            static const String anonKey = '$KEY';
+          }
+          EOF
+          fi
 
       - name: Get Flutter dependencies
         run: flutter pub get
