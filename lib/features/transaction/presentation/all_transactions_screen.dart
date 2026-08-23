@@ -107,7 +107,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
       Map<int, Map<String, dynamic>> walletData = {};
       for (var w in walletResponse) {
-        walletData[w['id'] as int] = {'name': w['name'].toString()};
+        int wId = int.tryParse(w['id'].toString()) ?? -1;
+        if (wId != -1) {
+          walletData[wId] = {'name': w['name'].toString()};
+        }
       }
 
       final txResponse = await supabase
@@ -150,10 +153,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       }
 
       for (var tx in txResponse) {
-        int id = tx['id'] as int? ?? 0;
+        int id = int.tryParse(tx['id'].toString()) ?? -1;
         if (processedIds.contains(id)) continue;
 
-        int amount = tx['amount'] as int? ?? 0;
+        int amount = int.tryParse(tx['amount'].toString()) ?? 0;
         bool isExpense = tx['is_expense'] as bool? ?? false;
         String category = tx['category']?.toString() ?? '';
         DateTime txDate = DateTime.parse(tx['transaction_date']);
@@ -170,7 +173,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         if (category.toLowerCase() == 'transfer') {
           final partner = txResponse.firstWhere(
                 (t) => t['category']?.toString().toLowerCase() == 'transfer' &&
-                t['amount'] == amount &&
+                (int.tryParse(t['amount'].toString()) ?? 0) == amount &&
                 t['is_expense'] != isExpense &&
                 !processedIds.contains(int.tryParse(t['id'].toString()) ?? -1),
             orElse: () => <String, dynamic>{},

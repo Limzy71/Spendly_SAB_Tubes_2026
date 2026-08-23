@@ -171,6 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         bool isTunai = name.contains('tunai') || name.contains('cash') || name.contains('dompet');
         bool isEwallet = name.contains('gopay') || name.contains('ovo') ||
             name.contains('dana') || name.contains('shopee') ||
+            name.contains('shope') ||
             name.contains('spay') || name.contains('linkaja') ||
             name.contains('e-wallet') || name.contains('ewallet') ||
             name.contains('pay') || name.contains('qris');

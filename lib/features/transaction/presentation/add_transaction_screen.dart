@@ -272,16 +272,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       List<Map<String, dynamic>> processedWallets = [];
 
       for (var w in walletResponse) {
-        int wId = w['id'] as int? ?? 0;
+        int wId = int.tryParse(w['id'].toString()) ?? -1;
         String wName = w['name'].toString();
-        int currentBal = w['balance'] as int? ?? 0;
+        int currentBal = int.tryParse(w['balance'].toString()) ?? 0;
 
         for (var tx in txResponse) {
-          if (tx['wallet_id'] == wId) {
+          int txWalletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
+          if (txWalletId == wId) {
+            int txAmount = int.tryParse(tx['amount'].toString()) ?? 0;
             if (tx['is_expense'] == true) {
-              currentBal -= tx['amount'] as int? ?? 0;
+              currentBal -= txAmount;
             } else {
-              currentBal += tx['amount'] as int? ?? 0;
+              currentBal += txAmount;
             }
           }
         }
@@ -293,7 +295,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         });
       }
 
-      processedWallets.sort((a, b) => (b['balance'] as int).compareTo(a['balance'] as int));
+      processedWallets.sort((a, b) => (int.tryParse(b['balance'].toString()) ?? 0).compareTo(int.tryParse(a['balance'].toString()) ?? 0));
 
       if (mounted) {
         setState(() {
@@ -575,7 +577,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final cleanAmount = _amountController.text.replaceAll('.', '');
     final amount = int.tryParse(cleanAmount) ?? 0;
 
-    final selectedWallet = _wallets.firstWhere((w) => w['id'] == selectedWalletId);
+    final selectedWallet = _wallets.firstWhere(
+      (w) => w['id'] == selectedWalletId,
+      orElse: () => <String, dynamic>{},
+    );
+
+    if (selectedWallet.isEmpty) {
+      CustomNotification.show(context, 'Pilih dompet terlebih dahulu', isWarning: true);
+      return;
+    }
 
     if (isExpense && amount > (selectedWallet['balance'] as int? ?? 0)) {
       CustomNotification.show(context, 'Saldo dompet tidak mencukupi!', isWarning: true);
