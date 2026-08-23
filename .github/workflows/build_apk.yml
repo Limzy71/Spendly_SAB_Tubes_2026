@@ -63,6 +63,17 @@ jobs:
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
           name: Spendly ${{ github.ref_name }}
+          body: |
+            ## 💰 Spendly Release ${{ github.ref_name }}
+
+            Aplikasi Pengelola Keuangan Pribadi berbasis Flutter dan Supabase.
+
+            ### 📱 Cara Instalasi:
+            1. Unduh file **`app-release.apk`** di bagian **Assets** di bawah.
+            2. Buka file di HP Android Anda dan klik **Install**.
+
+            ---
+            *Dikembangkan oleh Tim Spendly - Tubes SAB UNPAS 2026*
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
