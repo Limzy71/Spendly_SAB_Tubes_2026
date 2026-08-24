@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../theme/app_colors.dart';
@@ -30,7 +29,6 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
   bool _obscureConfirm = true;
   bool _isLoading = false;
 
-  String? _savedPin;
   bool _isFirstTimeSetup = false;
 
   @override
@@ -45,10 +43,11 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
     await PinHelper.migrateLegacyPinIfNeeded(userId);
     if (!mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
+    final bool hasPinStored = await PinHelper.hasPin(userId);
+    if (!mounted) return;
+
     setState(() {
-      _savedPin = prefs.getString('user_pin_$userId');
-      _isFirstTimeSetup = _savedPin == null || _savedPin!.isEmpty;
+      _isFirstTimeSetup = !hasPinStored;
     });
   }
 
@@ -87,14 +86,7 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
 
                   await Supabase.instance.client.auth.signOut();
 
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('user_pin_$userId');
-                  await prefs.remove('is_pin_enabled_$userId');
-                  await prefs.remove('is_biometric_enabled_$userId');
-
-                  await prefs.remove('user_pin');
-                  await prefs.remove('is_pin_enabled');
-                  await prefs.remove('is_biometric_enabled');
+                  await PinHelper.resetSecurityData(userId);
 
                   if (!mounted) return;
                   CustomNotification.show(context, 'Sesi direset. Silakan masuk kembali untuk mengatur PIN baru.', isWarning: true);
@@ -126,26 +118,27 @@ class _PasscodeSettingsScreenState extends State<PasscodeSettingsScreen> {
 
     await Future.delayed(const Duration(milliseconds: 400));
 
-    if (!_isFirstTimeSetup && _oldPinController.text != _savedPin) {
-      setState(() => _isLoading = false);
-      if (mounted) CustomNotification.show(context, 'PIN Lama yang Anda masukkan salah!', isError: true);
-      return;
-    }
-
-    if (!_isFirstTimeSetup && _newPinController.text == _oldPinController.text) {
-      setState(() => _isLoading = false);
-      if (mounted) CustomNotification.show(context, 'PIN Baru tidak boleh sama dengan PIN Lama!', isWarning: true);
-      return;
-    }
-
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     await PinHelper.migrateLegacyPinIfNeeded(userId);
 
-    final prefs = await SharedPreferences.getInstance();
+    if (!_isFirstTimeSetup) {
+      final bool oldPinMatches =
+          await PinHelper.verifyPin(userId, _oldPinController.text);
+      if (!oldPinMatches) {
+        setState(() => _isLoading = false);
+        if (mounted) CustomNotification.show(context, 'PIN Lama yang Anda masukkan salah!', isError: true);
+        return;
+      }
 
-    await prefs.setString('user_pin_$userId', _newPinController.text);
-    await prefs.setBool('is_pin_enabled_$userId', true);
+      if (_newPinController.text == _oldPinController.text) {
+        setState(() => _isLoading = false);
+        if (mounted) CustomNotification.show(context, 'PIN Baru tidak boleh sama dengan PIN Lama!', isWarning: true);
+        return;
+      }
+    }
+
+    await PinHelper.savePin(userId, _newPinController.text);
 
     if (mounted) {
       setState(() => _isLoading = false);

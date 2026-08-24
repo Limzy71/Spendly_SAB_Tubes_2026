@@ -7,7 +7,6 @@ import '../../main_layout/presentation/main_navigation.dart';
 import '../../auth/presentation/passcode_screen.dart';
 import '../../../widgets/pin_helper.dart';
 import '../../../widgets/app_bootstrap.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -87,10 +86,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
     await PinHelper.migrateLegacyPinIfNeeded(userId);
 
-    final prefs = await SharedPreferences.getInstance();
-    final pin = prefs.getString('user_pin_$userId');
-    final isEnabled = prefs.getBool('is_pin_enabled_$userId') ?? false;
-    final hasPin = pin != null && isEnabled;
+    final hasPin = await PinHelper.isActive(userId);
 
     if (!mounted) return;
 

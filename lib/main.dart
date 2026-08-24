@@ -449,11 +449,7 @@ class _AuthGateState extends State<AuthGate> {
 
     await PinHelper.migrateLegacyPinIfNeeded(userId);
 
-    final prefs = await SharedPreferences.getInstance();
-    final pin = prefs.getString('user_pin_$userId');
-    final isEnabled = prefs.getBool('is_pin_enabled_$userId') ?? false;
-
-    return pin != null && isEnabled;
+    return PinHelper.isActive(userId);
   }
 
   @override

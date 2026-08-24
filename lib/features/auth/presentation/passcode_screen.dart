@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -37,9 +36,7 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
 
     await PinHelper.migrateLegacyPinIfNeeded(userId);
 
-    final prefs = await SharedPreferences.getInstance();
-
-    bool bioEnabled = prefs.getBool('is_biometric_enabled_$userId') ?? false;
+    bool bioEnabled = await PinHelper.isBiometricEnabled(userId);
     setState(() => _isBiometricEnabled = bioEnabled);
 
     if (bioEnabled) {
@@ -100,11 +97,9 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
 
     await PinHelper.migrateLegacyPinIfNeeded(userId);
 
-    final prefs = await SharedPreferences.getInstance();
+    final bool isValid = await PinHelper.verifyPin(userId, enteredPin);
 
-    final storedPin = prefs.getString('user_pin_$userId');
-
-    if (enteredPin == storedPin) {
+    if (isValid) {
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -150,16 +145,9 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
                 if (!context.mounted) return;
                 Navigator.pop(dialogContext);
 
-                final prefs = await SharedPreferences.getInstance();
                 final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
-                await prefs.remove('user_pin_$userId');
-                await prefs.remove('is_pin_enabled_$userId');
-                await prefs.remove('is_biometric_enabled_$userId');
-
-                await prefs.remove('user_pin');
-                await prefs.remove('is_pin_enabled');
-                await prefs.remove('is_biometric_enabled');
+                await PinHelper.resetSecurityData(userId);
 
                 await Supabase.instance.client.auth.signOut();
 

@@ -22,6 +22,7 @@ import '../../../../main.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/network_helper.dart';
 import '../../../../widgets/profile_image_cache.dart';
+import '../../../../widgets/pin_helper.dart';
 import '../../auth/presentation/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -170,9 +171,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     final String? supabaseAvatarUrl = user?.userMetadata?['avatar_url'];
     final userId = user?.id ?? '';
+    final bool isPinEnabled = await PinHelper.isPinEnabled(userId);
+    final bool isBiometricEnabled = await PinHelper.isBiometricEnabled(userId);
+    if (!mounted) return;
     setState(() {
-      _isPinEnabled = prefs.getBool('is_pin_enabled_$userId') ?? prefs.getBool('is_pin_enabled') ?? false;
-      _isBiometricEnabled = prefs.getBool('is_biometric_enabled_$userId') ?? prefs.getBool('is_biometric_enabled') ?? false;
+      _isPinEnabled = isPinEnabled;
+      _isBiometricEnabled = isBiometricEnabled;
       _profileImagePath = supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty
           ? supabaseAvatarUrl
           : (userId.isNotEmpty ? prefs.getString(ProfileImageCache.keyForUser(userId)) : null);
@@ -424,10 +428,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _togglePin(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-    final savedPin = prefs.getString('user_pin_$userId') ?? prefs.getString('user_pin');
-    if (value == true && (savedPin == null || savedPin.isEmpty)) {
+    final bool hasPinStored = await PinHelper.hasPin(userId);
+    if (value == true && !hasPinStored) {
       if (!mounted) return;
       CustomNotification.show(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
       Navigator.push(context, MaterialPageRoute(builder: (context) => const PasscodeSettingsScreen())).then((_) {
@@ -435,10 +438,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       return;
     }
-    await prefs.setBool('is_pin_enabled_$userId', value);
+    await PinHelper.setPinEnabled(userId, value);
     setState(() => _isPinEnabled = value);
     if (value == false) {
-      await prefs.setBool('is_biometric_enabled_$userId', false);
+      await PinHelper.setBiometricEnabled(userId, false);
       setState(() => _isBiometricEnabled = false);
     }
   }
@@ -448,7 +451,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       CustomNotification.show(context, 'Aktifkan PIN Keamanan terlebih dahulu!', isWarning: true);
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
     if (value == true) {
       try {
@@ -463,7 +465,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           localizedReason: 'Pindai sidik jari / wajah Anda untuk mengaktifkan',
         );
         if (didAuthenticate) {
-          await prefs.setBool('is_biometric_enabled_$userId', true);
+          await PinHelper.setBiometricEnabled(userId, true);
           if (!mounted) return;
           setState(() => _isBiometricEnabled = true);
           CustomNotification.show(context, 'Biometrik berhasil diaktifkan!');
@@ -475,7 +477,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         CustomNotification.show(context, 'Gagal verifikasi biometrik', isError: true);
       }
     } else {
-      await prefs.setBool('is_biometric_enabled_$userId', false);
+      await PinHelper.setBiometricEnabled(userId, false);
       setState(() => _isBiometricEnabled = false);
     }
   }
@@ -751,9 +753,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                   final prefs = await SharedPreferences.getInstance();
                   final userId = user.id;
-                  await prefs.remove('is_pin_enabled_$userId');
-                  await prefs.remove('is_biometric_enabled_$userId');
-                  await prefs.remove('user_pin_$userId');
+                  await PinHelper.resetSecurityData(userId);
                   await prefs.remove('reminder_hour_$userId');
                   await prefs.remove('reminder_minute_$userId');
                   await prefs.remove('daily_reminder_enabled_$userId');

@@ -5,7 +5,6 @@ import 'package:google_sign_in/google_sign_in.dart' as g_auth;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../theme/app_colors.dart';
 import 'register_screen.dart';
@@ -44,12 +43,10 @@ class _LoginScreenState extends State<LoginScreen> {
     await PinHelper.migrateLegacyPinIfNeeded(userId);
     if (!mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
+    final bool shouldShowPasscode = await PinHelper.isActive(userId);
     if (!mounted) return;
-    final bool isPinEnabled = prefs.getBool('is_pin_enabled_$userId') ?? false;
-    final String? storedPin = prefs.getString('user_pin_$userId');
 
-    if (isPinEnabled && storedPin != null && storedPin.isNotEmpty) {
+    if (shouldShowPasscode) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const PasscodeScreen()),
