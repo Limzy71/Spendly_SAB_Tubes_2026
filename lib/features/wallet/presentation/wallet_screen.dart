@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import 'add_wallet_screen.dart';
@@ -30,10 +31,12 @@ class _WalletScreenState extends State<WalletScreen> {
   final TextEditingController _adminFeeController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   bool _isTransferring = false;
+  DateTime _transferDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('id', null);
     _fetchWalletData();
   }
 
@@ -151,7 +154,7 @@ class _WalletScreenState extends State<WalletScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final today = DateTime.now().toIso8601String().split('T')[0];
+      final today = _transferDate.toIso8601String().split('T')[0];
       final note = _noteController.text.isNotEmpty ? _noteController.text : 'Transfer Internal';
       final groupId = DateTime.now().microsecondsSinceEpoch.toString();
 
@@ -201,6 +204,7 @@ class _WalletScreenState extends State<WalletScreen> {
         _amountController.clear();
         _adminFeeController.clear();
         _noteController.clear();
+        setState(() => _transferDate = DateTime.now());
         _fetchWalletData();
       }
     } catch (e) {
@@ -603,6 +607,62 @@ class _WalletScreenState extends State<WalletScreen> {
                   }
                   setState(() {});
                 },
+              ),
+              const SizedBox(height: 16),
+
+              _buildFormLabel('Tanggal Transfer'),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () async {
+                  DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: _transferDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                    builder: (BuildContext context, Widget? child) {
+                      final bool isDark = Theme.of(context).brightness == Brightness.dark;
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: isDark
+                              ? const ColorScheme.dark(primary: AppColors.primaryGreen, onPrimary: Colors.white, surface: Color(0xFF1E1E1E), onSurface: Colors.white)
+                              : const ColorScheme.light(primary: AppColors.primaryGreen, onPrimary: Colors.white),
+                          appBarTheme: AppBarTheme(
+                            backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
+                            iconTheme: const IconThemeData(color: Colors.white),
+                            titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() => _transferDate = picked);
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Row(
+                    children: [
+                      const FaIcon(FontAwesomeIcons.calendarDays, size: 14, color: Colors.grey),
+                      const SizedBox(width: 10),
+                      Text(
+                        DateFormat('dd MMMM yyyy', 'id').format(_transferDate),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 

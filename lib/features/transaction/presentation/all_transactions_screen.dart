@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 import 'edit_transaction_screen.dart';
+import '../../wallet/presentation/edit_transfer_sheet.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/wallet_helper.dart';
@@ -590,7 +591,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       child: InkWell(
         onTap: () async {
           if (isTransfer) {
-            CustomNotification.show(context, 'Transfer tidak bisa diedit. Tahan atau geser ke kiri untuk menghapus.', isWarning: true);
+            final changed = await showEditTransferSheet(context, tx: tx);
+            if (changed && mounted) {
+              _fetchAllTransactions();
+            }
             return;
           }
 

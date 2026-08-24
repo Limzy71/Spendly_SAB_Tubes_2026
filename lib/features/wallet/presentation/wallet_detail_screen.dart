@@ -11,6 +11,7 @@ import '../../../widgets/category_helper.dart';
 import '../../../widgets/wallet_helper.dart';
 import '../../../widgets/network_helper.dart';
 import '../../../widgets/sub_app_bar.dart';
+import 'edit_transfer_sheet.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
 
 class WalletDetailScreen extends StatefulWidget {
@@ -624,6 +625,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final TextEditingController transferAdminFeeController = TextEditingController();
     final TextEditingController transferNoteController = TextEditingController();
     bool isProcessingTransfer = false;
+    DateTime selectedTransferDate = DateTime.now();
 
     showModalBottomSheet(
       context: context,
@@ -805,6 +807,61 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
+                    const Text('TANGGAL TRANSFER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        DateTime? picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: selectedTransferDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          builder: (BuildContext context, Widget? child) {
+                            final bool isDark = Theme.of(context).brightness == Brightness.dark;
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: isDark
+                                    ? const ColorScheme.dark(primary: AppColors.primaryGreen, onPrimary: Colors.white, surface: Color(0xFF1E1E1E), onSurface: Colors.white)
+                                    : const ColorScheme.light(primary: AppColors.primaryGreen, onPrimary: Colors.white),
+                                appBarTheme: AppBarTheme(
+                                  backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
+                                  iconTheme: const IconThemeData(color: Colors.white),
+                                  titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setModalState(() => selectedTransferDate = picked);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            const FaIcon(FontAwesomeIcons.calendarDays, size: 14, color: Colors.grey),
+                            const SizedBox(width: 10),
+                            Text(
+                              DateFormat('dd MMMM yyyy', 'id').format(selectedTransferDate),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(modalContext).textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     if (amtVal > 0)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -897,7 +954,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                                   if (userId == null) return;
 
                                   final targetW = otherWallets.firstWhere((w) => w['id'] == toId);
-                                  final today = DateTime.now().toIso8601String().split('T')[0];
+                                  final today = selectedTransferDate.toIso8601String().split('T')[0];
                                   final noteText = transferNoteController.text.trim().isNotEmpty
                                       ? transferNoteController.text.trim()
                                       : 'Transfer Internal';
@@ -1634,7 +1691,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
       child: InkWell(
         onTap: () async {
           if (isTransfer) {
-            CustomNotification.show(context, 'Transaksi transfer dapat diedit melalui menu Transfer.', isWarning: true);
+            final changed = await showEditTransferSheet(context, tx: tx);
+            if (changed && mounted) {
+              _hasChanges = true;
+              _fetchWalletDetailData();
+            }
             return;
           }
 
