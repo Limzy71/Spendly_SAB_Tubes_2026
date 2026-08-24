@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
 import '../../transaction/presentation/all_transactions_screen.dart';
+import '../../wallet/presentation/edit_transfer_sheet.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
@@ -242,10 +243,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bool isTransfer = tx['category']?.toString().toLowerCase() == 'transfer';
       int mainId = tx['id'];
 
-      if (isTransfer && tx['partner_id'] != null) {
-        int partnerId = tx['partner_id'];
-        await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
-        await supabase.from('transactions').delete().eq('id', partnerId).eq('user_id', userId);
+      if (isTransfer) {
+        final groupId = tx['group_id']?.toString();
+        if (groupId != null && groupId.isNotEmpty) {
+          await supabase.from('transactions').delete().eq('group_id', groupId).eq('user_id', userId);
+        } else if (tx['partner_id'] != null) {
+          int partnerId = tx['partner_id'];
+          await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
+          await supabase.from('transactions').delete().eq('id', partnerId).eq('user_id', userId);
+        } else {
+          await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
+        }
       } else {
         await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
       }
@@ -468,7 +476,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: InkWell(
         onTap: () async {
           if (isTransfer) {
-            CustomNotification.show(context, 'Transaksi Transfer tidak dapat diedit. Silakan geser ke kiri (swipe) atau tekan tahan untuk menghapusnya.', isWarning: true);
+            final changed = await showEditTransferSheet(context, tx: tx);
+            if (!mounted) return;
+            if (changed) {
+              _fetchDashboardData();
+            }
             return;
           }
 

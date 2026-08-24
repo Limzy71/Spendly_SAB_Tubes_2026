@@ -8,6 +8,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../budget/presentation/budget_screen.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
+import '../../wallet/presentation/edit_transfer_sheet.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
 
@@ -656,6 +657,13 @@ class _ReportScreenState extends State<ReportScreen> {
 
                   return GestureDetector(
                     onTap: () async {
+                      if (tx['category']?.toString().toLowerCase() == 'transfer') {
+                        final changed = await showEditTransferSheet(context, tx: tx);
+                        if (!mounted) return;
+                        if (changed) _fetchReportData();
+                        return;
+                      }
+
                       final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: tx)));
                       if (!mounted) return;
                       if (result != null) {
