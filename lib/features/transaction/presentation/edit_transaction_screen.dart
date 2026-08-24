@@ -538,9 +538,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return SafeArea(
+          top: false,
           child: Container(
-            constraints: const BoxConstraints(
-              maxHeight: 380,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.65,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

@@ -82,7 +82,45 @@ class _EditTransferSheetState extends State<_EditTransferSheet> {
       }
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
-      _wallets = List<Map<String, dynamic>>.from(walletResponse);
+      final allTxResponse = await supabase.from('transactions').select().eq('user_id', userId);
+
+      List<Map<String, dynamic>> processedWallets = [];
+      for (var w in walletResponse) {
+        int wId = int.tryParse(w['id'].toString()) ?? -1;
+        int currentBal = int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+        int expenseTxCount = 0;
+        int totalTxCount = 0;
+        for (var tx in allTxResponse) {
+          int txWalletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
+          if (txWalletId == wId) {
+            totalTxCount++;
+            int txAmount = int.tryParse(tx['amount'].toString()) ?? 0;
+            if (tx['is_expense'] == true) {
+              expenseTxCount++;
+              currentBal -= txAmount;
+            } else {
+              currentBal += txAmount;
+            }
+          }
+        }
+        var wMap = Map<String, dynamic>.from(w);
+        wMap['balance'] = currentBal;
+        wMap['usage_score'] = (expenseTxCount * 3) + totalTxCount;
+        processedWallets.add(wMap);
+      }
+
+      processedWallets.sort((a, b) {
+        int scoreA = a['usage_score'] as int? ?? 0;
+        int scoreB = b['usage_score'] as int? ?? 0;
+        if (scoreB != scoreA) {
+          return scoreB.compareTo(scoreA); // Most active wallet first
+        }
+        int balA = a['balance'] as int? ?? 0;
+        int balB = b['balance'] as int? ?? 0;
+        return balB.compareTo(balA);
+      });
+
+      _wallets = processedWallets;
 
       final gid = widget.tx['group_id']?.toString();
       List<dynamic> rows = [];
@@ -301,50 +339,198 @@ class _EditTransferSheetState extends State<_EditTransferSheet> {
     final otherWalletsFrom = _wallets.where((w) => int.tryParse(w['id'].toString()) != toId).toList();
     final otherWalletsTo = _wallets.where((w) => int.tryParse(w['id'].toString()) != fromId).toList();
 
-    Widget buildWalletDropdown(List<Map<String, dynamic>> items, int? value, void Function(int?) onChanged) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<int>(
-            value: value,
-            isExpanded: true,
-            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-            items: items.map((w) {
-              final wName = w['name'].toString();
-              final wColor = WalletHelper.getColor(wName);
-              return DropdownMenuItem<int>(
-                value: int.tryParse(w['id'].toString()),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: wColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: WalletHelper.getIcon(w['icon_name']?.toString(), wName, color: wColor, size: 12),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        wName,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
+    void openWalletPicker({
+      required String title,
+      required List<Map<String, dynamic>> items,
+      required int? currentSelectedId,
+      required void Function(int) onSelected,
+    }) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Theme.of(context).cardColor,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) {
+          String searchQuery = '';
+          return StatefulBuilder(
+            builder: (context, setSheetState) {
+              final filteredItems = items.where((w) {
+                if (searchQuery.trim().isEmpty) return true;
+                return w['name'].toString().toLowerCase().contains(searchQuery.toLowerCase());
+              }).toList();
+
+              final bool isSheetDark = Theme.of(ctx).brightness == Brightness.dark;
+              final Color sheetTextColor = Theme.of(ctx).textTheme.bodyLarge?.color ?? Colors.black87;
+
+              return SafeArea(
+                top: false,
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.52,
+                  ),
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 10, bottom: 4),
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isSheetDark ? Colors.white24 : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: sheetTextColor)),
+                            IconButton(
+                              icon: Icon(Icons.close, size: 20, color: sheetTextColor),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (items.length > 5) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                          child: TextField(
+                            style: TextStyle(color: sheetTextColor, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Cari dompet...',
+                              hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                              prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
+                              filled: true,
+                              fillColor: isSheetDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            ),
+                            onChanged: (query) => setSheetState(() => searchQuery = query),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                      Flexible(
+                        child: filteredItems.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text('Dompet tidak ditemukan', style: TextStyle(color: Colors.grey)),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: filteredItems.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
+                                itemBuilder: (context, index) {
+                                  final w = filteredItems[index];
+                                  final wId = int.tryParse(w['id'].toString());
+                                  final isSelected = wId == currentSelectedId;
+                                  final wName = w['name'].toString();
+                                  final wColor = WalletHelper.getColor(wName);
+                                  final int balance = int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+
+                                  return ListTile(
+                                    dense: true,
+                                    onTap: () {
+                                      if (wId != null) onSelected(wId);
+                                      Navigator.pop(ctx);
+                                    },
+                                    leading: SizedBox(
+                                      width: 32,
+                                      height: 32,
+                                      child: Center(
+                                        child: WalletHelper.getIcon(w['icon_name']?.toString(), wName, color: wColor, size: 14),
+                                      ),
+                                    ),
+                                    title: Text(wName, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14)),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(balance),
+                                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                        ),
+                                        if (isSelected) ...[
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 18),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
               );
-            }).toList(),
-            onChanged: onChanged,
+            },
+          );
+        },
+      );
+    }
+
+    Widget buildWalletSelectorTile({
+      required String label,
+      required List<Map<String, dynamic>> items,
+      required int? value,
+      required void Function(int) onSelected,
+    }) {
+      final selectedWallet = _wallets.firstWhere(
+        (w) => int.tryParse(w['id'].toString()) == value,
+        orElse: () => <String, dynamic>{},
+      );
+      final wName = selectedWallet['name']?.toString() ?? 'Pilih Dompet';
+      final wColor = selectedWallet.isNotEmpty ? WalletHelper.getColor(wName) : Colors.grey;
+
+      return InkWell(
+        onTap: () {
+          openWalletPicker(
+            title: label,
+            items: items,
+            currentSelectedId: value,
+            onSelected: onSelected,
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            children: [
+              if (selectedWallet.isNotEmpty) ...[
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Center(
+                    child: WalletHelper.getIcon(selectedWallet['icon_name']?.toString(), wName, color: wColor, size: 12),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Text(
+                  wName,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: selectedWallet.isNotEmpty ? Theme.of(context).textTheme.bodyLarge?.color : Colors.grey,
+                  ),
+                ),
+              ),
+              const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+            ],
           ),
         ),
       );
@@ -429,15 +615,21 @@ class _EditTransferSheetState extends State<_EditTransferSheet> {
             const SizedBox(height: 16),
             buildFormLabel('DOMPET ASAL'),
             const SizedBox(height: 8),
-            buildWalletDropdown(otherWalletsFrom, fromId, (val) {
-              if (val != null) setState(() => fromId = val);
-            }),
+            buildWalletSelectorTile(
+              label: 'Pilih Dompet Asal',
+              items: otherWalletsFrom,
+              value: fromId,
+              onSelected: (val) => setState(() => fromId = val),
+            ),
             const SizedBox(height: 16),
             buildFormLabel('DOMPET TUJUAN'),
             const SizedBox(height: 8),
-            buildWalletDropdown(otherWalletsTo, toId, (val) {
-              if (val != null) setState(() => toId = val);
-            }),
+            buildWalletSelectorTile(
+              label: 'Pilih Dompet Tujuan',
+              items: otherWalletsTo,
+              value: toId,
+              onSelected: (val) => setState(() => toId = val),
+            ),
             const SizedBox(height: 16),
             buildFormLabel('NOMINAL TRANSFER'),
             const SizedBox(height: 8),

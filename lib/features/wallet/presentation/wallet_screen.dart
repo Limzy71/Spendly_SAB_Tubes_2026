@@ -32,6 +32,9 @@ class _WalletScreenState extends State<WalletScreen> {
   final TextEditingController _noteController = TextEditingController();
   bool _isTransferring = false;
   DateTime _transferDate = DateTime.now();
+  bool _isWalletListExpanded = false;
+  String _walletSearchQuery = '';
+  final TextEditingController _walletSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -45,6 +48,7 @@ class _WalletScreenState extends State<WalletScreen> {
     _amountController.dispose();
     _adminFeeController.dispose();
     _noteController.dispose();
+    _walletSearchController.dispose();
     super.dispose();
   }
 
@@ -226,8 +230,9 @@ class _WalletScreenState extends State<WalletScreen> {
             .toList();
 
         return SafeArea(
+          top: false,
           child: Container(
-            constraints: const BoxConstraints(maxHeight: 340),
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.65),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -430,22 +435,88 @@ class _WalletScreenState extends State<WalletScreen> {
 
               if (_wallets.isEmpty)
                 const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: Text("Belum ada dompet terdaftar.")))
-              else
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 340),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _wallets.length,
-                    itemBuilder: (context, index) {
-                      return _buildWalletItem(
-                        wallet: _wallets[index],
-                        isDarkMode: isDarkMode,
-                      );
-                    },
+              else ...[
+                if (_wallets.length > 5)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: _walletSearchController,
+                      style: TextStyle(color: textColor, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Cari dari ${_wallets.length} dompet...',
+                        hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                        prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
+                        suffixIcon: _walletSearchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16, color: Colors.grey),
+                                onPressed: () {
+                                  _walletSearchController.clear();
+                                  setState(() => _walletSearchQuery = '');
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                      onChanged: (val) => setState(() => _walletSearchQuery = val),
+                    ),
                   ),
-                ),
+
+                Builder(builder: (context) {
+                  final filteredWallets = _wallets.where((w) {
+                    if (_walletSearchQuery.trim().isEmpty) return true;
+                    return w['name'].toString().toLowerCase().contains(_walletSearchQuery.toLowerCase());
+                  }).toList();
+
+                  if (filteredWallets.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: Text('Dompet tidak ditemukan', style: TextStyle(color: Colors.grey, fontSize: 13))),
+                    );
+                  }
+
+                  final List<Map<String, dynamic>> displayedWallets = (_walletSearchQuery.isNotEmpty || _isWalletListExpanded || filteredWallets.length <= 4)
+                      ? filteredWallets
+                      : filteredWallets.take(4).toList();
+
+                  return Column(
+                    children: [
+                      ListView.builder(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: displayedWallets.length,
+                        itemBuilder: (context, index) {
+                          return _buildWalletItem(
+                            wallet: displayedWallets[index],
+                            isDarkMode: isDarkMode,
+                          );
+                        },
+                      ),
+                      if (_wallets.length > 4 && _walletSearchQuery.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Center(
+                            child: TextButton.icon(
+                              onPressed: () => setState(() => _isWalletListExpanded = !_isWalletListExpanded),
+                              icon: FaIcon(
+                                _isWalletListExpanded ? FontAwesomeIcons.chevronUp : FontAwesomeIcons.chevronDown,
+                                size: 11,
+                                color: AppColors.primaryGreen,
+                              ),
+                              label: Text(
+                                _isWalletListExpanded ? 'Tampilkan Lebih Sedikit' : 'Lihat Semua Dompet (${_wallets.length})',
+                                style: const TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                }),
+              ],
 
               const SizedBox(height: 12),
               Divider(thickness: 1, color: isDarkMode ? Colors.white12 : const Color(0xFFEEEEEE)),
@@ -673,7 +744,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 final int feeVal = int.tryParse(cleanFee) ?? 0;
                 final int totalDeduction = amtVal + feeVal;
 
-                if (amtVal > 0) {
+                // Hanya tampilkan kotak rincian jika ada biaya admin agar tidak membingungkan pengguna
+                if (amtVal > 0 && feeVal > 0) {
                   final fromWallet = _wallets.firstWhere((w) => w['id'] == selectedFromAccountId, orElse: () => <String, dynamic>{});
                   final fromWalletName = fromWallet.isNotEmpty ? fromWallet['name'] : 'Dompet Asal';
 
@@ -686,7 +758,10 @@ class _WalletScreenState extends State<WalletScreen> {
                       border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200),
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text('Rincian Potongan Saldo ($fromWalletName):', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -694,24 +769,22 @@ class _WalletScreenState extends State<WalletScreen> {
                             Text(_formatCurrency(amtVal), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           ],
                         ),
-                        if (feeVal > 0) ...[
-                          const SizedBox(height: 6),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Biaya Admin', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text(_formatCurrency(feeVal), style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ],
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Biaya Admin', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text('+ ${_formatCurrency(feeVal)}', style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
                         const Divider(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Total Potongan ($fromWalletName)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            Text('Total Saldo Berkurang', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                             Text(
                               _formatCurrency(totalDeduction),
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red),
                             ),
                           ],
                         ),
@@ -783,13 +856,12 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                  color: wallet['color'].withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10)
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: Center(
+                child: wallet['icon'],
               ),
-              child: wallet['icon'],
             ),
             const SizedBox(width: 12),
             Expanded(

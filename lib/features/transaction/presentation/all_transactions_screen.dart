@@ -27,7 +27,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _transactions = [];
   List<Map<String, dynamic>> _userWallets = [];
+
+  late String _selectedTypeFilter; // 'all', 'expense', 'income', 'transfer'
   int? _selectedWalletId;
+  String? _selectedCategory;
 
   String _selectedTimeFilter = 'Bulan Ini';
   final List<String> _timeFilters = ['Hari Ini', 'Minggu Ini', 'Bulan Ini', 'Tahun Ini', 'Semua Waktu'];
@@ -42,6 +45,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   void initState() {
     super.initState();
     initializeDateFormatting('id', null);
+    _selectedTypeFilter = widget.filterType;
     _fetchAllTransactions();
   }
 
@@ -109,28 +113,63 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
 
       final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
-      Map<int, Map<String, dynamic>> walletData = {};
-      List<Map<String, dynamic>> loadedWallets = [];
-      for (var w in walletResponse) {
-        int wId = int.tryParse(w['id'].toString()) ?? -1;
-        if (wId != -1) {
-          String wName = w['name'].toString();
-          walletData[wId] = {'name': wName};
-          loadedWallets.add({
-            'id': wId,
-            'name': wName,
-            'color': WalletHelper.getColor(wName),
-            'icon': WalletHelper.getIcon(w['icon_name']?.toString(), wName, color: WalletHelper.getColor(wName), size: 10),
-          });
-        }
-      }
-
       final txResponse = await supabase
           .from('transactions')
           .select()
           .eq('user_id', userId)
           .order('transaction_date', ascending: false)
           .order('created_at', ascending: false);
+
+      Map<int, Map<String, dynamic>> walletData = {};
+      List<Map<String, dynamic>> loadedWallets = [];
+      for (var w in walletResponse) {
+        int wId = int.tryParse(w['id'].toString()) ?? -1;
+        if (wId != -1) {
+          String wName = w['name'].toString();
+          int currentBal = int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+          String? iconName = w['icon_name']?.toString();
+
+          int expenseTxCount = 0;
+          int totalTxCount = 0;
+          for (var tx in txResponse) {
+            int txWalletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
+            if (txWalletId == wId) {
+              totalTxCount++;
+              int txAmount = int.tryParse(tx['amount'].toString()) ?? 0;
+              if (tx['is_expense'] == true) {
+                expenseTxCount++;
+                currentBal -= txAmount;
+              } else {
+                currentBal += txAmount;
+              }
+            }
+          }
+
+          int usageScore = (expenseTxCount * 3) + totalTxCount;
+
+          walletData[wId] = {'name': wName};
+          loadedWallets.add({
+            'id': wId,
+            'name': wName,
+            'color': WalletHelper.getColor(wName),
+            'icon': WalletHelper.getIcon(iconName, wName, color: WalletHelper.getColor(wName), size: 14),
+            'icon_name': iconName,
+            'balance': currentBal,
+            'usage_score': usageScore,
+          });
+        }
+      }
+
+      loadedWallets.sort((a, b) {
+        int scoreA = a['usage_score'] as int? ?? 0;
+        int scoreB = b['usage_score'] as int? ?? 0;
+        if (scoreB != scoreA) {
+          return scoreB.compareTo(scoreA); // Most active wallet first
+        }
+        int balA = a['balance'] as int? ?? 0;
+        int balB = b['balance'] as int? ?? 0;
+        return balB.compareTo(balA);
+      });
 
       List<Map<String, dynamic>> displayTx = [];
       Set<int> processedIds = {};
@@ -172,10 +211,6 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         bool isExpense = tx['is_expense'] as bool? ?? false;
         String category = tx['category']?.toString() ?? '';
         DateTime txDate = DateTime.parse(tx['transaction_date']);
-        int txWalletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
-
-        if (widget.filterType == 'income' && (isExpense || category.toLowerCase() == 'transfer')) continue;
-        if (widget.filterType == 'expense' && (!isExpense || category.toLowerCase() == 'transfer')) continue;
 
         if (startDate != null && endDate != null) {
           if (txDate.isBefore(startDate) || txDate.isAfter(endDate)) {
@@ -206,14 +241,6 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
             );
           }
 
-          int partnerWalletId = partner.isNotEmpty ? (int.tryParse(partner['wallet_id'].toString()) ?? -1) : -1;
-
-          if (_selectedWalletId != null) {
-            if (txWalletId != _selectedWalletId && partnerWalletId != _selectedWalletId) {
-              continue;
-            }
-          }
-
           var mergedTx = Map<String, dynamic>.from(tx);
           if (isExpense) {
             mergedTx['from_wallet'] = getWalletName(tx);
@@ -224,15 +251,12 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           }
 
           mergedTx['partner_id'] = partner.isNotEmpty ? partner['id'] : null;
+          mergedTx['partner_wallet_id'] = partner.isNotEmpty ? partner['wallet_id'] : null;
 
           displayTx.add(mergedTx);
           processedIds.add(id);
           if (partner.isNotEmpty) processedIds.add(int.tryParse(partner['id'].toString()) ?? -1);
         } else {
-          if (_selectedWalletId != null && txWalletId != _selectedWalletId) {
-            continue;
-          }
-
           var mergedTx = Map<String, dynamic>.from(tx);
           mergedTx['wallet_name'] = getWalletName(tx);
           displayTx.add(mergedTx);
@@ -261,10 +285,12 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Transaksi?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(isTransfer
-            ? 'Hapus riwayat transfer ini? Saldo yang dipindahkan akan otomatis dikembalikan ke dompet asal.'
-            : 'Data pengeluaran/pemasukan ini akan dihapus secara permanen dan saldo akan disesuaikan.'),
+        title: Text(isTransfer ? 'Hapus Transfer?' : 'Hapus Transaksi?', style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+          isTransfer
+              ? 'Seluruh mutasi transfer ini (termasuk biaya admin jika ada) akan dihapus dan saldo dompet akan disesuaikan.'
+              : 'Transaksi ini akan dihapus secara permanen dan saldo dompet akan disesuaikan.',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -289,14 +315,18 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
       bool isTransfer = tx['category']?.toString().toLowerCase() == 'transfer';
       int mainId = tx['id'];
-      final groupId = tx['group_id']?.toString();
 
-      if (isTransfer && groupId != null && groupId.isNotEmpty) {
-        await supabase.from('transactions').delete().eq('group_id', groupId).eq('user_id', userId);
-      } else if (isTransfer && tx['partner_id'] != null) {
-        int partnerId = tx['partner_id'];
-        await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
-        await supabase.from('transactions').delete().eq('id', partnerId).eq('user_id', userId);
+      if (isTransfer) {
+        final groupId = tx['group_id']?.toString();
+        if (groupId != null && groupId.isNotEmpty) {
+          await supabase.from('transactions').delete().eq('group_id', groupId).eq('user_id', userId);
+        } else if (tx['partner_id'] != null) {
+          int partnerId = tx['partner_id'];
+          await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
+          await supabase.from('transactions').delete().eq('id', partnerId).eq('user_id', userId);
+        } else {
+          await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
+        }
       } else {
         await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
       }
@@ -313,17 +343,294 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     }
   }
 
+  void _openWalletFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final filtered = _userWallets.where((w) {
+              if (searchQuery.trim().isEmpty) return true;
+              return w['name'].toString().toLowerCase().contains(searchQuery.toLowerCase());
+            }).toList();
+
+            final bool isSheetDark = Theme.of(ctx).brightness == Brightness.dark;
+            final Color sheetTextColor = Theme.of(ctx).textTheme.bodyLarge?.color ?? Colors.black87;
+
+            return SafeArea(
+              top: false,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.52,
+                ),
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 4),
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isSheetDark ? Colors.white24 : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Filter Berdasarkan Dompet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: sheetTextColor)),
+                          IconButton(
+                            icon: Icon(Icons.close, size: 20, color: sheetTextColor),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_userWallets.length > 5) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        child: TextField(
+                          style: TextStyle(color: sheetTextColor, fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'Cari dompet...',
+                            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                            prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
+                            filled: true,
+                            fillColor: isSheetDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          ),
+                          onChanged: (val) => setSheetState(() => searchQuery = val),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    ListTile(
+                      dense: true,
+                      onTap: () {
+                        setState(() => _selectedWalletId = null);
+                        Navigator.pop(ctx);
+                      },
+                      leading: const SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: Center(
+                          child: FaIcon(FontAwesomeIcons.wallet, color: AppColors.primaryGreen, size: 18),
+                        ),
+                      ),
+                      title: const Text('Semua Dompet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      trailing: _selectedWalletId == null ? const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20) : null,
+                    ),
+                    const Divider(height: 1, indent: 20, endIndent: 20),
+                    Flexible(
+                      child: filtered.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text('Dompet tidak ditemukan', style: TextStyle(color: Colors.grey)),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
+                              itemBuilder: (context, index) {
+                                final w = filtered[index];
+                                final wId = int.tryParse(w['id'].toString());
+                                final isSelected = wId == _selectedWalletId;
+                                final wName = w['name'].toString();
+                                final wColor = WalletHelper.getColor(wName);
+                                final int balance = int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+
+                                return ListTile(
+                                  dense: true,
+                                  onTap: () {
+                                    setState(() => _selectedWalletId = wId);
+                                    Navigator.pop(ctx);
+                                  },
+                                  leading: SizedBox(
+                                    width: 32,
+                                    height: 32,
+                                    child: Center(
+                                      child: WalletHelper.getIcon(w['icon_name']?.toString(), wName, color: wColor, size: 14),
+                                    ),
+                                  ),
+                                  title: Text(wName, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14)),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _formatCurrency(balance),
+                                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                      ),
+                                      if (isSelected) ...[
+                                        const SizedBox(width: 8),
+                                        const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 18),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openCategoryFilterSheet(List<String> categories) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        String catSearchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final filteredCategories = categories.where((c) {
+              if (catSearchQuery.trim().isEmpty) return true;
+              return c.toLowerCase().contains(catSearchQuery.toLowerCase());
+            }).toList();
+
+            final bool isSheetDark = Theme.of(ctx).brightness == Brightness.dark;
+            final Color sheetTextColor = Theme.of(ctx).textTheme.bodyLarge?.color ?? Colors.black87;
+
+            return SafeArea(
+              top: false,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.52,
+                ),
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 4),
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isSheetDark ? Colors.white24 : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Filter Berdasarkan Kategori', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: sheetTextColor)),
+                          IconButton(
+                            icon: Icon(Icons.close, size: 20, color: sheetTextColor),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (categories.length > 5) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        child: TextField(
+                          style: TextStyle(color: sheetTextColor, fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'Cari kategori...',
+                            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                            prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
+                            filled: true,
+                            fillColor: isSheetDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          ),
+                          onChanged: (val) => setSheetState(() => catSearchQuery = val),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    ListTile(
+                      dense: true,
+                      onTap: () {
+                        setState(() => _selectedCategory = null);
+                        Navigator.pop(ctx);
+                      },
+                      leading: const SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: Center(
+                          child: FaIcon(FontAwesomeIcons.tags, color: AppColors.primaryGreen, size: 18),
+                        ),
+                      ),
+                      title: const Text('Semua Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      trailing: _selectedCategory == null ? const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20) : null,
+                    ),
+                    const Divider(height: 1, indent: 20, endIndent: 20),
+                    Flexible(
+                      child: filteredCategories.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text('Kategori tidak ditemukan', style: TextStyle(color: Colors.grey)),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: filteredCategories.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
+                              itemBuilder: (context, index) {
+                                final cat = filteredCategories[index];
+                                final isSelected = cat.toLowerCase() == (_selectedCategory ?? '').toLowerCase();
+                                final color = CategoryHelper.getColor(cat);
+
+                                return ListTile(
+                                  dense: true,
+                                  onTap: () {
+                                    setState(() => _selectedCategory = cat);
+                                    Navigator.pop(ctx);
+                                  },
+                                  leading: SizedBox(
+                                    width: 32,
+                                    height: 32,
+                                    child: Center(
+                                      child: FaIcon(CategoryHelper.getIcon(cat, customIcons: _customIcons), color: color, size: 18),
+                                    ),
+                                  ),
+                                  title: Text(cat, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14)),
+                                  trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20) : null,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   String _formatCurrency(int amount) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
 
   String _formatDate(String dateString) {
     try { return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(dateString)); }
     catch (e) { return dateString; }
-  }
-
-  String _getAppBarTitle() {
-    if (widget.filterType == 'income') return 'Riwayat Pemasukan';
-    if (widget.filterType == 'expense') return 'Riwayat Pengeluaran';
-    return 'Semua Transaksi';
   }
 
   @override
@@ -332,221 +639,425 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     final filteredList = _transactions.where((tx) {
-      if (_searchQuery.isEmpty) return true;
-      final note = (tx['note'] ?? '').toString().toLowerCase();
-      final cat = (tx['category'] ?? '').toString().toLowerCase();
-      final q = _searchQuery.toLowerCase();
-      return note.contains(q) || cat.contains(q);
+      final isExp = tx['is_expense'] as bool? ?? false;
+      final category = (tx['category'] ?? '').toString();
+      final isTransfer = category.toLowerCase() == 'transfer';
+
+      // 1. Type Filter
+      if (_selectedTypeFilter == 'income' && (isExp || isTransfer)) return false;
+      if (_selectedTypeFilter == 'expense' && (!isExp || isTransfer)) return false;
+      if (_selectedTypeFilter == 'transfer' && !isTransfer) return false;
+
+      // 2. Category Filter
+      if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+        if (category.toLowerCase() != _selectedCategory!.toLowerCase()) return false;
+      }
+
+      // 3. Wallet Filter
+      if (_selectedWalletId != null) {
+        final txWalletId = int.tryParse(tx['wallet_id']?.toString() ?? '-1') ?? -1;
+        final partnerWalletId = int.tryParse(tx['partner_wallet_id']?.toString() ?? '-1') ?? -1;
+        if (isTransfer) {
+          if (txWalletId != _selectedWalletId && partnerWalletId != _selectedWalletId) {
+            return false;
+          }
+        } else {
+          if (txWalletId != _selectedWalletId) return false;
+        }
+      }
+
+      // 4. Search Filter
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final note = (tx['note'] ?? '').toString().toLowerCase();
+        final cat = category.toLowerCase();
+        final walletName = (tx['wallet_name'] ?? '').toString().toLowerCase();
+        final fromWallet = (tx['from_wallet'] ?? '').toString().toLowerCase();
+        final toWallet = (tx['to_wallet'] ?? '').toString().toLowerCase();
+        final amount = (tx['amount'] ?? '').toString();
+        return note.contains(q) || cat.contains(q) || walletName.contains(q) || fromWallet.contains(q) || toWallet.contains(q) || amount.contains(q);
+      }
+
+      return true;
     }).toList();
 
+    // Extract and sort available categories based on real usage frequency
+    Map<String, int> categoryUsageCounts = {};
+    for (var t in _transactions) {
+      final isExp = t['is_expense'] as bool? ?? false;
+      final cat = (t['category'] ?? '').toString().trim();
+      if (cat.isEmpty || cat.toLowerCase() == 'transfer') continue;
+      if (_selectedTypeFilter == 'income' && isExp) continue;
+      if (_selectedTypeFilter == 'expense' && !isExp) continue;
+
+      categoryUsageCounts[cat] = (categoryUsageCounts[cat] ?? 0) + 1;
+    }
+
+    final availableCategories = categoryUsageCounts.keys.toList()
+      ..sort((a, b) {
+        int countA = categoryUsageCounts[a] ?? 0;
+        int countB = categoryUsageCounts[b] ?? 0;
+        if (countB != countA) {
+          return countB.compareTo(countA); // Most frequently used category first!
+        }
+        return a.compareTo(b);
+      });
+
+    final selectedWalletObj = _userWallets.firstWhere(
+      (w) => w['id'] == _selectedWalletId,
+      orElse: () => <String, dynamic>{},
+    );
+    final String selectedWalletName = selectedWalletObj.isNotEmpty ? selectedWalletObj['name'].toString() : 'Semua Dompet';
+
+    final bool hasActiveFilter = _selectedWalletId != null || _selectedCategory != null || _selectedTypeFilter != 'all' || _selectedTimeFilter != 'Bulan Ini' || _searchQuery.isNotEmpty;
+
     return Scaffold(
-      appBar: SubAppBar(title: _getAppBarTitle()),
+      appBar: const SubAppBar(title: 'Semua Transaksi'),
       body: Column(
         children: [
-          Theme(
-            data: Theme.of(context).copyWith(
-              scrollbarTheme: ScrollbarThemeData(
-                thumbColor: WidgetStateProperty.all(Colors.transparent),
-                trackColor: WidgetStateProperty.all(Colors.transparent),
-              ),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  ..._timeFilters.map((filter) {
-                    bool isSelected = _selectedTimeFilter == filter;
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() => _selectedTimeFilter = filter);
-                        _fetchAllTransactions();
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          filter,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            fontSize: 12,
-                          ),
+          // 1. Time Filter Bar (Horizontal)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                ..._timeFilters.map((filter) {
+                  bool isSelected = _selectedTimeFilter == filter;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedTimeFilter = filter);
+                      _fetchAllTransactions();
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        filter,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 12,
                         ),
                       ),
-                    );
-                  }),
-                  GestureDetector(
-                    onTap: _pickCustomDateRange,
+                    ),
+                  );
+                }),
+                GestureDetector(
+                  onTap: _pickCustomDateRange,
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: _selectedTimeFilter == 'Kustom' ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        FaIcon(
+                          FontAwesomeIcons.calendarDays,
+                          size: 13,
+                          color: _selectedTimeFilter == 'Kustom' ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                        ),
+                        if (_selectedTimeFilter == 'Kustom') ...[
+                          const SizedBox(width: 6),
+                          const Text('Kustom', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))
+                        ]
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. Type Filter Tabs (Semua, Pengeluaran, Pemasukan, Transfer)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                _buildTypeTab(label: 'Semua', value: 'all', isDark: isDark),
+                const SizedBox(width: 8),
+                _buildTypeTab(label: 'Pengeluaran', value: 'expense', isDark: isDark, dotColor: Colors.red),
+                const SizedBox(width: 8),
+                _buildTypeTab(label: 'Pemasukan', value: 'income', isDark: isDark, dotColor: AppColors.primaryGreen),
+                const SizedBox(width: 8),
+                _buildTypeTab(label: 'Transfer', value: 'transfer', isDark: isDark, dotColor: Colors.blue),
+              ],
+            ),
+          ),
+
+          // 3. Filter Bar (Dompet & Kategori Pickers)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
+              children: [
+                // Dompet Filter Button
+                Expanded(
+                  child: InkWell(
+                    onTap: _openWalletFilterSheet,
+                    borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
-                        color: _selectedTimeFilter == 'Kustom' ? AppColors.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200),
-                        borderRadius: BorderRadius.circular(20),
+                        color: _selectedWalletId != null
+                            ? AppColors.primaryGreen.withValues(alpha: 0.12)
+                            : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade100),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedWalletId != null ? AppColors.primaryGreen : Colors.transparent,
+                        ),
                       ),
                       child: Row(
                         children: [
                           FaIcon(
-                              FontAwesomeIcons.calendarDays,
-                              size: 14,
-                              color: _selectedTimeFilter == 'Kustom' ? Colors.white : (isDark ? Colors.white70 : Colors.black87)
+                            FontAwesomeIcons.wallet,
+                            size: 13,
+                            color: _selectedWalletId != null ? AppColors.primaryGreen : Colors.grey,
                           ),
-                          if (_selectedTimeFilter == 'Kustom') ...[
-                            const SizedBox(width: 6),
-                            const Text('Kustom', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))
-                          ]
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              selectedWalletName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: _selectedWalletId != null ? FontWeight.bold : FontWeight.w500,
+                                color: _selectedWalletId != null ? AppColors.primaryGreen : textColor,
+                              ),
+                            ),
+                          ),
+                          if (_selectedWalletId != null)
+                            GestureDetector(
+                              onTap: () => setState(() => _selectedWalletId = null),
+                              child: const Icon(Icons.close, size: 14, color: AppColors.primaryGreen),
+                            )
+                          else
+                            const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
                         ],
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          if (_userWallets.isNotEmpty)
-            Theme(
-              data: Theme.of(context).copyWith(
-                scrollbarTheme: ScrollbarThemeData(
-                  thumbColor: WidgetStateProperty.all(Colors.transparent),
-                  trackColor: WidgetStateProperty.all(Colors.transparent),
                 ),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 6),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => _selectedWalletId = null);
-                        _fetchAllTransactions();
-                      },
+                const SizedBox(width: 8),
+
+                // Kategori Filter Button (only for non-transfer)
+                if (_selectedTypeFilter != 'transfer') ...[
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _openCategoryFilterSheet(availableCategories),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
-                          color: _selectedWalletId == null
-                              ? (isDark ? Colors.teal.shade700 : AppColors.primaryGreen)
-                              : (isDark ? Colors.white10 : Colors.grey.shade100),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          'Semua Dompet',
-                          style: TextStyle(
-                            color: _selectedWalletId == null ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                            fontWeight: _selectedWalletId == null ? FontWeight.bold : FontWeight.normal,
-                            fontSize: 11,
+                          color: _selectedCategory != null
+                              ? AppColors.primaryGreen.withValues(alpha: 0.12)
+                              : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade100),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedCategory != null ? AppColors.primaryGreen : Colors.transparent,
                           ),
+                        ),
+                        child: Row(
+                          children: [
+                            FaIcon(
+                              FontAwesomeIcons.tags,
+                              size: 13,
+                              color: _selectedCategory != null ? AppColors.primaryGreen : Colors.grey,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _selectedCategory ?? 'Semua Kategori',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: _selectedCategory != null ? FontWeight.bold : FontWeight.w500,
+                                  color: _selectedCategory != null ? AppColors.primaryGreen : textColor,
+                                ),
+                              ),
+                            ),
+                            if (_selectedCategory != null)
+                              GestureDetector(
+                                onTap: () => setState(() => _selectedCategory = null),
+                                child: const Icon(Icons.close, size: 14, color: AppColors.primaryGreen),
+                              )
+                            else
+                              const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+                          ],
                         ),
                       ),
                     ),
-                    ..._userWallets.map((w) {
-                      bool isSelected = _selectedWalletId == w['id'];
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() => _selectedWalletId = isSelected ? null : w['id']);
-                          _fetchAllTransactions();
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? (isDark ? Colors.teal.shade700 : AppColors.primaryGreen)
-                                : (isDark ? Colors.white10 : Colors.grey.shade100),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: (w['color'] as Color? ?? Colors.grey).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: w['icon'] ?? const SizedBox.shrink(),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                w['name'],
-                                style: TextStyle(
-                                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
+                  ),
+                ],
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
-              controller: _searchController,
-              style: TextStyle(color: textColor, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Cari catatan atau kategori...',
-                hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 22),
-                filled: true,
-                fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+                if (hasActiveFilter) ...[
+                  const SizedBox(width: 6),
+                  IconButton(
+                    tooltip: 'Reset Filter',
+                    icon: const Icon(Icons.filter_alt_off_outlined, size: 18, color: Colors.red),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    onPressed: () {
+                      setState(() {
+                        _selectedWalletId = null;
+                        _selectedCategory = null;
+                        _selectedTypeFilter = 'all';
+                        _selectedTimeFilter = 'Bulan Ini';
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                      _fetchAllTransactions();
+                    },
+                  ),
+                ],
+              ],
             ),
           ),
 
+          // 4. Search Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: TextField(
+              controller: _searchController,
+              style: TextStyle(color: textColor, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Cari catatan, kategori, atau nominal...',
+                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 16, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          // 5. Transaction List
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
                 : filteredList.isEmpty
-                ? Center(child: Text(
-              _searchQuery.isNotEmpty ? "Tidak ada transaksi yang cocok." :
-              widget.filterType == 'income' ? "Belum ada pemasukan di periode ini." :
-              widget.filterType == 'expense' ? "Belum ada pengeluaran di periode ini." :
-              "Belum ada riwayat transaksi di periode ini.",
-              style: const TextStyle(color: Colors.grey),
-            ))
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FaIcon(FontAwesomeIcons.receipt, size: 42, color: Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? "Tidak ada transaksi yang cocok dengan pencarian."
+                                : "Tidak ada transaksi untuk filter terpilih.",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
+                          if (hasActiveFilter) ...[
+                            const SizedBox(height: 12),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedWalletId = null;
+                                  _selectedCategory = null;
+                                  _selectedTypeFilter = 'all';
+                                  _selectedTimeFilter = 'Bulan Ini';
+                                  _searchQuery = '';
+                                  _searchController.clear();
+                                });
+                                _fetchAllTransactions();
+                              },
+                              child: const Text('Reset Semua Filter', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  )
                 : ListView.builder(
-              physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
-              itemCount: filteredList.length,
-              itemBuilder: (context, index) {
-                final tx = filteredList[index];
-                return _buildTransactionItem(tx, textColor, isDark);
-              },
-            ),
+                    physics: const ClampingScrollPhysics(),
+                    padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
+                    itemCount: filteredList.length,
+                    itemBuilder: (context, index) {
+                      final tx = filteredList[index];
+                      return _buildTransactionItem(tx, textColor, isDark);
+                    },
+                  ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTypeTab({
+    required String label,
+    required String value,
+    required bool isDark,
+    Color? dotColor,
+  }) {
+    bool isSelected = _selectedTypeFilter == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedTypeFilter = value;
+            if (value == 'transfer') {
+              _selectedCategory = null;
+            }
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primaryGreen
+                : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (dotColor != null) ...[
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white : dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -712,13 +712,12 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                                 value: w['id'],
                                 child: Row(
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: (w['color'] as Color? ?? Colors.grey).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
+                                    SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: Center(
+                                        child: w['icon'] ?? const Icon(Icons.wallet, size: 14),
                                       ),
-                                      child: w['icon'] ?? const Icon(Icons.wallet, size: 14),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -862,7 +861,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    if (amtVal > 0)
+                    if (amtVal > 0 && feeVal > 0)
                       Container(
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
@@ -872,7 +871,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                           border: Border.all(color: isDarkMode ? Colors.white12 : Colors.grey.shade200),
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Text('Rincian Potongan Saldo (${widget.wallet['name']}):', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -880,24 +882,22 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                                 Text(_formatCurrency(amtVal), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                               ],
                             ),
-                            if (feeVal > 0) ...[
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Biaya Admin', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                  Text(_formatCurrency(feeVal), style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ],
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Biaya Admin', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text('+ ${_formatCurrency(feeVal)}', style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
                             const Divider(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Total Potongan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                const Text('Total Saldo Berkurang', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                                 Text(
                                   _formatCurrency(totalDeduction),
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red),
                                 ),
                               ],
                             ),
