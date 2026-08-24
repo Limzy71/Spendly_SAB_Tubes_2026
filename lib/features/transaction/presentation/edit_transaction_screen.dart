@@ -57,6 +57,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': const Color(0xFF9C27B0)},
     {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': const Color(0xFFF44336)},
     {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': const Color(0xFF009688)},
+    {'name': 'Biaya Admin', 'icon': FontAwesomeIcons.receipt, 'color': const Color(0xFFE53935)},
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 

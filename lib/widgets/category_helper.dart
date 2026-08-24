@@ -15,6 +15,8 @@ class CategoryHelper {
     'penjualan',
     'pencairan',
     'baru',
+    'biaya admin',
+    'admin',
   };
 
   static Color getColorForIcon(String iconId) {
@@ -66,7 +68,9 @@ class CategoryHelper {
       return getColorForIcon(customIcons[cat]!);
     }
 
-    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum') || cat.contains('kopi') || cat.contains('resto') || cat.contains('cafe') || cat.contains('sarapan') || cat.contains('kuliner')) {
+    if (cat.contains('admin') || cat.contains('biaya') || cat.contains('fee')) {
+      return const Color(0xFFE53935);
+    } else if (cat.contains('makan') || cat.contains('jajan') || cat.contains('minum') || cat.contains('kopi') || cat.contains('resto') || cat.contains('cafe') || cat.contains('sarapan') || cat.contains('kuliner')) {
       return getColorForIcon('utensils');
     } else if (cat.contains('transport') || cat.contains('bensin') || cat.contains('parkir') || cat.contains('mobil') || cat.contains('motor') || cat.contains('ojek') || cat.contains('grab') || cat.contains('gojek') || cat.contains('bengkel') || cat.contains('service')) {
       return getColorForIcon('car');
@@ -123,7 +127,9 @@ class CategoryHelper {
       }
     }
 
-    if (cat.contains('makan') || cat.contains('jajan') || cat.contains('kuliner') || cat.contains('sarapan') || cat.contains('resto')) {
+    if (cat.contains('admin') || cat.contains('biaya') || cat.contains('fee')) {
+      return FontAwesomeIcons.receipt;
+    } else if (cat.contains('makan') || cat.contains('jajan') || cat.contains('kuliner') || cat.contains('sarapan') || cat.contains('resto')) {
       return FontAwesomeIcons.utensils;
     } else if (cat.contains('minum') || cat.contains('kopi') || cat.contains('cafe') || cat.contains('boba')) {
       return FontAwesomeIcons.mugHot;

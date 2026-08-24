@@ -9,6 +9,7 @@ import '../../../../widgets/sub_app_bar.dart';
 import 'edit_transaction_screen.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
+import '../../../../widgets/wallet_helper.dart';
 import '../../../../widgets/network_helper.dart';
 
 class AllTransactionsScreen extends StatefulWidget {
@@ -24,6 +25,8 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
   final supabase = Supabase.instance.client;
   bool _isLoading = true;
   List<Map<String, dynamic>> _transactions = [];
+  List<Map<String, dynamic>> _userWallets = [];
+  int? _selectedWalletId;
 
   String _selectedTimeFilter = 'Bulan Ini';
   final List<String> _timeFilters = ['Hari Ini', 'Minggu Ini', 'Bulan Ini', 'Tahun Ini', 'Semua Waktu'];
@@ -104,12 +107,20 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
       loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
 
-      final walletResponse = await supabase.from('wallets').select().eq('user_id', userId);
+      final walletResponse = await supabase.from('wallets').select().eq('user_id', userId).order('id');
       Map<int, Map<String, dynamic>> walletData = {};
+      List<Map<String, dynamic>> loadedWallets = [];
       for (var w in walletResponse) {
         int wId = int.tryParse(w['id'].toString()) ?? -1;
         if (wId != -1) {
-          walletData[wId] = {'name': w['name'].toString()};
+          String wName = w['name'].toString();
+          walletData[wId] = {'name': wName};
+          loadedWallets.add({
+            'id': wId,
+            'name': wName,
+            'color': WalletHelper.getColor(wName),
+            'icon': WalletHelper.getIcon(w['icon_name']?.toString(), wName, color: WalletHelper.getColor(wName), size: 10),
+          });
         }
       }
 
@@ -160,6 +171,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         bool isExpense = tx['is_expense'] as bool? ?? false;
         String category = tx['category']?.toString() ?? '';
         DateTime txDate = DateTime.parse(tx['transaction_date']);
+        int txWalletId = int.tryParse(tx['wallet_id'].toString()) ?? -1;
 
         if (widget.filterType == 'income' && (isExpense || category.toLowerCase() == 'transfer')) continue;
         if (widget.filterType == 'expense' && (!isExpense || category.toLowerCase() == 'transfer')) continue;
@@ -171,13 +183,35 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         }
 
         if (category.toLowerCase() == 'transfer') {
-          final partner = txResponse.firstWhere(
-                (t) => t['category']?.toString().toLowerCase() == 'transfer' &&
-                (int.tryParse(t['amount'].toString()) ?? 0) == amount &&
-                t['is_expense'] != isExpense &&
-                !processedIds.contains(int.tryParse(t['id'].toString()) ?? -1),
-            orElse: () => <String, dynamic>{},
-          );
+          final txGroupId = tx['group_id']?.toString();
+          Map<String, dynamic> partner = {};
+          if (txGroupId != null && txGroupId.isNotEmpty) {
+            partner = txResponse.firstWhere(
+                  (t) => (t['group_id']?.toString() ?? '') == txGroupId &&
+                  t['category']?.toString().toLowerCase() != 'biaya admin' &&
+                  (int.tryParse(t['id'].toString()) ?? -1) != id &&
+                  !processedIds.contains(int.tryParse(t['id'].toString()) ?? -1),
+              orElse: () => <String, dynamic>{},
+            );
+          }
+          if (partner.isEmpty) {
+            partner = txResponse.firstWhere(
+                  (t) => t['category']?.toString().toLowerCase() == 'transfer' &&
+                  (int.tryParse(t['amount'].toString()) ?? 0) == amount &&
+                  t['is_expense'] != isExpense &&
+                  t['transaction_date'] == tx['transaction_date'] &&
+                  !processedIds.contains(int.tryParse(t['id'].toString()) ?? -1),
+              orElse: () => <String, dynamic>{},
+            );
+          }
+
+          int partnerWalletId = partner.isNotEmpty ? (int.tryParse(partner['wallet_id'].toString()) ?? -1) : -1;
+
+          if (_selectedWalletId != null) {
+            if (txWalletId != _selectedWalletId && partnerWalletId != _selectedWalletId) {
+              continue;
+            }
+          }
 
           var mergedTx = Map<String, dynamic>.from(tx);
           if (isExpense) {
@@ -194,6 +228,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
           processedIds.add(id);
           if (partner.isNotEmpty) processedIds.add(int.tryParse(partner['id'].toString()) ?? -1);
         } else {
+          if (_selectedWalletId != null && txWalletId != _selectedWalletId) {
+            continue;
+          }
+
           var mergedTx = Map<String, dynamic>.from(tx);
           mergedTx['wallet_name'] = getWalletName(tx);
           displayTx.add(mergedTx);
@@ -204,6 +242,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
       if (mounted) {
         setState(() {
           _customIcons = tempIcons;
+          _userWallets = loadedWallets;
           _transactions = displayTx;
           _isLoading = false;
         });
@@ -249,8 +288,11 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
 
       bool isTransfer = tx['category']?.toString().toLowerCase() == 'transfer';
       int mainId = tx['id'];
+      final groupId = tx['group_id']?.toString();
 
-      if (isTransfer && tx['partner_id'] != null) {
+      if (isTransfer && groupId != null && groupId.isNotEmpty) {
+        await supabase.from('transactions').delete().eq('group_id', groupId).eq('user_id', userId);
+      } else if (isTransfer && tx['partner_id'] != null) {
         int partnerId = tx['partner_id'];
         await supabase.from('transactions').delete().eq('id', mainId).eq('user_id', userId);
         await supabase.from('transactions').delete().eq('id', partnerId).eq('user_id', userId);
@@ -365,6 +407,89 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
               ),
             ),
           ),
+
+          if (_userWallets.isNotEmpty)
+            Theme(
+              data: Theme.of(context).copyWith(
+                scrollbarTheme: ScrollbarThemeData(
+                  thumbColor: WidgetStateProperty.all(Colors.transparent),
+                  trackColor: WidgetStateProperty.all(Colors.transparent),
+                ),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 6),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedWalletId = null);
+                        _fetchAllTransactions();
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _selectedWalletId == null
+                              ? (isDark ? Colors.teal.shade700 : AppColors.primaryGreen)
+                              : (isDark ? Colors.white10 : Colors.grey.shade100),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          'Semua Dompet',
+                          style: TextStyle(
+                            color: _selectedWalletId == null ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                            fontWeight: _selectedWalletId == null ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                    ..._userWallets.map((w) {
+                      bool isSelected = _selectedWalletId == w['id'];
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedWalletId = isSelected ? null : w['id']);
+                          _fetchAllTransactions();
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (isDark ? Colors.teal.shade700 : AppColors.primaryGreen)
+                                : (isDark ? Colors.white10 : Colors.grey.shade100),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: (w['color'] as Color? ?? Colors.grey).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: w['icon'] ?? const SizedBox.shrink(),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                w['name'],
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

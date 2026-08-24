@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 class SubAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
+  final List<Widget>? actions;
 
-  const SubAppBar({super.key, required this.title});
+  const SubAppBar({super.key, required this.title, this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +23,7 @@ class SubAppBar extends StatelessWidget implements PreferredSizeWidget {
           fontSize: 16,
         ),
       ),
+      actions: actions,
     );
   }
 
