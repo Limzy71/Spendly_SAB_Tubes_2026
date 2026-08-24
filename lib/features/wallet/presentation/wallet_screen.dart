@@ -272,109 +272,117 @@ class _WalletScreenState extends State<WalletScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 24, right: 24, top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Edit Dompet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                  IconButton(
-                    icon: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.red, size: 20),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _deleteWallet(wallet['id'], wallet['name']);
-                    },
-                  )
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              const Text('NAMA DOMPET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-              TextField(
-                controller: editNameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+        final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+        final bottomPadding = MediaQuery.of(ctx).padding.bottom;
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: bottomInset > 0 ? bottomInset + 16 : bottomPadding + 20,
+              left: 24,
+              right: 24,
+              top: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Edit Dompet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                    IconButton(
+                      icon: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.red, size: 20),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _deleteWallet(wallet['id'], wallet['name']);
+                      },
+                    )
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-              const Text('SALDO SAAT INI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: editBalanceController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [LengthLimitingTextInputFormatter(18)],
-                decoration: const InputDecoration(
-                  prefixText: 'Rp ',
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                const Text('NAMA DOMPET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                TextField(
+                  controller: editNameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                  ),
                 ),
-                onChanged: (value) {
-                  if (value.isNotEmpty) {
-                    String clean = value.replaceAll('.', '');
-                    if (clean.startsWith('0') && clean.length > 1) {
-                      clean = clean.replaceFirst(RegExp(r'^0+'), '');
-                      if (clean.isEmpty) clean = '0';
-                    }
-                    String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
-                    editBalanceController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
-                  }
-                },
-              ),
-              const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  onPressed: () async {
-                    bool hasConnection = await NetworkHelper.checkConnection(context);
-                    if (!mounted) return;
-                    if (!hasConnection) return;
-
-                    if (!ctx.mounted) return;
-                    Navigator.pop(ctx);
-                    setState(() => _isLoading = true);
-                    try {
-                      int newBalance = int.tryParse(editBalanceController.text.replaceAll('.', '')) ?? 0;
-
-                      final walletData = await supabase.from('wallets').select('balance').eq('id', wallet['id']).single();
-                      int dbBalance = int.tryParse(walletData['balance'].toString()) ?? 0;
-
-                      int totalTxEffect = (wallet['balance'] as int) - dbBalance;
-                      int newBaseBalance = newBalance - totalTxEffect;
-
-                      await supabase.from('wallets').update({
-                        'name': editNameController.text.trim(),
-                        'balance': newBaseBalance,
-                      }).eq('id', wallet['id']);
-
-                      await supabase.from('transactions').update({
-                        'wallet_name': editNameController.text.trim(),
-                      }).eq('wallet_id', wallet['id']);
-
-                      _fetchWalletData();
-                      if (mounted) CustomNotification.show(context, 'Dompet berhasil diperbarui!');
-                    } catch (e) {
-                      if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
-                    } finally {
-                      if (mounted) setState(() => _isLoading = false);
+                const Text('SALDO SAAT INI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: editBalanceController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [LengthLimitingTextInputFormatter(18)],
+                  decoration: const InputDecoration(
+                    prefixText: 'Rp ',
+                    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                  ),
+                  onChanged: (value) {
+                    if (value.isNotEmpty) {
+                      String clean = value.replaceAll('.', '');
+                      if (clean.startsWith('0') && clean.length > 1) {
+                        clean = clean.replaceFirst(RegExp(r'^0+'), '');
+                        if (clean.isEmpty) clean = '0';
+                      }
+                      String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
+                      editBalanceController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
                     }
                   },
-                  child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 32),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () async {
+                      bool hasConnection = await NetworkHelper.checkConnection(context);
+                      if (!mounted) return;
+                      if (!hasConnection) return;
+
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx);
+                      setState(() => _isLoading = true);
+                      try {
+                        int newBalance = int.tryParse(editBalanceController.text.replaceAll('.', '')) ?? 0;
+
+                        final walletData = await supabase.from('wallets').select('balance').eq('id', wallet['id']).single();
+                        int dbBalance = int.tryParse(walletData['balance'].toString()) ?? 0;
+
+                        int totalTxEffect = (wallet['balance'] as int) - dbBalance;
+                        int newBaseBalance = newBalance - totalTxEffect;
+
+                        await supabase.from('wallets').update({
+                          'name': editNameController.text.trim(),
+                          'balance': newBaseBalance,
+                        }).eq('id', wallet['id']);
+
+                        await supabase.from('transactions').update({
+                          'wallet_name': editNameController.text.trim(),
+                        }).eq('wallet_id', wallet['id']);
+
+                        _fetchWalletData();
+                        if (mounted) CustomNotification.show(context, 'Dompet berhasil diperbarui!');
+                      } catch (e) {
+                        if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui');
+                      } finally {
+                        if (mounted) setState(() => _isLoading = false);
+                      }
+                    },
+                    child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         );
       },
