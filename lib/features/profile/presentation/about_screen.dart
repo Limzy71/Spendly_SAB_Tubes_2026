@@ -123,7 +123,7 @@ class AboutScreen extends StatelessWidget {
 
                       Row(
                         children: [
-                          const FaIcon(FontAwesomeIcons.code, size: 18, color: AppColors.primaryGreen),
+                          const FaIcon(FontAwesomeIcons.laptopCode, size: 18, color: AppColors.primaryGreen),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
