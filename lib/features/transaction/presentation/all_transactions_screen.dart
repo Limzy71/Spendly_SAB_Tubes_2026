@@ -108,6 +108,10 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
         }
       }
 
+      loadCustomIcons('custom_transaction_expense_categories_v5', 'custom_transaction_expense_icon_v5_');
+      loadCustomIcons('custom_transaction_income_categories_v5', 'custom_transaction_income_icon_v5_');
+      loadCustomIcons('custom_transaction_expense_categories_v4', 'custom_transaction_expense_icon_v4_');
+      loadCustomIcons('custom_transaction_income_categories_v4', 'custom_transaction_income_icon_v4_');
       loadCustomIcons('custom_transaction_expense_categories', 'custom_transaction_expense_icon_');
       loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
       loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
@@ -595,7 +599,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                               itemBuilder: (context, index) {
                                 final cat = filteredCategories[index];
                                 final isSelected = cat.toLowerCase() == (_selectedCategory ?? '').toLowerCase();
-                                final color = CategoryHelper.getColor(cat);
+                                final color = CategoryHelper.getColor(cat, customIcons: _customIcons);
 
                                 return ListTile(
                                   dense: true,
@@ -1067,7 +1071,8 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
     bool isExpense = tx['is_expense'] as bool? ?? false;
 
     Color amountColor = isTransfer ? Colors.blue : (isExpense ? Colors.red : AppColors.primaryGreen);
-    Color bgIconColor = amountColor.withValues(alpha: 0.1);
+    Color iconColor = isTransfer ? Colors.blue : CategoryHelper.getColor(tx['category'] ?? '', customIcons: _customIcons);
+    Color bgIconColor = iconColor.withValues(alpha: 0.12);
 
     dynamic icon = isTransfer
         ? FontAwesomeIcons.rightLeft
@@ -1134,7 +1139,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
               Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: bgIconColor, borderRadius: BorderRadius.circular(12)),
-                  child: FaIcon(icon, color: amountColor, size: 20)
+                  child: FaIcon(icon, color: iconColor, size: 20)
               ),
               const SizedBox(width: 16),
               Expanded(

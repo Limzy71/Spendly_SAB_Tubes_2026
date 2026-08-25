@@ -98,25 +98,42 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (expense) {
       return [
         {'id': 'utensils', 'icon': FontAwesomeIcons.utensils},
-        {'id': 'car', 'icon': FontAwesomeIcons.car},
-        {'id': 'bag', 'icon': FontAwesomeIcons.bagShopping},
-        {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
-        {'id': 'film', 'icon': FontAwesomeIcons.film},
         {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
-        {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+        {'id': 'car', 'icon': FontAwesomeIcons.car},
+        {'id': 'motorcycle', 'icon': FontAwesomeIcons.motorcycle},
+        {'id': 'gas_pump', 'icon': FontAwesomeIcons.gasPump},
+        {'id': 'bag', 'icon': FontAwesomeIcons.bagShopping},
+        {'id': 'cart', 'icon': FontAwesomeIcons.cartShopping},
+        {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+        {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
+        {'id': 'bolt', 'icon': FontAwesomeIcons.bolt},
+        {'id': 'droplet', 'icon': FontAwesomeIcons.droplet},
+        {'id': 'wifi', 'icon': FontAwesomeIcons.wifi},
+        {'id': 'mobile', 'icon': FontAwesomeIcons.mobileScreen},
         {'id': 'house', 'icon': FontAwesomeIcons.house},
+        {'id': 'key', 'icon': FontAwesomeIcons.key},
         {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
         {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
-        {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+        {'id': 'book', 'icon': FontAwesomeIcons.book},
+        {'id': 'film', 'icon': FontAwesomeIcons.film},
         {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
-        {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+        {'id': 'music', 'icon': FontAwesomeIcons.music},
+        {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+        {'id': 'hotel', 'icon': FontAwesomeIcons.hotel},
+        {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+        {'id': 'baby', 'icon': FontAwesomeIcons.baby},
+        {'id': 'heart', 'icon': FontAwesomeIcons.heart},
+        {'id': 'hands_praying', 'icon': FontAwesomeIcons.handsPraying},
+        {'id': 'smoking', 'icon': FontAwesomeIcons.smoking},
+        {'id': 'scissors', 'icon': FontAwesomeIcons.scissors},
+        {'id': 'dumbbell', 'icon': FontAwesomeIcons.dumbbell},
+        {'id': 'wrench', 'icon': FontAwesomeIcons.wrench},
         {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
+        {'id': 'shield', 'icon': FontAwesomeIcons.shieldHalved},
+        {'id': 'credit_card', 'icon': FontAwesomeIcons.creditCard},
         {'id': 'train', 'icon': FontAwesomeIcons.train},
         {'id': 'building', 'icon': FontAwesomeIcons.building},
         {'id': 'star', 'icon': FontAwesomeIcons.star},
-        {'id': 'music', 'icon': FontAwesomeIcons.music},
-        {'id': 'dumbbell', 'icon': FontAwesomeIcons.dumbbell},
-        {'id': 'book', 'icon': FontAwesomeIcons.book},
       ];
     }
 
@@ -124,15 +141,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       {'id': 'salary', 'icon': FontAwesomeIcons.moneyBillWave},
       {'id': 'giftbox', 'icon': FontAwesomeIcons.gift},
       {'id': 'arrow', 'icon': FontAwesomeIcons.arrowTrendUp},
+      {'id': 'chart', 'icon': FontAwesomeIcons.chartLine},
       {'id': 'store', 'icon': FontAwesomeIcons.store},
+      {'id': 'truck', 'icon': FontAwesomeIcons.truckFast},
       {'id': 'piggy', 'icon': FontAwesomeIcons.piggyBank},
       {'id': 'coins', 'icon': FontAwesomeIcons.coins},
-      {'id': 'chart', 'icon': FontAwesomeIcons.chartLine},
       {'id': 'briefcase', 'icon': FontAwesomeIcons.briefcase},
+      {'id': 'laptop_code', 'icon': FontAwesomeIcons.laptopCode},
       {'id': 'receipt', 'icon': FontAwesomeIcons.receipt},
       {'id': 'hand_holding', 'icon': FontAwesomeIcons.handHoldingDollar},
+      {'id': 'hand_sparkles', 'icon': FontAwesomeIcons.handSparkles},
       {'id': 'money_check', 'icon': FontAwesomeIcons.moneyCheckDollar},
       {'id': 'sack', 'icon': FontAwesomeIcons.sackDollar},
+      {'id': 'percent', 'icon': FontAwesomeIcons.percent},
+      {'id': 'building_columns', 'icon': FontAwesomeIcons.buildingColumns},
+      {'id': 'bitcoin', 'icon': FontAwesomeIcons.bitcoin},
+      {'id': 'gem', 'icon': FontAwesomeIcons.gem},
+      {'id': 'crown', 'icon': FontAwesomeIcons.crown},
+      {'id': 'arrows_rotate', 'icon': FontAwesomeIcons.arrowsRotate},
+      {'id': 'house_laptop', 'icon': FontAwesomeIcons.houseLaptop},
+      {'id': 'vault', 'icon': FontAwesomeIcons.vault},
+      {'id': 'user_tie', 'icon': FontAwesomeIcons.userTie},
     ];
   }
 
@@ -358,131 +387,223 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   void _showAddCategoryDialog() {
-    TextEditingController catController = TextEditingController();
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-
+    final catController = TextEditingController();
+    final catFocusNode = FocusNode();
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color textColor = isDark ? Colors.white : Colors.black87;
     final List<Map<String, dynamic>> availableIcons = _customIconsForType(isExpense);
 
     String tempIconId = availableIcons[0]['id'];
     dynamic tempIcon = availableIcons[0]['icon'];
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
         return StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return AlertDialog(
-                backgroundColor: Theme.of(context).cardColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                title: Text('Kategori Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                content: SingleChildScrollView(
+          builder: (context, setStateSheet) {
+            final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+            final isKeyboardOpen = bottomInset > 0;
+            final double sheetHeight = isKeyboardOpen ? 0.85 : 0.58;
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * sheetHeight,
+                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
-                        controller: catController,
-                        maxLength: 16,
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                        decoration: const InputDecoration(
-                          hintText: 'Contoh: Hadiah',
-                          hintStyle: TextStyle(color: Colors.grey),
-                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isExpense ? 'Tambah Kategori Pengeluaran' : 'Tambah Kategori Pemasukan',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, size: 20, color: textColor),
+                            onPressed: () => Navigator.pop(ctx),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 10),
-                      const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      TextField(
+                        controller: catController,
+                        focusNode: catFocusNode,
+                        maxLength: 16,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: isExpense ? 'Contoh: Belanja Bulanan' : 'Contoh: Hadiah / THR',
+                          hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          counterText: '',
+                        ),
+                        onTap: () {
+                          if (!catFocusNode.hasFocus) {
+                            catFocusNode.requestFocus();
+                          }
+                        },
+                      ),
                       const SizedBox(height: 12),
-                      Center(
-                        child: Wrap(
-                          spacing: 14,
-                          runSpacing: 14,
-                          alignment: WrapAlignment.center,
-                          children: availableIcons.map((item) {
-                            bool isSelected = tempIconId == item['id'];
-                            Color iconColor = CategoryHelper.getColorForIcon(item['id']);
+                      Row(
+                        children: [
+                          const Text(
+                            'Pilih Ikon:',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '(${availableIcons.length} pilihan)',
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 6,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 1.0,
+                          ),
+                          itemCount: availableIcons.length,
+                          itemBuilder: (context, index) {
+                            final item = availableIcons[index];
+                            final isSelected = tempIconId == item['id'];
+                            final Color iconColor = CategoryHelper.getColorForIcon(item['id']);
 
                             return GestureDetector(
-                              onTap: () => setStateDialog(() {
+                              onTap: () => setStateSheet(() {
                                 tempIconId = item['id'];
                                 tempIcon = item['icon'];
                               }),
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? iconColor.withValues(alpha: 0.2) : Colors.transparent,
+                                  color: isSelected
+                                      ? iconColor.withValues(alpha: 0.22)
+                                      : iconColor.withValues(alpha: 0.10),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: isSelected ? iconColor : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                                  border: Border.all(
+                                    color: isSelected ? iconColor : iconColor.withValues(alpha: 0.25),
+                                    width: isSelected ? 2.5 : 1.0,
+                                  ),
                                 ),
-                                child: FaIcon(item['icon'], color: iconColor, size: 20),
+                                child: Center(
+                                  child: FaIcon(
+                                    item['icon'],
+                                    color: iconColor,
+                                    size: isSelected ? 20 : 18,
+                                  ),
+                                ),
                               ),
                             );
-                          }).toList(),
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryGreen,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          onPressed: () async {
+                            if (catController.text.trim().isNotEmpty) {
+                              String newCatName = catController.text.trim();
+                              List<Map<String, dynamic>> targetList = isExpense ? expenseCategories : incomeCategories;
+
+                              bool exists = targetList.any((c) => c['name'].toString().toLowerCase() == newCatName.toLowerCase());
+                              if (exists) {
+                                CustomNotification.show(context, 'Kategori "$newCatName" sudah ada di daftar!', isWarning: true);
+                                return;
+                              }
+
+                              final prefs = await SharedPreferences.getInstance();
+                              final listKey = _categoryListKey(isExpense);
+                              final hiddenKey = _hiddenCategoryListKey(isExpense);
+                              final iconKey = _categoryIconKey(isExpense, newCatName);
+                              List<String> customCats = prefs.getStringList(listKey) ?? [];
+                              List<String> hiddenCats = prefs.getStringList(hiddenKey) ?? [];
+
+                              if (!customCats.contains(newCatName)) {
+                                customCats.add(newCatName);
+                                await prefs.setStringList(listKey, customCats);
+                                await prefs.setString(iconKey, tempIconId);
+                              }
+
+                              if (hiddenCats.contains(newCatName)) {
+                                hiddenCats.remove(newCatName);
+                                await prefs.setStringList(hiddenKey, hiddenCats);
+                              }
+
+                              if (!mounted) return;
+                              setState(() {
+                                var newCategory = {
+                                  'name': newCatName,
+                                  'icon': tempIcon,
+                                  'color': CategoryHelper.getColorForIcon(tempIconId),
+                                };
+
+                                if (isExpense) {
+                                  expenseCategories.insert(expenseCategories.length - 1, newCategory);
+                                } else {
+                                  incomeCategories.insert(incomeCategories.length - 1, newCategory);
+                                }
+                                selectedCategory = newCatName;
+                              });
+                              if (!ctx.mounted) return;
+                              Navigator.pop(ctx);
+                              if (mounted) {
+                                CustomNotification.show(context, 'Kategori "$newCatName" berhasil ditambahkan!');
+                              }
+                            } else {
+                              CustomNotification.show(context, 'Nama kategori tidak boleh kosong!', isWarning: true);
+                            }
+                          },
+                          child: const Text(
+                            'Simpan Kategori',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryGreen,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
-                    ),
-                    onPressed: () async {
-                      if (catController.text.trim().isNotEmpty) {
-                        String newCatName = catController.text.trim();
-                        List<Map<String, dynamic>> targetList = isExpense ? expenseCategories : incomeCategories;
-
-                        bool exists = targetList.any((c) => c['name'].toString().toLowerCase() == newCatName.toLowerCase());
-                        if (exists) {
-                          CustomNotification.show(context, 'Kategori "$newCatName" sudah ada di daftar!', isWarning: true);
-                          return;
-                        }
-
-                        final prefs = await SharedPreferences.getInstance();
-                        final listKey = _categoryListKey(isExpense);
-                        final hiddenKey = _hiddenCategoryListKey(isExpense);
-                        final iconKey = _categoryIconKey(isExpense, newCatName);
-                        List<String> customCats = prefs.getStringList(listKey) ?? [];
-                        List<String> hiddenCats = prefs.getStringList(hiddenKey) ?? [];
-
-                        if (!customCats.contains(newCatName)) {
-                          customCats.add(newCatName);
-                          await prefs.setStringList(listKey, customCats);
-                          await prefs.setString(iconKey, tempIconId);
-                        }
-
-                        if (hiddenCats.contains(newCatName)) {
-                          hiddenCats.remove(newCatName);
-                          await prefs.setStringList(hiddenKey, hiddenCats);
-                        }
-
-                        if (!mounted) return;
-                        setState(() {
-                          var newCategory = {
-                            'name': newCatName,
-                            'icon': tempIcon,
-                            'color': CategoryHelper.getColorForIcon(tempIconId),
-                          };
-
-                          if (isExpense) {
-                            expenseCategories.insert(expenseCategories.length - 1, newCategory);
-                          } else {
-                            incomeCategories.insert(incomeCategories.length - 1, newCategory);
-                          }
-                          selectedCategory = newCatName;
-                        });
-                        if (!ctx.mounted) return;
-                        Navigator.pop(ctx);
-                      }
-                    },
-                    child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              );
-            }
+              ),
+            );
+          },
         );
       },
     );

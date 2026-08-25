@@ -1348,7 +1348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildListTile(
                   icon: FontAwesomeIcons.circleInfo,
                   title: 'Tentang Spendly',
-                  subtitle: 'v1.0.11 (Kebijakan Privasi, Layanan)',
+                  subtitle: 'v1.0.12 (Kebijakan Privasi, Layanan)',
                   trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                   onTap: () {
                     Navigator.push(
