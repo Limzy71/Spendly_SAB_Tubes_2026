@@ -116,128 +116,231 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   }
 
   void _showAddCategoryDialog() {
-    TextEditingController catController = TextEditingController();
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final catController = TextEditingController();
+    final catFocusNode = FocusNode();
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color textColor = isDark ? Colors.white : Colors.black87;
 
     final List<Map<String, dynamic>> availableIcons = [
       {'id': 'utensils', 'icon': FontAwesomeIcons.utensils},
+      {'id': 'coffee', 'icon': FontAwesomeIcons.mugSaucer},
       {'id': 'car', 'icon': FontAwesomeIcons.car},
-      {'id': 'bag', 'icon': FontAwesomeIcons.bagShopping},
-      {'id': 'invoice', 'icon': FontAwesomeIcons.fileInvoiceDollar},
-      {'id': 'film', 'icon': FontAwesomeIcons.film},
-      {'id': 'coffee', 'icon': FontAwesomeIcons.mugHot},
-      {'id': 'plane', 'icon': FontAwesomeIcons.plane},
-      {'id': 'house', 'icon': FontAwesomeIcons.house},
-      {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
-      {'id': 'edu', 'icon': FontAwesomeIcons.graduationCap},
-      {'id': 'paw', 'icon': FontAwesomeIcons.paw},
-      {'id': 'game', 'icon': FontAwesomeIcons.gamepad},
+      {'id': 'motorcycle', 'icon': FontAwesomeIcons.motorcycle},
+      {'id': 'gas_pump', 'icon': FontAwesomeIcons.gasPump},
+      {'id': 'bag_shopping', 'icon': FontAwesomeIcons.bagShopping},
+      {'id': 'cart_shopping', 'icon': FontAwesomeIcons.cartShopping},
       {'id': 'shirt', 'icon': FontAwesomeIcons.shirt},
+      {'id': 'receipt', 'icon': FontAwesomeIcons.receipt},
+      {'id': 'bolt', 'icon': FontAwesomeIcons.bolt},
+      {'id': 'droplet', 'icon': FontAwesomeIcons.droplet},
+      {'id': 'wifi', 'icon': FontAwesomeIcons.wifi},
+      {'id': 'mobile', 'icon': FontAwesomeIcons.mobileScreen},
+      {'id': 'house', 'icon': FontAwesomeIcons.house},
+      {'id': 'key', 'icon': FontAwesomeIcons.key},
+      {'id': 'hospital', 'icon': FontAwesomeIcons.hospital},
+      {'id': 'graduation_cap', 'icon': FontAwesomeIcons.graduationCap},
+      {'id': 'book', 'icon': FontAwesomeIcons.book},
+      {'id': 'film', 'icon': FontAwesomeIcons.film},
+      {'id': 'gamepad', 'icon': FontAwesomeIcons.gamepad},
+      {'id': 'music', 'icon': FontAwesomeIcons.music},
+      {'id': 'plane', 'icon': FontAwesomeIcons.plane},
+      {'id': 'hotel', 'icon': FontAwesomeIcons.hotel},
+      {'id': 'paw', 'icon': FontAwesomeIcons.paw},
+      {'id': 'baby', 'icon': FontAwesomeIcons.baby},
+      {'id': 'heart', 'icon': FontAwesomeIcons.heart},
+      {'id': 'hands_praying', 'icon': FontAwesomeIcons.handsPraying},
+      {'id': 'smoking', 'icon': FontAwesomeIcons.smoking},
+      {'id': 'scissors', 'icon': FontAwesomeIcons.scissors},
+      {'id': 'dumbbell', 'icon': FontAwesomeIcons.dumbbell},
+      {'id': 'wrench', 'icon': FontAwesomeIcons.wrench},
       {'id': 'laptop', 'icon': FontAwesomeIcons.laptop},
+      {'id': 'shield', 'icon': FontAwesomeIcons.shieldHalved},
+      {'id': 'credit_card', 'icon': FontAwesomeIcons.creditCard},
       {'id': 'train', 'icon': FontAwesomeIcons.train},
       {'id': 'building', 'icon': FontAwesomeIcons.building},
       {'id': 'star', 'icon': FontAwesomeIcons.star},
-      {'id': 'music', 'icon': FontAwesomeIcons.music},
-      {'id': 'dumbbell', 'icon': FontAwesomeIcons.dumbbell},
-      {'id': 'book', 'icon': FontAwesomeIcons.book},
     ];
 
     String tempIconId = availableIcons[0]['id'];
     dynamic tempIcon = availableIcons[0]['icon'];
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
         return StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return AlertDialog(
-                backgroundColor: Theme.of(context).cardColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                title: Text('Kategori Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                content: SingleChildScrollView(
+          builder: (context, setStateSheet) {
+            final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+            final isKeyboardOpen = bottomInset > 0;
+            final double sheetHeight = isKeyboardOpen ? 0.85 : 0.58;
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * sheetHeight,
+                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
-                        controller: catController,
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                        decoration: const InputDecoration(
-                          hintText: 'Contoh: Edukasi',
-                          hintStyle: TextStyle(color: Colors.grey),
-                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      const Text('Pilih Ikon:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Tambah Kategori Anggaran', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                          IconButton(
+                            icon: Icon(Icons.close, size: 20, color: textColor),
+                            onPressed: () => Navigator.pop(ctx),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: catController,
+                        focusNode: catFocusNode,
+                        maxLength: 16,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Contoh: Edukasi / Kursus',
+                          hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          counterText: '',
+                        ),
+                        onTap: () {
+                          if (!catFocusNode.hasFocus) {
+                            catFocusNode.requestFocus();
+                          }
+                        },
+                      ),
                       const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: availableIcons.map((item) {
-                          bool isSelected = tempIconId == item['id'];
-                          Color iconColor = CategoryHelper.getColorForIcon(item['id']);
+                      Row(
+                        children: [
+                          const Text(
+                            'Pilih Ikon:',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '(${availableIcons.length} pilihan)',
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 6,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 1.0,
+                          ),
+                          itemCount: availableIcons.length,
+                          itemBuilder: (context, index) {
+                            final item = availableIcons[index];
+                            final isSelected = tempIconId == item['id'];
+                            final Color iconColor = CategoryHelper.getColorForIcon(item['id']);
 
-                          return GestureDetector(
-                            onTap: () => setStateDialog(() {
-                              tempIconId = item['id'];
-                              tempIcon = item['icon'];
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isSelected ? iconColor.withValues(alpha: 0.2) : Colors.transparent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: isSelected ? iconColor : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                            return GestureDetector(
+                              onTap: () => setStateSheet(() {
+                                tempIconId = item['id'];
+                                tempIcon = item['icon'];
+                              }),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? iconColor.withValues(alpha: 0.22)
+                                      : iconColor.withValues(alpha: 0.10),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected ? iconColor : iconColor.withValues(alpha: 0.25),
+                                    width: isSelected ? 2.5 : 1.0,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: FaIcon(
+                                    item['icon'],
+                                    color: iconColor,
+                                    size: isSelected ? 20 : 18,
+                                  ),
+                                ),
                               ),
-                              child: FaIcon(item['icon'], color: iconColor, size: 20),
-                            ),
-                          );
-                        }).toList(),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryGreen,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          onPressed: () async {
+                            if (catController.text.trim().isNotEmpty) {
+                              String newCatName = catController.text.trim();
+
+                              final prefs = await SharedPreferences.getInstance();
+                              List<String> customCats = prefs.getStringList('custom_transaction_expense_categories_v5') ?? [];
+
+                              if (!customCats.contains(newCatName)) {
+                                customCats.add(newCatName);
+                                await prefs.setStringList('custom_transaction_expense_categories_v5', customCats);
+                                await prefs.setString('custom_transaction_expense_icon_v5_$newCatName', tempIconId);
+                              }
+
+                              if (!mounted) return;
+                              setState(() {
+                                if (!categories.any((c) => c['name'] == newCatName)) {
+                                  categories.insert(categories.length - 1, {
+                                    'name': newCatName,
+                                    'icon': tempIcon,
+                                    'color': CategoryHelper.getColorForIcon(tempIconId),
+                                  });
+                                }
+                                selectedCategory = newCatName;
+                              });
+                              if (!ctx.mounted) return;
+                              Navigator.pop(ctx);
+                            }
+                          },
+                          child: const Text('Simpan Kategori', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryGreen,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
-                    ),
-                    onPressed: () async {
-                      if (catController.text.trim().isNotEmpty) {
-                        String newCatName = catController.text.trim();
-
-                        final prefs = await SharedPreferences.getInstance();
-                        List<String> customCats = prefs.getStringList('custom_transaction_expense_categories_v5') ?? [];
-
-                        if (!customCats.contains(newCatName)) {
-                          customCats.add(newCatName);
-                          await prefs.setStringList('custom_transaction_expense_categories_v5', customCats);
-                          await prefs.setString('custom_transaction_expense_icon_v5_$newCatName', tempIconId);
-                        }
-
-                        if (!mounted) return;
-                        setState(() {
-                          if (!categories.any((c) => c['name'] == newCatName)) {
-                            categories.insert(categories.length - 1, {
-                              'name': newCatName,
-                              'icon': tempIcon,
-                              'color': CategoryHelper.getColorForIcon(tempIconId),
-                            });
-                          }
-                          selectedCategory = newCatName;
-                        });
-                        if (!ctx.mounted) return;
-                        Navigator.pop(ctx);
-                      }
-                    },
-                    child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              );
-            }
+              ),
+            );
+          },
         );
       },
     );
