@@ -144,6 +144,10 @@ class _ReportScreenState extends State<ReportScreen> {
 
       loadCustomIcons('custom_transaction_expense_categories_v5', 'custom_transaction_expense_icon_v5_');
       loadCustomIcons('custom_transaction_income_categories_v5', 'custom_transaction_income_icon_v5_');
+      loadCustomIcons('custom_transaction_expense_categories_v4', 'custom_transaction_expense_icon_v4_');
+      loadCustomIcons('custom_transaction_income_categories_v4', 'custom_transaction_income_icon_v4_');
+      loadCustomIcons('custom_transaction_expense_categories', 'custom_transaction_expense_icon_');
+      loadCustomIcons('custom_transaction_income_categories', 'custom_transaction_income_icon_');
       loadCustomIcons('custom_budget_categories', 'custom_budget_icon_');
 
       _customIcons = tempIcons;
@@ -590,7 +594,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             padding: const EdgeInsets.only(right: 12),
                             child: Column(
                               children: currentCategoryPercentages.entries.map((entry) {
-                                Color color = CategoryHelper.getColor(entry.key);
+                                Color color = CategoryHelper.getColor(entry.key, customIcons: _customIcons);
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 12.0),
                                   child: _buildPieLegendItem(color, entry.key, '${entry.value.toStringAsFixed(1)}%', textColor),
@@ -650,7 +654,7 @@ class _ReportScreenState extends State<ReportScreen> {
               else
                 ...currentTopTransactions.map((tx) {
                   final catName = tx['category'] ?? 'Lainnya';
-                  final catColor = CategoryHelper.getColor(catName);
+                  final catColor = CategoryHelper.getColor(catName, customIcons: _customIcons);
                   final isExp = tx['is_expense'] == true;
                   final prefix = isExp ? '-' : '+';
                   final amtColor = isExp ? barRed : AppColors.primaryGreen;
@@ -749,7 +753,7 @@ class _ReportScreenState extends State<ReportScreen> {
     percentages.forEach((key, value) {
       sections.add(
           PieChartSectionData(
-            color: CategoryHelper.getColor(key),
+            color: CategoryHelper.getColor(key, customIcons: _customIcons),
             value: value,
             title: '',
             radius: 20,
