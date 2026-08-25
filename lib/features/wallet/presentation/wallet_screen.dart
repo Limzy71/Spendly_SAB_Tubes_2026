@@ -225,111 +225,162 @@ class _WalletScreenState extends State<WalletScreen> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
-        final selectableWallets = _wallets
-            .where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId)
-            .toList();
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final isSheetDark = Theme.of(ctx).brightness == Brightness.dark;
+            final Color sheetTextColor = Theme.of(ctx).textTheme.bodyLarge?.color ?? Colors.black87;
 
-        return SafeArea(
-          top: false,
-          child: Container(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.65),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+            final selectableWallets = _wallets
+                .where((w) => isFromAccount ? w['id'] != selectedToAccountId : w['id'] != selectedFromAccountId)
+                .where((w) {
+                  if (searchQuery.trim().isEmpty) return true;
+                  return w['name'].toString().toLowerCase().contains(searchQuery.toLowerCase());
+                })
+                .toList();
+
+            final currentSelectedId = isFromAccount ? selectedFromAccountId : selectedToAccountId;
+
+            return SafeArea(
+              top: false,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.52,
                 ),
-                if (_wallets.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.account_balance_wallet_outlined, size: 42, color: Colors.grey),
-                        SizedBox(height: 12),
-                        Text('Belum ada dompet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                        SizedBox(height: 6),
-                        Text(
-                          'Tambahkan dompet terlebih dahulu agar transfer bisa dilakukan.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 4),
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isSheetDark ? Colors.white24 : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                      ],
+                      ),
                     ),
-                  )
-                else if (selectableWallets.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.swap_horiz, size: 42, color: Colors.grey),
-                        SizedBox(height: 12),
-                        Text('Tidak ada dompet tujuan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                        SizedBox(height: 6),
-                        Text(
-                          'Buat dompet lain dulu supaya transfer antar dompet bisa dipilih.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: selectableWallets.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, indent: 24, endIndent: 24),
-                      itemBuilder: (context, index) {
-                        final wallet = selectableWallets[index];
-                        return InkWell(
-                          onTap: () {
-                            setState(() {
-                              if (isFromAccount) {
-                                selectedFromAccountId = wallet['id'];
-                              } else {
-                                selectedToAccountId = wallet['id'];
-                              }
-                            });
-                            Navigator.pop(ctx);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  flex: 1,
-                                  child: Text(wallet['name'], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 1,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(_formatCurrency(wallet['balance']), style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isFromAccount ? 'Pilih Dompet Asal' : 'Pilih Dompet Tujuan',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: sheetTextColor),
                           ),
-                        );
-                      },
+                          IconButton(
+                            icon: Icon(Icons.close, size: 20, color: sheetTextColor),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
+                    if (_wallets.length > 5) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        child: TextField(
+                          style: TextStyle(color: sheetTextColor, fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'Cari dompet...',
+                            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                            prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
+                            filled: true,
+                            fillColor: isSheetDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          ),
+                          onChanged: (query) => setSheetState(() => searchQuery = query),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    if (_wallets.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(24, 12, 24, 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.account_balance_wallet_outlined, size: 42, color: Colors.grey),
+                            SizedBox(height: 12),
+                            Text('Belum ada dompet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                            SizedBox(height: 6),
+                            Text(
+                              'Tambahkan dompet terlebih dahulu agar transfer bisa dilakukan.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (selectableWallets.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text('Dompet tidak ditemukan', style: TextStyle(color: Colors.grey)),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: selectableWallets.length,
+                          separatorBuilder: (context, index) => const Divider(height: 1, indent: 20, endIndent: 20),
+                          itemBuilder: (context, index) {
+                            final wallet = selectableWallets[index];
+                            final wId = wallet['id'];
+                            final isSelected = wId == currentSelectedId;
+                            final wName = wallet['name'].toString();
+                            final wColor = WalletHelper.getColor(wName);
+                            final int balance = int.tryParse(wallet['balance']?.toString() ?? '0') ?? 0;
+
+                            return ListTile(
+                              dense: true,
+                              onTap: () {
+                                setState(() {
+                                  if (isFromAccount) {
+                                    selectedFromAccountId = wId;
+                                  } else {
+                                    selectedToAccountId = wId;
+                                  }
+                                });
+                                Navigator.pop(ctx);
+                              },
+                              leading: SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: Center(
+                                  child: WalletHelper.getIcon(wallet['icon_name']?.toString(), wName, color: wColor, size: 14),
+                                ),
+                              ),
+                              title: Text(
+                                wName,
+                                style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14, color: sheetTextColor),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _formatCurrency(balance),
+                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 18),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
