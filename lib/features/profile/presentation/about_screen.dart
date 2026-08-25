@@ -61,7 +61,7 @@ class AboutScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Text('Spendly', style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
               const SizedBox(height: 4),
-              Text('Versi 1.0.11', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
+              Text('Versi 1.0.12', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey.shade500)),
               const SizedBox(height: 30),
 
               Text(
@@ -96,7 +96,7 @@ class AboutScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('La Ode Muh. Ikhsan Mbala', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
-                                Text('Project Manager & Full-stack', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)), // <-- Update Role
+                                Text('Project Manager & Fullstack Developer', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)), // <-- Update Role
                               ],
                             ),
                           ),
@@ -113,7 +113,7 @@ class AboutScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('Murod Fikri Fadlurohman', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
-                                Text('Front-End & UI/UX', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
+                                Text('Fullstack Developer', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                           ),
@@ -130,7 +130,7 @@ class AboutScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('Dhaffa Galang Fahriza', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
-                                Text('Database Administrator / QA', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
+                                Text('Fullstack Developer', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                           ),

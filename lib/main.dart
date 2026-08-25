@@ -465,7 +465,7 @@ class _AuthGateState extends State<AuthGate> {
           return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.green)));
         }
 
-        final hasPin = pinSnapshot.data ?? false;
+        final hasPin = pinSnapshot.data ?? false; 
 
         if (hasPin) {
           return const PasscodeScreen();
