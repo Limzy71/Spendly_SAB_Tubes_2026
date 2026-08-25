@@ -65,7 +65,7 @@ Aplikasi ini dikembangkan oleh:
 *   **Murod Fikri Fadlulrohman** - Fullstack Developer
 *   **Dhaffa Galang Fahriza** - Fullstack Developer
 
-*Dikembangkan sebagai bagian dari proyek Universitas Pasundan (UNPAS) - 2026.*
+*Aplikasi ini dikembangkan sebagai bagian dari tugas proyek pada mata kuliah Sistem Aplikasi Bergerak, Program Studi Teknik Informatika, Universitas Pasundan (UNPAS) tahun 2026.*
 
 ---
 
