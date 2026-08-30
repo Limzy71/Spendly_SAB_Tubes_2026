@@ -435,15 +435,15 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
   Widget _buildMonthGridView(Color textColor, bool isDark) {
     return Container(
       key: const ValueKey('month_grid'),
-      height: 220,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: GridView.builder(
+        shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 2.2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
+          crossAxisCount: 4,
+          childAspectRatio: 1.85,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
         ),
         itemCount: 12,
         itemBuilder: (context, index) {
@@ -468,14 +468,14 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                     });
                   }
                 : null,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             child: Container(
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primaryGreen
                     : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: isSelected
                       ? AppColors.primaryGreen
@@ -485,7 +485,7 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
               child: Text(
                 _shortMonthNames[index],
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: (isSelected || isCurrentDisplay) ? FontWeight.bold : FontWeight.normal,
                   color: !isAvailable
                       ? (isDark ? Colors.white24 : Colors.grey.shade400)
@@ -501,67 +501,80 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
 
   Widget _buildYearGridView(Color textColor, bool isDark) {
     final years = _availableYears();
+    final selectedIndex = years.indexOf(_displayYear);
+    final row = selectedIndex >= 0 ? (selectedIndex / 3).floor() : 0;
+    final initialOffset = (row * 50.0).clamp(0.0, (years.length > 9 ? (years.length / 3 * 50.0) : 0.0));
+    final controller = ScrollController(initialScrollOffset: initialOffset);
 
     return Container(
       key: const ValueKey('year_grid'),
-      height: 220,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: GridView.builder(
-        physics: const BouncingScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 2.5,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: years.length,
-        itemBuilder: (context, index) {
-          final year = years[index];
-          final bool isSelected = _selectedDate.year == year;
-          final bool isCurrentDisplay = _displayYear == year;
+      height: 180,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: RawScrollbar(
+        controller: controller,
+        thumbVisibility: years.length > 9,
+        radius: const Radius.circular(8),
+        thickness: 3.5,
+        thumbColor: isDark ? Colors.white30 : Colors.grey.shade400,
+        child: GridView.builder(
+          controller: controller,
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.only(right: years.length > 9 ? 6 : 0),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 2.1,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: years.length,
+          itemBuilder: (context, index) {
+            final year = years[index];
+            final bool isSelected = _selectedDate.year == year;
+            final bool isCurrentDisplay = _displayYear == year;
 
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _displayYear = year;
-                if (!_isMonthAvailable(year, _displayMonth)) {
-                  _displayMonth = widget.lastDate.year == year ? widget.lastDate.month : 1;
-                }
-                final maxDays = DateTime(year, _displayMonth + 1, 0).day;
-                final targetDay = _selectedDate.day > maxDays ? maxDays : _selectedDate.day;
-                final candidate = DateTime(year, _displayMonth, targetDay);
-                if (_isDayAvailable(candidate)) {
-                  _selectedDate = candidate;
-                }
-                // Switch directly to month view so user can choose month next!
-                _viewMode = _PickerViewMode.month;
-              });
-            },
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primaryGreen
-                    : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _displayYear = year;
+                  if (!_isMonthAvailable(year, _displayMonth)) {
+                    _displayMonth = widget.lastDate.year == year ? widget.lastDate.month : 1;
+                  }
+                  final maxDays = DateTime(year, _displayMonth + 1, 0).day;
+                  final targetDay = _selectedDate.day > maxDays ? maxDays : _selectedDate.day;
+                  final candidate = DateTime(year, _displayMonth, targetDay);
+                  if (_isDayAvailable(candidate)) {
+                    _selectedDate = candidate;
+                  }
+                  // Switch directly to month view so user can choose month next!
+                  _viewMode = _PickerViewMode.month;
+                });
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primaryGreen
-                      : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: 0.4) : Colors.transparent),
+                      : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primaryGreen
+                        : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: 0.4) : Colors.transparent),
+                  ),
+                ),
+                child: Text(
+                  '$year',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: (isSelected || isCurrentDisplay) ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? Colors.white : (isCurrentDisplay ? AppColors.primaryGreen : textColor),
+                  ),
                 ),
               ),
-              child: Text(
-                '$year',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: (isSelected || isCurrentDisplay) ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? Colors.white : (isCurrentDisplay ? AppColors.primaryGreen : textColor),
-                ),
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
