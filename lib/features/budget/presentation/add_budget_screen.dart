@@ -11,7 +11,9 @@ import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
 
 class AddBudgetScreen extends StatefulWidget {
-  const AddBudgetScreen({super.key});
+  const AddBudgetScreen({super.key, this.periodStart});
+
+  final DateTime? periodStart;
 
   @override
   State<AddBudgetScreen> createState() => _AddBudgetScreenState();
@@ -19,6 +21,8 @@ class AddBudgetScreen extends StatefulWidget {
 
 class _AddBudgetScreenState extends State<AddBudgetScreen> {
   final supabase = Supabase.instance.client;
+
+  DateTime get _periodDate => widget.periodStart ?? DateTime.now();
 
   String? selectedCategory;
   bool isAlertEnabled = true;
@@ -77,7 +81,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final now = DateTime.now();
+      final now = _periodDate;
       final firstDay = DateTime(now.year, now.month, 1).toIso8601String();
       final lastDay =
           DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
@@ -511,7 +515,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final cleanLimit = _limitController.text.replaceAll('.', '');
       final limitAmount = int.tryParse(cleanLimit) ?? 0;
 
-      final now = DateTime.now();
+      final now = _periodDate;
       final periodMonth =
           DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
 

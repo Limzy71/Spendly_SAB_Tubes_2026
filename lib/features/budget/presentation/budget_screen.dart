@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'add_budget_screen.dart';
@@ -9,6 +10,8 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/sub_app_bar.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
+import '../../../../widgets/custom_notification.dart';
+import '../../../../widgets/spendly_date_picker.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -21,6 +24,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   final supabase = Supabase.instance.client;
 
   bool _isLoading = true;
+  int _monthOffset = 0;
   int _totalBudgetLimit = 0;
   int _totalBudgetSpent = 0;
   int _monthlyIncome = 0;
@@ -31,6 +35,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('id');
     _fetchBudgetData();
   }
 
@@ -43,6 +48,159 @@ class _BudgetScreenState extends State<BudgetScreen> {
         c == 'total dana' ||
         c == 'pemasukan' ||
         c == 'keseluruhan';
+  }
+
+  DateTime get _viewDate {
+    final today = DateTime.now();
+    return DateTime(today.year, today.month + _monthOffset, 1);
+  }
+
+  void _changeMonth(int delta) {
+    final targetOffset = _monthOffset + delta;
+    final today = DateTime.now();
+    final firstAllowed = DateTime(2023, 1, 1);
+    final lastAllowed = DateTime(today.year, today.month + 2, 0);
+    final target = DateTime(today.year, today.month + targetOffset, 1);
+    if (target.isBefore(firstAllowed) || target.isAfter(lastAllowed)) return;
+    setState(() => _monthOffset = targetOffset);
+    _fetchBudgetData();
+  }
+
+  void _selectMonthYear() async {
+    final today = DateTime.now();
+    final firstAllowed = DateTime(2023, 1, 1);
+    final lastAllowed = DateTime(today.year, today.month + 2, 0);
+
+    final picked = await SpendlyDatePicker.showMonthYearPicker(
+      context,
+      initialDate: _viewDate,
+      firstDate: firstAllowed,
+      lastDate: lastAllowed,
+    );
+
+    if (picked != null) {
+      final offset =
+          (picked.year - today.year) * 12 + (picked.month - today.month);
+      setState(() => _monthOffset = offset);
+      _fetchBudgetData();
+    }
+  }
+
+  Future<void> _deleteBudget(String category,
+      {required DateTime periodStart}) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Anggaran'),
+        content:
+            Text('Apakah Anda yakin ingin menghapus anggaran "$category"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!mounted) return;
+    if (!await NetworkHelper.checkConnection(context)) return;
+    if (!mounted) return;
+
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final periodMonth = DateTime(periodStart.year, periodStart.month, 1)
+          .toIso8601String()
+          .split('T')[0];
+
+      await supabase
+          .from('budgets')
+          .delete()
+          .eq('user_id', userId)
+          .eq('category', category)
+          .eq('period_month', periodMonth);
+
+      if (!mounted) return;
+      _fetchBudgetData();
+    } catch (e) {
+      if (mounted) {
+        NetworkHelper.handleSupabaseError(context, e,
+            prefix: 'Gagal menghapus');
+      }
+    }
+  }
+
+  Future<void> _copyFromPreviousMonth() async {
+    if (!mounted) return;
+    if (!await NetworkHelper.checkConnection(context)) return;
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final prev = DateTime(_viewDate.year, _viewDate.month - 1, 1);
+    final prevPeriod = prev.toIso8601String().split('T')[0];
+    final curPeriod = _viewDate.toIso8601String().split('T')[0];
+
+    try {
+      final prevBudgets = await supabase
+          .from('budgets')
+          .select('category, limit_amount')
+          .eq('user_id', userId)
+          .eq('period_month', prevPeriod);
+
+      if (prevBudgets.isEmpty) {
+        if (mounted) {
+          CustomNotification.show(
+              context, 'Tidak ada anggaran di bulan sebelumnya.',
+              isWarning: true);
+        }
+        return;
+      }
+
+      final curBudgets = await supabase
+          .from('budgets')
+          .select('category')
+          .eq('user_id', userId)
+          .eq('period_month', curPeriod);
+      final existingCats = curBudgets
+          .map((b) => (b['category'] as String).toLowerCase())
+          .toSet();
+
+      int added = 0;
+      final unique = <String>{};
+      for (final pb in prevBudgets) {
+        final cat = pb['category'] as String;
+        final key = cat.toLowerCase();
+        if (existingCats.contains(key) || !unique.add(key)) continue;
+        await supabase.from('budgets').insert({
+          'user_id': userId,
+          'category': cat,
+          'limit_amount': pb['limit_amount'],
+          'period_month': curPeriod,
+        });
+        added++;
+      }
+
+      if (!mounted) return;
+      if (added == 0) {
+        CustomNotification.show(context, 'Anggaran di bulan ini sudah lengkap.',
+            isWarning: true);
+      } else {
+        CustomNotification.show(
+            context, '$added anggaran disalin dari bulan sebelumnya.');
+      }
+      _fetchBudgetData();
+    } catch (e) {
+      if (mounted) {
+        NetworkHelper.handleSupabaseError(context, e,
+            prefix: 'Gagal menyalin anggaran');
+      }
+    }
   }
 
   Future<void> _fetchBudgetData() async {
@@ -71,11 +229,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
       loadCustomIcons('custom_transaction_expense_categories_v5',
           'custom_transaction_expense_icon_v5_');
 
-      final DateTime now = DateTime.now();
-      final String currentPeriodMonth =
-          DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
-      final String firstDayOfMonth =
-          DateTime(now.year, now.month, 1).toIso8601String();
+      final DateTime now = _viewDate;
+      final String currentPeriodMonth = now.toIso8601String().split('T')[0];
+      final String firstDayOfMonth = now.toIso8601String();
       final String lastDayOfMonth =
           DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
 
@@ -259,7 +415,100 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         'Pantau pengeluaran bulanan Anda agar tetap terkendali.',
                         style:
                             TextStyle(fontSize: 14, color: Colors.grey[600])),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            onPressed: () => _changeMonth(-1),
+                            icon: const Icon(Icons.chevron_left_rounded),
+                            color: textColor,
+                            tooltip: 'Bulan sebelumnya',
+                          ),
+                          InkWell(
+                            onTap: _selectMonthYear,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        DateFormat('MMMM yyyy', 'id')
+                                            .format(_viewDate),
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        size: 20,
+                                        color: textColor,
+                                      ),
+                                    ],
+                                  ),
+                                  if (_monthOffset != 0)
+                                    Text(
+                                      _monthOffset < 0
+                                          ? '${_monthOffset.abs()} bulan lalu'
+                                          : '${_monthOffset.abs()} bulan depan',
+                                      style: const TextStyle(
+                                          fontSize: 11, color: Colors.grey),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => _changeMonth(1),
+                            icon: const Icon(Icons.chevron_right_rounded),
+                            color: textColor,
+                            tooltip: 'Bulan berikutnya',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _copyFromPreviousMonth,
+                        icon: const Icon(Icons.content_copy_rounded,
+                            size: 16, color: AppColors.primaryGreen),
+                        label: Text(
+                          'Salin Anggaran Bulan Sebelumnya',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.white70
+                                  : AppColors.primaryGreen),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                              color: isDark
+                                  ? Colors.white24
+                                  : AppColors.primaryGreen
+                                      .withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     ..._budgets
                         .where((b) => b['percentage'] >= 0.8)
                         .map((budget) {
@@ -333,7 +582,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                       color: textColor)),
                               Text(
                                   DateFormat('MMMM yyyy', 'id')
-                                      .format(DateTime.now()),
+                                      .format(_viewDate),
                                   style: const TextStyle(
                                       color: Colors.grey, fontSize: 12)),
                             ],
@@ -507,7 +756,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                               context,
                               MaterialPageRoute(
                                   builder: (context) =>
-                                      const AddBudgetScreen()));
+                                      AddBudgetScreen(periodStart: _viewDate)));
                           if (!mounted) return;
                           _fetchBudgetData();
                         },
@@ -563,6 +812,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
               currentLimit: rawLimit,
               icon: icon,
               iconColor: iconColor,
+              periodStart: _viewDate,
             ),
           ),
         );
@@ -618,6 +868,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         fontWeight: FontWeight.bold,
                         color: progressColor,
                         fontSize: 16)),
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () => _deleteBudget(title, periodStart: _viewDate),
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.delete_outline_rounded,
+                        size: 20, color: Colors.red),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),

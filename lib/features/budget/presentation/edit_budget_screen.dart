@@ -12,6 +12,7 @@ class EditBudgetScreen extends StatefulWidget {
   final int currentLimit;
   final dynamic icon;
   final Color iconColor;
+  final DateTime? periodStart;
 
   const EditBudgetScreen({
     super.key,
@@ -19,6 +20,7 @@ class EditBudgetScreen extends StatefulWidget {
     required this.currentLimit,
     required this.icon,
     required this.iconColor,
+    this.periodStart,
   });
 
   @override
@@ -29,6 +31,8 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
   final supabase = Supabase.instance.client;
   bool _isLoading = false;
   bool _isDataModified = false;
+
+  DateTime get _periodDate => widget.periodStart ?? DateTime.now();
 
   List<Map<String, dynamic>> _transactionHistory = [];
   bool _isLoadingHistory = true;
@@ -53,7 +57,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final now = DateTime.now();
+      final now = _periodDate;
       final firstDay = DateTime(now.year, now.month, 1).toIso8601String();
       final lastDay =
           DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
@@ -187,7 +191,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
 
       final newCategoryName = _categoryController.text.trim();
 
-      final now = DateTime.now();
+      final now = _periodDate;
       final periodMonth =
           DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
 
@@ -256,7 +260,7 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final periodMonth = DateTime(DateTime.now().year, DateTime.now().month, 1)
+      final periodMonth = DateTime(_periodDate.year, _periodDate.month, 1)
           .toIso8601String()
           .split('T')[0];
 
