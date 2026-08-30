@@ -10,6 +10,7 @@ import '../../../widgets/custom_notification.dart';
 import '../../../widgets/category_helper.dart';
 import '../../../widgets/wallet_helper.dart';
 import '../../../widgets/network_helper.dart';
+import '../../../widgets/date_helper.dart';
 import '../../../widgets/sub_app_bar.dart';
 import 'edit_transfer_sheet.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
@@ -348,8 +349,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Future<void> _pickCustomDateRange() async {
     DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      firstDate: DateHelper.minDate,
+      lastDate: DateHelper.nextMonthEnd(),
       builder: (BuildContext context, Widget? child) {
         final bool isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(
@@ -1088,8 +1089,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                         DateTime? picked = await showDatePicker(
                           context: ctx,
                           initialDate: selectedTransferDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
+                          firstDate: DateHelper.minDate,
+                          lastDate: DateHelper.nextMonthEnd(),
                           builder: (BuildContext context, Widget? child) {
                             final bool isDark = Theme.of(context).brightness == Brightness.dark;
                             return Theme(
@@ -2032,6 +2033,17 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.grey, fontSize: 11),
                     ),
+                    if (DateHelper.isUpcoming(tx['transaction_date']?.toString() ?? '')) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('Mendatang', style: TextStyle(color: AppColors.primaryGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ],
                 ),
               ),

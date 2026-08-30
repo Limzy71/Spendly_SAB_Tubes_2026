@@ -10,6 +10,7 @@ import 'wallet_detail_screen.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/wallet_helper.dart';
 import '../../../widgets/network_helper.dart';
+import '../../../widgets/date_helper.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -739,8 +740,8 @@ class _WalletScreenState extends State<WalletScreen> {
                   DateTime? picked = await showDatePicker(
                     context: context,
                     initialDate: _transferDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
+                    firstDate: DateHelper.minDate,
+                    lastDate: DateHelper.nextMonthEnd(),
                     builder: (BuildContext context, Widget? child) {
                       final bool isDark = Theme.of(context).brightness == Brightness.dark;
                       return Theme(

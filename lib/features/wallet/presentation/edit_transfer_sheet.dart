@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/network_helper.dart';
+import '../../../widgets/date_helper.dart';
 import '../../../widgets/wallet_helper.dart';
 
 Future<bool> showEditTransferSheet(
@@ -185,8 +186,8 @@ class _EditTransferSheetState extends State<_EditTransferSheet> {
     DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      firstDate: DateHelper.minDate,
+      lastDate: DateHelper.nextMonthEnd(),
       builder: (BuildContext context, Widget? child) {
         final bool isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(

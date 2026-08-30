@@ -11,6 +11,7 @@ import '../../wallet/presentation/edit_transfer_sheet.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
+import '../../../../widgets/date_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -525,6 +526,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
                     const SizedBox(height: 4),
                     Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    if (DateHelper.isUpcoming(tx['transaction_date']?.toString() ?? '')) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('Mendatang', style: TextStyle(color: AppColors.primaryGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                     if (note.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text('"$note"', style: const TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic), maxLines: 1, overflow: TextOverflow.ellipsis),
