@@ -82,13 +82,15 @@ class _ReportScreenState extends State<ReportScreen> {
 
   List<int> _availableYears() {
     final nowYear = DateTime.now().year;
-    return List<int>.generate(nowYear - 2019, (i) => nowYear - i);
+    const startYear = 2023;
+    if (nowYear < startYear) return [startYear];
+    return List<int>.generate(nowYear - startYear + 1, (i) => nowYear - i);
   }
 
   Future<void> _pickCustomDateRange() async {
     DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime(2020),
+      firstDate: DateTime(2023),
       lastDate: DateTime.now(),
       builder: (BuildContext context, Widget? child) {
         final bool isDark = Theme.of(context).brightness == Brightness.dark;
