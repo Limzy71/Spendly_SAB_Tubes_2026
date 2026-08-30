@@ -78,6 +78,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
             errorMessage = error.message.replaceAll(RegExp(r'[\{\}"]'), '').replaceFirst('code:unexpected_failure, message:', '');
           }
         }
+
+        // Jangan sampai pesan teknis mentah tampil ke pengguna.
+        if (errorMessage.isEmpty ||
+            errorMessage.contains('jwt') ||
+            errorMessage.contains('exception') ||
+            errorMessage.contains('{') ||
+            errorMessage.contains('"')) {
+          final friendly = NetworkHelper.friendlyMessage(error);
+          errorMessage = friendly.isNotEmpty ? friendly : 'Pendaftaran gagal. Silakan coba lagi.';
+        }
+
         CustomNotification.show(context, errorMessage, isError: true);
       }
     } catch (error) {
