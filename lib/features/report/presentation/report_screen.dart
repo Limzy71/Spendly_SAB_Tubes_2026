@@ -91,7 +91,7 @@ class _ReportScreenState extends State<ReportScreen> {
   Future<void> _pickCustomDateRange() async {
     DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime(2023),
+      firstDate: DateHelper.minDate,
       lastDate: DateHelper.nextMonthEnd(),
       builder: (BuildContext context, Widget? child) {
         final bool isDark = Theme.of(context).brightness == Brightness.dark;

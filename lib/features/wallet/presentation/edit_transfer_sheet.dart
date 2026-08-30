@@ -8,6 +8,7 @@ import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/network_helper.dart';
 import '../../../widgets/date_helper.dart';
+import '../../../widgets/spendly_date_picker.dart';
 import '../../../widgets/wallet_helper.dart';
 
 Future<bool> showEditTransferSheet(
@@ -183,27 +184,11 @@ class _EditTransferSheetState extends State<_EditTransferSheet> {
   }
 
   Future<void> _pickDate() async {
-    DateTime? picked = await showDatePicker(
-      context: context,
+    DateTime? picked = await SpendlyDatePicker.show(
+      context,
       initialDate: _selectedDate,
       firstDate: DateHelper.minDate,
       lastDate: DateHelper.nextMonthEnd(),
-      builder: (BuildContext context, Widget? child) {
-        final bool isDark = Theme.of(context).brightness == Brightness.dark;
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: isDark
-                ? const ColorScheme.dark(primary: AppColors.primaryGreen, onPrimary: Colors.white, surface: Color(0xFF1E1E1E), onSurface: Colors.white)
-                : const ColorScheme.light(primary: AppColors.primaryGreen, onPrimary: Colors.white),
-            appBarTheme: AppBarTheme(
-              backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
-              iconTheme: const IconThemeData(color: Colors.white),
-              titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
