@@ -32,6 +32,8 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
 
   List<Map<String, dynamic>> _transactionHistory = [];
   bool _isLoadingHistory = true;
+  int _monthlyIncome = 0;
+  int _totalWalletBalance = 0;
 
   late TextEditingController _limitController;
   late TextEditingController _categoryController;
@@ -43,6 +45,49 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
     String formattedInitial = _formatNumber(widget.currentLimit.toString());
     _limitController = TextEditingController(text: formattedInitial);
     _fetchTransactionHistory();
+    _loadCashflowData();
+  }
+
+  Future<void> _loadCashflowData() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final now = DateTime.now();
+      final firstDay = DateTime(now.year, now.month, 1).toIso8601String();
+      final lastDay = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+
+      final incomeRes = await supabase
+          .from('transactions')
+          .select('amount')
+          .eq('user_id', userId)
+          .eq('is_expense', false)
+          .neq('category', 'Transfer')
+          .gte('transaction_date', firstDay)
+          .lte('transaction_date', lastDay);
+
+      int totalInc = 0;
+      for (var tx in incomeRes) {
+        totalInc += int.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
+      }
+
+      final walletRes = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', userId);
+
+      int totalBal = 0;
+      for (var w in walletRes) {
+        totalBal += int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+      }
+
+      if (mounted) {
+        setState(() {
+          _monthlyIncome = totalInc;
+          _totalWalletBalance = totalBal;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -71,12 +116,26 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final response = await supabase
+      final String cat = widget.category.toLowerCase().trim();
+      final bool isGlobal = cat == 'total uang' ||
+          cat == 'total anggaran' ||
+          cat == 'semua pengeluaran' ||
+          cat == 'semua kategori' ||
+          cat == 'total dana' ||
+          cat == 'keseluruhan';
+
+      var query = supabase
           .from('transactions')
           .select()
           .eq('user_id', userId)
-          .ilike('category', widget.category.trim())
-          .order('transaction_date', ascending: false);
+          .eq('is_expense', true)
+          .neq('category', 'Transfer');
+
+      if (!isGlobal) {
+        query = query.ilike('category', widget.category.trim());
+      }
+
+      final response = await query.order('transaction_date', ascending: false);
 
       if (mounted) {
         setState(() {
@@ -312,7 +371,67 @@ class _EditBudgetScreenState extends State<EditBudgetScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  if (_monthlyIncome > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        avatar: const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.primaryGreen),
+                        label: Text(
+                          'Pemasukan: ${NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(_monthlyIncome)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryGreen),
+                        ),
+                        backgroundColor: isDark ? AppColors.primaryGreen.withValues(alpha: 0.15) : const Color(0xFFE8F5E9),
+                        side: BorderSide(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        onPressed: () {
+                          _limitController.text = NumberFormat.decimalPattern('id').format(_monthlyIncome);
+                        },
+                      ),
+                    ),
+                  if (_totalWalletBalance > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        avatar: const Icon(Icons.account_balance_wallet_outlined, size: 14, color: Color(0xFF2196F3)),
+                        label: Text(
+                          'Saldo: ${NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(_totalWalletBalance)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2196F3)),
+                        ),
+                        backgroundColor: isDark ? const Color(0xFF2196F3).withValues(alpha: 0.15) : const Color(0xFFE3F2FD),
+                        side: BorderSide(color: const Color(0xFF2196F3).withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        onPressed: () {
+                          _limitController.text = NumberFormat.decimalPattern('id').format(_totalWalletBalance);
+                        },
+                      ),
+                    ),
+                  ...[500000, 1000000, 2000000, 5000000].map((amt) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(
+                          NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(amt),
+                          style: TextStyle(fontSize: 11, color: textColor),
+                        ),
+                        backgroundColor: isDark ? Colors.white10 : Colors.grey.shade100,
+                        side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        onPressed: () {
+                          _limitController.text = NumberFormat.decimalPattern('id').format(amt);
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
 
             SizedBox(
               width: double.infinity,

@@ -23,11 +23,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   String? selectedCategory;
   bool isAlertEnabled = true;
   bool _isLoading = false;
+  int _monthlyIncome = 0;
+  int _totalWalletBalance = 0;
   final TextEditingController _limitController = TextEditingController(text: "");
   final FocusNode _limitFocusNode = FocusNode();
   final ScrollController _categoryScrollController = ScrollController();
 
   List<Map<String, dynamic>> categories = [
+    {'name': 'Total Uang', 'icon': FontAwesomeIcons.coins, 'color': const Color(0xFFFFB300)},
     {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': const Color(0xFFFF9800)},
     {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': const Color(0xFF2196F3)},
     {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': const Color(0xFF9C27B0)},
@@ -39,7 +42,54 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   @override
   void initState() {
     super.initState();
+    selectedCategory = categories.first['name'];
     _loadCustomCategories();
+    _loadCashflowData();
+  }
+
+  Future<void> _loadCashflowData() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final now = DateTime.now();
+      final firstDay = DateTime(now.year, now.month, 1).toIso8601String();
+      final lastDay = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+
+      final incomeRes = await supabase
+          .from('transactions')
+          .select('amount')
+          .eq('user_id', userId)
+          .eq('is_expense', false)
+          .neq('category', 'Transfer')
+          .gte('transaction_date', firstDay)
+          .lte('transaction_date', lastDay);
+
+      int totalInc = 0;
+      for (var tx in incomeRes) {
+        totalInc += int.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
+      }
+
+      final walletRes = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', userId);
+
+      int totalBal = 0;
+      for (var w in walletRes) {
+        totalBal += int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+      }
+
+      if (mounted) {
+        setState(() {
+          _monthlyIncome = totalInc;
+          _totalWalletBalance = totalBal;
+          if (_limitController.text.isEmpty && totalInc > 0) {
+            _limitController.text = NumberFormat.decimalPattern('id').format(totalInc);
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -484,6 +534,66 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     ],
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  if (_monthlyIncome > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        avatar: const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.primaryGreen),
+                        label: Text(
+                          'Pemasukan: ${NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(_monthlyIncome)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryGreen),
+                        ),
+                        backgroundColor: isDark ? AppColors.primaryGreen.withValues(alpha: 0.15) : const Color(0xFFE8F5E9),
+                        side: BorderSide(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        onPressed: () {
+                          _limitController.text = NumberFormat.decimalPattern('id').format(_monthlyIncome);
+                        },
+                      ),
+                    ),
+                  if (_totalWalletBalance > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        avatar: const Icon(Icons.account_balance_wallet_outlined, size: 14, color: Color(0xFF2196F3)),
+                        label: Text(
+                          'Saldo: ${NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(_totalWalletBalance)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2196F3)),
+                        ),
+                        backgroundColor: isDark ? const Color(0xFF2196F3).withValues(alpha: 0.15) : const Color(0xFFE3F2FD),
+                        side: BorderSide(color: const Color(0xFF2196F3).withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        onPressed: () {
+                          _limitController.text = NumberFormat.decimalPattern('id').format(_totalWalletBalance);
+                        },
+                      ),
+                    ),
+                  ...[500000, 1000000, 2000000, 5000000].map((amt) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(
+                          NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(amt),
+                          style: TextStyle(fontSize: 11, color: textColor),
+                        ),
+                        backgroundColor: isDark ? Colors.white10 : Colors.grey.shade100,
+                        side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        onPressed: () {
+                          _limitController.text = NumberFormat.decimalPattern('id').format(amt);
+                        },
+                      ),
+                    );
+                  }),
+                ],
               ),
             ),
             const SizedBox(height: 24),
