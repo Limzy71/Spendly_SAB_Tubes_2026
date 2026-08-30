@@ -111,6 +111,16 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
 
+        // Jangan sampai pesan teknis mentah tampil ke pengguna.
+        if (errorMessage.isEmpty ||
+            errorMessage.contains('jwt') ||
+            errorMessage.contains('exception') ||
+            errorMessage.contains('{') ||
+            errorMessage.contains('"')) {
+          final friendly = NetworkHelper.friendlyMessage(error);
+          errorMessage = friendly.isNotEmpty ? friendly : 'Gagal masuk. Silakan coba lagi.';
+        }
+
         CustomNotification.show(context, errorMessage, isError: true);
       }
     } catch (error) {
