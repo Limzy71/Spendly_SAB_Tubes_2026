@@ -27,6 +27,9 @@ class _ReportScreenState extends State<ReportScreen> {
   String selectedFilter = 'Bulanan';
   final List<String> filters = ['Harian', 'Mingguan', 'Bulanan', 'Tahunan'];
 
+  int selectedMonth = DateTime.now().month;
+  int selectedYear = DateTime.now().year;
+
   DateTimeRange? _customDateRange;
 
   bool _isLoading = true;
@@ -65,7 +68,21 @@ class _ReportScreenState extends State<ReportScreen> {
       return "${DateFormat('dd MMM', 'id').format(_customDateRange!.start)} - ${DateFormat('dd MMM yyyy', 'id').format(_customDateRange!.end)}";
     }
     if (selectedFilter == 'Mingguan') return '7 Hari Terakhir';
+    if (selectedFilter == 'Bulanan') {
+      return '${DateFormat('MMMM', 'id').format(DateTime(selectedYear, selectedMonth))} $selectedYear';
+    }
+    if (selectedFilter == 'Tahunan') return 'Tahun $selectedYear';
     return selectedFilter;
+  }
+
+  static const List<String> _monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+
+  List<int> _availableYears() {
+    final nowYear = DateTime.now().year;
+    return List<int>.generate(nowYear - 2019, (i) => nowYear - i);
   }
 
   Future<void> _pickCustomDateRange() async {
@@ -171,11 +188,15 @@ class _ReportScreenState extends State<ReportScreen> {
         startDate = DateTime(last7Days.first.year, last7Days.first.month, last7Days.first.day);
         endDate = DateTime(last7Days.last.year, last7Days.last.month, last7Days.last.day, 23, 59, 59);
       } else if (selectedFilter == 'Tahunan') {
-        startDate = DateTime(now.year, 1, 1);
-        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+        startDate = DateTime(selectedYear, 1, 1);
+        endDate = DateTime(selectedYear, 12, 31, 23, 59, 59);
       } else {
-        startDate = DateTime(now.year, now.month, 1);
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        startDate = DateTime(selectedYear, selectedMonth, 1);
+        if (selectedMonth == 12) {
+          endDate = DateTime(selectedYear, 12, 31, 23, 59, 59);
+        } else {
+          endDate = DateTime(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
+        }
       }
 
       final String startDateStr = startDate.toIso8601String().split('T')[0];
@@ -404,6 +425,84 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  Widget _buildDropdown(
+      dynamic value,
+      List<DropdownMenuItem<dynamic>> items,
+      String hint,
+      bool isDark,
+      ValueChanged<dynamic> onChanged) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1FAF5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<dynamic>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: Theme.of(context).cardColor,
+            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+            hint: Text(hint, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            items: items,
+            onChanged: onChanged,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onSelectMonth(int? month) {
+    if (month == null || month == selectedMonth) return;
+    setState(() => selectedMonth = month);
+    _fetchReportData();
+  }
+
+  void _onSelectYear(int? year) {
+    if (year == null || year == selectedYear) return;
+    setState(() => selectedYear = year);
+    _fetchReportData();
+  }
+
+  Widget _buildPeriodSelector(bool isDark, Color textColor) {
+    final yearItems = _availableYears()
+        .map((y) => DropdownMenuItem<dynamic>(value: y, child: Text('$y', style: TextStyle(fontSize: 14, color: textColor))))
+        .toList();
+
+    final Widget yearDropdown = _buildDropdown(selectedYear, yearItems, 'Tahun', isDark, (v) => _onSelectYear(v as int));
+
+    if (selectedFilter == 'Tahunan') {
+      return Row(
+        children: [
+          const FaIcon(FontAwesomeIcons.calendar, size: 16, color: AppColors.primaryGreen),
+          const SizedBox(width: 10),
+          yearDropdown,
+        ],
+      );
+    }
+
+    final monthItems = List<DropdownMenuItem<dynamic>>.generate(12, (i) {
+      final m = i + 1;
+      return DropdownMenuItem<dynamic>(
+        value: m,
+        child: Text(_monthNames[i], style: TextStyle(fontSize: 14, color: textColor)),
+      );
+    });
+
+    return Row(
+      children: [
+        const FaIcon(FontAwesomeIcons.calendar, size: 16, color: AppColors.primaryGreen),
+        const SizedBox(width: 10),
+        _buildDropdown(selectedMonth, monthItems, 'Bulan', isDark, (v) => _onSelectMonth(v as int)),
+        const SizedBox(width: 8),
+        yearDropdown,
+      ],
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -476,6 +575,12 @@ class _ReportScreenState extends State<ReportScreen> {
                   )
                 ],
               ),
+
+              if (selectedFilter == 'Bulanan' || selectedFilter == 'Tahunan') ...[
+                const SizedBox(height: 12),
+                _buildPeriodSelector(isDark, textColor),
+              ],
+
               const SizedBox(height: 24),
 
               GestureDetector(
