@@ -23,6 +23,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
   bool _isLoading = true;
   int _totalBudgetLimit = 0;
   int _totalBudgetSpent = 0;
+  int _monthlyIncome = 0;
+  int _totalWalletBalance = 0;
   List<Map<String, dynamic>> _budgets = [];
   Map<String, String> _customIcons = {};
 
@@ -30,6 +32,17 @@ class _BudgetScreenState extends State<BudgetScreen> {
   void initState() {
     super.initState();
     _fetchBudgetData();
+  }
+
+  bool _isGlobalCategory(String cat) {
+    final c = cat.toLowerCase().trim();
+    return c == 'total uang' ||
+        c == 'total anggaran' ||
+        c == 'semua pengeluaran' ||
+        c == 'semua kategori' ||
+        c == 'total dana' ||
+        c == 'pemasukan' ||
+        c == 'keseluruhan';
   }
 
   Future<void> _fetchBudgetData() async {
@@ -71,10 +84,34 @@ class _BudgetScreenState extends State<BudgetScreen> {
           .from('transactions')
           .select()
           .eq('user_id', userId)
-          .eq('is_expense', true)
           .neq('category', 'Transfer')
           .gte('transaction_date', firstDayOfMonth)
           .lte('transaction_date', lastDayOfMonth);
+
+      final walletResponse = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', userId);
+
+      int tempWalletBalance = 0;
+      for (var w in walletResponse) {
+        tempWalletBalance += int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+      }
+
+      int tempMonthlyIncome = 0;
+      int tempMonthlyExpense = 0;
+      List<Map<String, dynamic>> expenseTransactions = [];
+
+      for (var tx in transactionResponse) {
+        int amount = int.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
+        bool isExpense = tx['is_expense'] == true;
+        if (isExpense) {
+          tempMonthlyExpense += amount;
+          expenseTransactions.add(Map<String, dynamic>.from(tx));
+        } else {
+          tempMonthlyIncome += amount;
+        }
+      }
 
       int tempTotalLimit = 0;
       int tempTotalSpent = 0;
@@ -84,6 +121,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       for (var budget in budgetResponse) {
         String category = budget['category'] as String;
         int limit = budget['limit_amount'] as int? ?? 0;
+        bool isGlobal = _isGlobalCategory(category);
 
         if (accumulatedBudgets.containsKey(category)) {
           accumulatedBudgets[category]!['limit'] += limit;
@@ -92,22 +130,32 @@ class _BudgetScreenState extends State<BudgetScreen> {
             'category': category,
             'limit': limit,
             'spent': 0,
+            'is_global': isGlobal,
           };
         }
       }
 
+      bool hasGlobalBudget = accumulatedBudgets.values.any((d) => d['is_global'] == true);
+
       accumulatedBudgets.forEach((category, data) {
         int spent = 0;
-        for (var tx in transactionResponse) {
-          if (tx['category']?.toString().toLowerCase() ==
-              category.toLowerCase()) {
-            spent += tx['amount'] as int? ?? 0;
+        bool isGlobal = data['is_global'] == true;
+
+        if (isGlobal) {
+          spent = tempMonthlyExpense;
+        } else {
+          for (var tx in expenseTransactions) {
+            if (tx['category']?.toString().toLowerCase() == category.toLowerCase()) {
+              spent += int.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
+            }
           }
         }
 
         data['spent'] = spent;
-        tempTotalLimit += data['limit'] as int? ?? 0;
-        tempTotalSpent += spent;
+        if (!hasGlobalBudget || isGlobal) {
+          tempTotalLimit += data['limit'] as int? ?? 0;
+          tempTotalSpent += spent;
+        }
       });
 
       List<Map<String, dynamic>> processedBudgets = accumulatedBudgets.values
@@ -119,12 +167,15 @@ class _BudgetScreenState extends State<BudgetScreen> {
           'limit': limit,
           'spent': spent,
           'percentage': limit == 0 ? 0.0 : (spent / limit),
+          'is_global': data['is_global'] ?? false,
         };
       }).toList();
 
       if (mounted) {
         setState(() {
           _customIcons = tempIcons;
+          _monthlyIncome = tempMonthlyIncome;
+          _totalWalletBalance = tempWalletBalance;
           _totalBudgetLimit = tempTotalLimit;
           _totalBudgetSpent = tempTotalSpent;
           _budgets = processedBudgets;
@@ -291,7 +342,51 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+
+              Container(
+                margin: const EdgeInsets.only(top: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1FAF5),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: isDark ? Colors.white12 : AppColors.primaryGreen.withValues(alpha: 0.15)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.arrow_downward_rounded, color: AppColors.primaryGreen, size: 18),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Pemasukan Bulan Ini', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                            const SizedBox(height: 2),
+                            Text(_formatFullCurrency(_monthlyIncome), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Container(width: 1, height: 28, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    Row(
+                      children: [
+                        const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF2196F3), size: 18),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Total Saldo Dompet', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                            const SizedBox(height: 2),
+                            Text(_formatFullCurrency(_totalWalletBalance), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
 
               Text('Kategori Anggaran', style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),

@@ -10,6 +10,8 @@ import '../../../widgets/custom_notification.dart';
 import '../../../widgets/category_helper.dart';
 import '../../../widgets/wallet_helper.dart';
 import '../../../widgets/network_helper.dart';
+import '../../../widgets/date_helper.dart';
+import '../../../widgets/spendly_date_picker.dart';
 import '../../../widgets/sub_app_bar.dart';
 import 'edit_transfer_sheet.dart';
 import '../../transaction/presentation/edit_transaction_screen.dart';
@@ -348,8 +350,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Future<void> _pickCustomDateRange() async {
     DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      firstDate: DateHelper.minDate,
+      lastDate: DateHelper.nextMonthEnd(),
       builder: (BuildContext context, Widget? child) {
         final bool isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(
@@ -1085,27 +1087,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: () async {
-                        DateTime? picked = await showDatePicker(
-                          context: ctx,
+                        DateTime? picked = await SpendlyDatePicker.show(
+                          context,
                           initialDate: selectedTransferDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
-                          builder: (BuildContext context, Widget? child) {
-                            final bool isDark = Theme.of(context).brightness == Brightness.dark;
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: isDark
-                                    ? const ColorScheme.dark(primary: AppColors.primaryGreen, onPrimary: Colors.white, surface: Color(0xFF1E1E1E), onSurface: Colors.white)
-                                    : const ColorScheme.light(primary: AppColors.primaryGreen, onPrimary: Colors.white),
-                                appBarTheme: AppBarTheme(
-                                  backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
-                                  iconTheme: const IconThemeData(color: Colors.white),
-                                  titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
+                          firstDate: DateHelper.minDate,
+                          lastDate: DateHelper.nextMonthEnd(),
                         );
                         if (picked != null) {
                           setModalState(() => selectedTransferDate = picked);
@@ -2032,6 +2018,17 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.grey, fontSize: 11),
                     ),
+                    if (DateHelper.isUpcoming(tx['transaction_date']?.toString() ?? '')) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('Mendatang', style: TextStyle(color: AppColors.primaryGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ],
                 ),
               ),

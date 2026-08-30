@@ -11,6 +11,8 @@ import '../../../theme/app_colors.dart';
 import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
+import '../../../../widgets/date_helper.dart';
+import '../../../../widgets/spendly_date_picker.dart';
 import '../../wallet/presentation/add_wallet_screen.dart';
 
 class EditTransactionScreen extends StatefulWidget {
@@ -637,18 +639,15 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime today = DateTime.now();
-    final DateTime lastSelectableDate = DateTime(today.year, today.month, today.day);
-    final DateTime initialDate = selectedDate.isAfter(lastSelectableDate) ? lastSelectableDate : selectedDate;
-
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: lastSelectableDate,
-      builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primaryGreen)), child: child!),
+    final DateTime? picked = await SpendlyDatePicker.show(
+      context,
+      initialDate: selectedDate,
+      firstDate: DateHelper.minDate,
+      lastDate: DateHelper.nextMonthEnd(),
     );
-    if (picked != null && picked != selectedDate) setState(() => selectedDate = picked);
+    if (picked != null && picked != selectedDate) {
+      setState(() => selectedDate = picked);
+    }
   }
 
   void _showWalletSelector() {

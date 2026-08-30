@@ -10,6 +10,8 @@ import 'wallet_detail_screen.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/wallet_helper.dart';
 import '../../../widgets/network_helper.dart';
+import '../../../widgets/date_helper.dart';
+import '../../../widgets/spendly_date_picker.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -735,28 +737,12 @@ class _WalletScreenState extends State<WalletScreen> {
               _buildFormLabel('Tanggal Transfer'),
               const SizedBox(height: 8),
               InkWell(
-                onTap: () async {
-                  DateTime? picked = await showDatePicker(
-                    context: context,
+                  onTap: () async {
+                    DateTime? picked = await SpendlyDatePicker.show(
+                    context,
                     initialDate: _transferDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                    builder: (BuildContext context, Widget? child) {
-                      final bool isDark = Theme.of(context).brightness == Brightness.dark;
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: isDark
-                              ? const ColorScheme.dark(primary: AppColors.primaryGreen, onPrimary: Colors.white, surface: Color(0xFF1E1E1E), onSurface: Colors.white)
-                              : const ColorScheme.light(primary: AppColors.primaryGreen, onPrimary: Colors.white),
-                          appBarTheme: AppBarTheme(
-                            backgroundColor: isDark ? const Color(0xFF252525) : AppColors.primaryGreen,
-                            iconTheme: const IconThemeData(color: Colors.white),
-                            titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
+                    firstDate: DateHelper.minDate,
+                    lastDate: DateHelper.nextMonthEnd(),
                   );
                   if (picked != null) {
                     setState(() => _transferDate = picked);
