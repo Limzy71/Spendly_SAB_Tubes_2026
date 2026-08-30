@@ -23,6 +23,8 @@ import '../../../../widgets/custom_notification.dart';
 import '../../../../widgets/network_helper.dart';
 import '../../../../widgets/profile_image_cache.dart';
 import '../../../../widgets/pin_helper.dart';
+import '../../../../widgets/date_helper.dart';
+import 'package:intl/intl.dart';
 import '../../auth/presentation/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -49,8 +51,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _reminderHourKey() => 'reminder_hour_${_currentUserId()}';
   String _reminderMinuteKey() => 'reminder_minute_${_currentUserId()}';
-  String _dailyReminderEnabledKey() => 'daily_reminder_enabled_${_currentUserId()}';
-  String _billReminderEnabledKey() => 'bill_reminder_enabled_${_currentUserId()}';
+  String _dailyReminderEnabledKey() =>
+      'daily_reminder_enabled_${_currentUserId()}';
+  String _billReminderEnabledKey() =>
+      'bill_reminder_enabled_${_currentUserId()}';
 
   @override
   void initState() {
@@ -96,19 +100,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: Border.all(color: Colors.white, width: 4),
                 image: provider != null
                     ? DecorationImage(
-                  image: provider,
-                  fit: BoxFit.cover,
-                )
+                        image: provider,
+                        fit: BoxFit.cover,
+                      )
                     : null,
               ),
               child: provider == null
                   ? const Center(
-                child: Icon(
-                  Icons.person,
-                  size: 140,
-                  color: Colors.grey,
-                ),
-              )
+                      child: Icon(
+                        Icons.person,
+                        size: 140,
+                        color: Colors.grey,
+                      ),
+                    )
                   : null,
             ),
           ),
@@ -177,13 +181,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _isPinEnabled = isPinEnabled;
       _isBiometricEnabled = isBiometricEnabled;
-      _profileImagePath = supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty
-          ? supabaseAvatarUrl
-          : (userId.isNotEmpty ? prefs.getString(ProfileImageCache.keyForUser(userId)) : null);
+      _profileImagePath =
+          supabaseAvatarUrl != null && supabaseAvatarUrl.isNotEmpty
+              ? supabaseAvatarUrl
+              : (userId.isNotEmpty
+                  ? prefs.getString(ProfileImageCache.keyForUser(userId))
+                  : null);
       final int savedHour = prefs.getInt(_reminderHourKey()) ?? 20;
       final int savedMinute = prefs.getInt(_reminderMinuteKey()) ?? 0;
       _reminderTime = TimeOfDay(hour: savedHour, minute: savedMinute);
-      _isDailyReminderEnabled = prefs.getBool(_dailyReminderEnabledKey()) ?? true;
+      _isDailyReminderEnabled =
+          prefs.getBool(_dailyReminderEnabledKey()) ?? true;
       _isBillReminderEnabled = prefs.getBool(_billReminderEnabledKey()) ?? true;
     });
     await _syncReminderNotifications(promptIfNeeded: false);
@@ -195,7 +203,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text('Izin Notifikasi Diperlukan', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+          title: Text('Izin Notifikasi Diperlukan',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
           content: Text(
             'Aktifkan izin notifikasi agar pengingat harian dan tagihan bisa muncul tepat waktu.',
             style: GoogleFonts.plusJakartaSans(),
@@ -211,8 +220,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
-              child: Text('Buka Settings', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen),
+              child: Text('Buka Settings',
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white)),
             ),
           ],
         );
@@ -227,16 +238,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Izin Diperlukan', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Izin Diperlukan',
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87)),
           content: Text(
             'Gagal mengaktifkan pengingat. Pastikan Anda telah memberikan izin Notifikasi and Alarm pada pengaturan aplikasi agar fitur ini dapat berjalan.',
-            style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white70 : Colors.black87),
+            style: GoogleFonts.plusJakartaSans(
+                color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Nanti', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+              child: Text('Nanti',
+                  style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -244,8 +261,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
-              child: Text('Buka Settings', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen),
+              child: Text('Buka Settings',
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white)),
             ),
           ],
         );
@@ -253,7 +272,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<bool> _ensureNotificationPermission({bool promptIfNeeded = true}) async {
+  Future<bool> _ensureNotificationPermission(
+      {bool promptIfNeeded = true}) async {
     final status = await Permission.notification.status;
     if (status.isGranted) {
       return true;
@@ -270,11 +290,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<bool> _ensureExactAlarmPermission({bool promptIfNeeded = true}) async {
-    final canScheduleExactAlarms = await NotificationHelper.canScheduleExactAlarms();
+    final canScheduleExactAlarms =
+        await NotificationHelper.canScheduleExactAlarms();
     if (canScheduleExactAlarms) return true;
     if (!promptIfNeeded) return false;
     await NotificationHelper.ensureInitialized();
-    final androidImplementation = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidImplementation =
+        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
     final granted = await androidImplementation?.requestExactAlarmsPermission();
     final refreshed = await NotificationHelper.canScheduleExactAlarms();
     if (!refreshed && granted != true && mounted) {
@@ -282,7 +305,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context: context,
         builder: (dialogContext) {
           return AlertDialog(
-            title: Text('Alarm Tepat Waktu Diperlukan', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+            title: Text('Alarm Tepat Waktu Diperlukan',
+                style:
+                    GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
             content: Text(
               'Agar pengingat muncul tepat di jam yang dipilih, aktifkan izin alarm tepat waktu untuk Spendly.',
               style: GoogleFonts.plusJakartaSans(),
@@ -298,8 +323,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
-                child: Text('Buka Settings', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen),
+                child: Text('Buka Settings',
+                    style: GoogleFonts.plusJakartaSans(color: Colors.white)),
               ),
             ],
           );
@@ -309,7 +336,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return refreshed;
   }
 
-  Future<bool> _ensureBatteryOptimizationExemption({bool promptIfNeeded = true}) async {
+  Future<bool> _ensureBatteryOptimizationExemption(
+      {bool promptIfNeeded = true}) async {
     final status = await Permission.ignoreBatteryOptimizations.status;
     if (status.isGranted) return true;
     if (!promptIfNeeded) return false;
@@ -322,7 +350,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text('Izinkan Latar Belakang', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+          title: Text('Izinkan Latar Belakang',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
           content: Text(
             'Agar pengingat muncul tepat waktu, izinkan Spendly berjalan tanpa dibatasi baterai.',
             style: GoogleFonts.plusJakartaSans(),
@@ -338,8 +367,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
-              child: Text('Buka Settings', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen),
+              child: Text('Buka Settings',
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white)),
             ),
           ],
         );
@@ -350,30 +381,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<bool> _syncReminderNotifications({bool promptIfNeeded = true}) async {
     final prefs = await SharedPreferences.getInstance();
-    final hasSavedReminder = prefs.containsKey(_reminderHourKey()) && prefs.containsKey(_reminderMinuteKey());
+    final hasSavedReminder = prefs.containsKey(_reminderHourKey()) &&
+        prefs.containsKey(_reminderMinuteKey());
     if (!hasSavedReminder) {
       return false;
     }
     try {
-      final hasPermission = await _ensureNotificationPermission(promptIfNeeded: promptIfNeeded);
+      final hasPermission =
+          await _ensureNotificationPermission(promptIfNeeded: promptIfNeeded);
       if (!hasPermission) {
         return false;
       }
-      final hasExactAlarmPermission = await _ensureExactAlarmPermission(promptIfNeeded: promptIfNeeded);
+      final hasExactAlarmPermission =
+          await _ensureExactAlarmPermission(promptIfNeeded: promptIfNeeded);
       if (!hasExactAlarmPermission) {
         return false;
       }
-      final hasBatteryExemption = await _ensureBatteryOptimizationExemption(promptIfNeeded: promptIfNeeded);
+      final hasBatteryExemption = await _ensureBatteryOptimizationExemption(
+          promptIfNeeded: promptIfNeeded);
       if (!hasBatteryExemption) {
         return false;
       }
       if (_isDailyReminderEnabled) {
-        await NotificationHelper.scheduleDailyNotification(_reminderTime.hour, _reminderTime.minute);
+        await NotificationHelper.scheduleDailyNotification(
+            _reminderTime.hour, _reminderTime.minute);
       } else {
         await NotificationHelper.cancelAllNotifications();
       }
       if (_isBillReminderEnabled) {
-        await NotificationHelper.scheduleBillReminderNotification(_reminderTime.hour, _reminderTime.minute);
+        await NotificationHelper.scheduleBillReminderNotification(
+            _reminderTime.hour, _reminderTime.minute);
       } else {
         await NotificationHelper.cancelBillReminderNotification();
       }
@@ -384,27 +421,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showEditNameDialog() {
-    TextEditingController nameController = TextEditingController(text: _userName);
+    TextEditingController nameController =
+        TextEditingController(text: _userName);
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Ubah Nama", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
+        title: Text("Ubah Nama",
+            style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: isDark ? Colors.white : Colors.black87)),
         content: TextField(
           controller: nameController,
           maxLength: 25,
-          style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white : Colors.black87),
+          style: GoogleFonts.plusJakartaSans(
+              color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: "Masukkan nama baru",
             hintStyle: GoogleFonts.plusJakartaSans(color: Colors.grey),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryGreen)),
+            focusedBorder: const OutlineInputBorder(
+                borderSide: BorderSide(color: AppColors.primaryGreen)),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text("Batal", style: GoogleFonts.plusJakartaSans(color: Colors.grey))),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text("Batal",
+                  style: GoogleFonts.plusJakartaSans(color: Colors.grey))),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
@@ -414,13 +461,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
                 setState(() => _userName = nameController.text.trim());
-                await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': nameController.text.trim()}));
+                await Supabase.instance.client.auth.updateUser(UserAttributes(
+                    data: {'full_name': nameController.text.trim()}));
                 if (!mounted) return;
                 CustomNotification.show(context, 'Nama berhasil diubah!');
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
-            child: Text("Simpan", style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen),
+            child: Text("Simpan",
+                style: GoogleFonts.plusJakartaSans(color: Colors.white)),
           ),
         ],
       ),
@@ -432,8 +482,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bool hasPinStored = await PinHelper.hasPin(userId);
     if (value == true && !hasPinStored) {
       if (!mounted) return;
-      CustomNotification.show(context, 'Silakan Buat PIN terlebih dahulu!', isWarning: true);
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const PasscodeSettingsScreen())).then((_) {
+      CustomNotification.show(context, 'Silakan Buat PIN terlebih dahulu!',
+          isWarning: true);
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const PasscodeSettingsScreen())).then((_) {
         _loadSecuritySettings();
       });
       return;
@@ -448,17 +502,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _toggleBiometric(bool value) async {
     if (value == true && !_isPinEnabled) {
-      CustomNotification.show(context, 'Aktifkan PIN Keamanan terlebih dahulu!', isWarning: true);
+      CustomNotification.show(context, 'Aktifkan PIN Keamanan terlebih dahulu!',
+          isWarning: true);
       return;
     }
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
     if (value == true) {
       try {
-        final bool canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
-        final bool canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+        final bool canAuthenticateWithBiometrics =
+            await _localAuth.canCheckBiometrics;
+        final bool canAuthenticate = canAuthenticateWithBiometrics ||
+            await _localAuth.isDeviceSupported();
         if (!canAuthenticate) {
           if (!mounted) return;
-          CustomNotification.show(context, 'Perangkat tidak mendukung biometrik.', isError: true);
+          CustomNotification.show(
+              context, 'Perangkat tidak mendukung biometrik.',
+              isError: true);
           return;
         }
         final bool didAuthenticate = await _localAuth.authenticate(
@@ -474,7 +533,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       } catch (e) {
         if (!mounted) return;
-        CustomNotification.show(context, 'Gagal verifikasi biometrik', isError: true);
+        CustomNotification.show(context, 'Gagal verifikasi biometrik',
+            isError: true);
       }
     } else {
       await PinHelper.setBiometricEnabled(userId, false);
@@ -494,10 +554,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             colorScheme: isDark
                 ? const ColorScheme.dark(primary: AppColors.primaryGreen)
                 : const ColorScheme.light(primary: AppColors.primaryGreen),
-            dialogTheme: DialogThemeData(backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white),
+            dialogTheme: DialogThemeData(
+                backgroundColor:
+                    isDark ? const Color(0xFF1A1A1A) : Colors.white),
             timePickerTheme: TimePickerThemeData(
               backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-              dialBackgroundColor: isDark ? const Color(0xFF242424) : const Color(0xFFF1FAF5),
+              dialBackgroundColor:
+                  isDark ? const Color(0xFF242424) : const Color(0xFFF1FAF5),
               hourMinuteTextColor: isDark ? Colors.white : Colors.black87,
               hourMinuteColor: AppColors.primaryGreen,
               dayPeriodTextColor: isDark ? Colors.white : Colors.black87,
@@ -555,8 +618,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final now = TimeOfDay.now();
         final isReminderTimePassed = _reminderTime.hour < now.hour ||
-            (_reminderTime.hour == now.hour && _reminderTime.minute < now.minute);
-        await NotificationHelper.scheduleDailyNotification(_reminderTime.hour, _reminderTime.minute);
+            (_reminderTime.hour == now.hour &&
+                _reminderTime.minute < now.minute);
+        await NotificationHelper.scheduleDailyNotification(
+            _reminderTime.hour, _reminderTime.minute);
         if (!mounted) return;
         CustomNotification.show(
           context,
@@ -572,12 +637,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await NotificationHelper.cancelAllNotifications();
       if (_isBillReminderEnabled) {
         try {
-          await NotificationHelper.scheduleBillReminderNotification(_reminderTime.hour, _reminderTime.minute);
-        } catch (_) {
-        }
+          await NotificationHelper.scheduleBillReminderNotification(
+              _reminderTime.hour, _reminderTime.minute);
+        } catch (_) {}
       }
       if (!mounted) return;
-      CustomNotification.show(context, 'Pengingat Harian Dimatikan', isWarning: true);
+      CustomNotification.show(context, 'Pengingat Harian Dimatikan',
+          isWarning: true);
     }
   }
 
@@ -598,8 +664,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final now = TimeOfDay.now();
         final isReminderTimePassed = _reminderTime.hour < now.hour ||
-            (_reminderTime.hour == now.hour && _reminderTime.minute < now.minute);
-        await NotificationHelper.scheduleBillReminderNotification(_reminderTime.hour, _reminderTime.minute);
+            (_reminderTime.hour == now.hour &&
+                _reminderTime.minute < now.minute);
+        await NotificationHelper.scheduleBillReminderNotification(
+            _reminderTime.hour, _reminderTime.minute);
         if (!mounted) return;
         CustomNotification.show(
           context,
@@ -614,7 +682,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else {
       await NotificationHelper.cancelBillReminderNotification();
       if (!mounted) return;
-      CustomNotification.show(context, 'Pengingat Tagihan Dimatikan', isWarning: true);
+      CustomNotification.show(context, 'Pengingat Tagihan Dimatikan',
+          isWarning: true);
     }
   }
 
@@ -626,13 +695,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text("Keluar", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-          content: Text("Apakah Anda yakin ingin keluar dari aplikasi?", style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white70 : Colors.black87)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text("Keluar",
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87)),
+          content: Text("Apakah Anda yakin ingin keluar dari aplikasi?",
+              style: GoogleFonts.plusJakartaSans(
+                  color: isDark ? Colors.white70 : Colors.black87)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text("Batal", style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+              child: Text("Batal",
+                  style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -645,11 +721,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!mounted) return;
                 Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      (route) => false,
+                  (route) => false,
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text("Keluar", style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              child: Text("Keluar",
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white)),
             ),
           ],
         );
@@ -664,13 +741,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text("Reset Data Keuangan", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.red)),
-          content: Text("Tindakan ini akan menghapus semua riwayat transaksi beserta daftar dompet Anda, mengembalikan aplikasi seperti baru di-install. Akun dan profil tetap aman. Lanjutkan?", style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white70 : Colors.black87)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text("Reset Data Keuangan",
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold, color: Colors.red)),
+          content: Text(
+              "Tindakan ini akan menghapus semua riwayat transaksi beserta daftar dompet Anda, mengembalikan aplikasi seperti baru di-install. Akun dan profil tetap aman. Lanjutkan?",
+              style: GoogleFonts.plusJakartaSans(
+                  color: isDark ? Colors.white70 : Colors.black87)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text("Batal", style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+              child: Text("Batal",
+                  style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -679,30 +763,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!isOnline) return;
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
-                CustomNotification.show(context, 'Sedang mereset data keuangan...', isWarning: true);
+                CustomNotification.show(
+                    context, 'Sedang mereset data keuangan...',
+                    isWarning: true);
                 try {
                   final userId = Supabase.instance.client.auth.currentUser?.id;
                   if (userId != null) {
-                    await Supabase.instance.client.from('transactions').delete().eq('user_id', userId);
-                    await Supabase.instance.client.from('wallets').delete().eq('user_id', userId);
+                    await Supabase.instance.client
+                        .from('transactions')
+                        .delete()
+                        .eq('user_id', userId);
+                    await Supabase.instance.client
+                        .from('wallets')
+                        .delete()
+                        .eq('user_id', userId);
 
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.remove('visible_template_names_v3_$userId');
 
                     if (mounted) {
-                      CustomNotification.show(context, 'Aplikasi berhasil direset seperti baru!');
-                      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const MainNavigation()),
-                            (route) => false,
+                      CustomNotification.show(
+                          context, 'Aplikasi berhasil direset seperti baru!');
+                      Navigator.of(context, rootNavigator: true)
+                          .pushAndRemoveUntil(
+                        MaterialPageRoute(
+                            builder: (context) => const MainNavigation()),
+                        (route) => false,
                       );
                     }
                   }
                 } catch (e) {
-                  if (mounted) NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mereset data');
+                  if (mounted) {
+                    NetworkHelper.handleSupabaseError(context, e,
+                        prefix: 'Gagal mereset data');
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text("Reset Sekarang", style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              child: Text("Reset Sekarang",
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white)),
             ),
           ],
         );
@@ -718,19 +817,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             'Hapus Akun & Data',
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.red),
+            style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold, color: Colors.red),
           ),
           content: Text(
             'Tindakan ini akan menghapus akun Spendly Anda beserta semua data di dalamnya, termasuk transaksi, dompet, anggaran, foto profil, file struk, dan data lokal aplikasi. Proses ini tidak bisa dibatalkan.',
-            style: GoogleFonts.plusJakartaSans(color: isDark ? Colors.white70 : Colors.black87),
+            style: GoogleFonts.plusJakartaSans(
+                color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Batal', style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
+              child: Text('Batal',
+                  style: GoogleFonts.plusJakartaSans(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -739,7 +842,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!isOnline) return;
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
-                CustomNotification.show(context, 'Sedang menghapus akun dan data...', isWarning: true);
+                CustomNotification.show(
+                    context, 'Sedang menghapus akun dan data...',
+                    isWarning: true);
                 try {
                   final supabase = Supabase.instance.client;
                   final user = supabase.auth.currentUser;
@@ -761,19 +866,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await prefs.remove(ProfileImageCache.keyForUser(userId));
                   await supabase.auth.signOut();
                   if (!mounted) return;
-                  CustomNotification.show(context, 'Akun dan data berhasil dihapus.');
+                  CustomNotification.show(
+                      context, 'Akun dan data berhasil dihapus.');
                   Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        (route) => false,
+                    MaterialPageRoute(
+                        builder: (context) => const LoginScreen()),
+                    (route) => false,
                   );
                 } catch (e) {
                   if (mounted) {
-                    NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menghapus akun');
+                    NetworkHelper.handleSupabaseError(context, e,
+                        prefix: 'Gagal menghapus akun');
                   }
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text('Hapus Akun', style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+              child: Text('Hapus Akun',
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white)),
             ),
           ],
         );
@@ -784,7 +893,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    Color textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
     final user = Supabase.instance.client.auth.currentUser;
     final userEmail = user?.email ?? 'Email tidak ditemukan';
     ImageProvider? imageProvider;
@@ -816,11 +926,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 3),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 4)),
+                              BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4)),
                             ],
                           ),
                           child: GestureDetector(
-                            onLongPressStart: (_) => _showProfilePreview(imageProvider),
+                            onLongPressStart: (_) =>
+                                _showProfilePreview(imageProvider),
                             onLongPressEnd: (_) => _hideProfilePreview(),
                             onLongPressCancel: () => _hideProfilePreview(),
                             child: CircleAvatar(
@@ -829,9 +943,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               backgroundImage: imageProvider,
                               child: imageProvider == null
                                   ? Text(
-                                _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
-                                style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
-                              )
+                                      _userName.isNotEmpty
+                                          ? _userName[0].toUpperCase()
+                                          : 'U',
+                                      style: const TextStyle(
+                                          fontSize: 40,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold),
+                                    )
                                   : null,
                             ),
                           ),
@@ -841,79 +960,110 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           right: 0,
                           child: GestureDetector(
                             onTap: () async {
-                              final Map<String, dynamic>? result = await showModalBottomSheet<Map<String, dynamic>>(
+                              final Map<String, dynamic>? result =
+                                  await showModalBottomSheet<
+                                      Map<String, dynamic>>(
                                 context: context,
                                 isScrollControlled: true,
                                 backgroundColor: Theme.of(context).cardColor,
                                 shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                  borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20)),
                                 ),
-                                builder: (modalContext) => const UpdateProfileScreen(),
+                                builder: (modalContext) =>
+                                    const UpdateProfileScreen(),
                               );
                               if (result != null) {
                                 if (!context.mounted) return;
-                                bool isOnline = await NetworkHelper.checkConnection(context);
+                                bool isOnline =
+                                    await NetworkHelper.checkConnection(
+                                        context);
                                 if (!context.mounted) return;
                                 if (!isOnline) return;
                                 final action = result['action'];
-                                final user = Supabase.instance.client.auth.currentUser;
+                                final user =
+                                    Supabase.instance.client.auth.currentUser;
                                 if (user == null) return;
-                                final prefs = await SharedPreferences.getInstance();
+                                final prefs =
+                                    await SharedPreferences.getInstance();
                                 if (!context.mounted) return;
                                 final userId = user.id;
                                 if (action == 'upload') {
                                   final String newPath = result['path']!;
                                   setState(() => _profileImagePath = newPath);
-                                  CustomNotification.show(context, 'Sedang menyimpan foto...', isWarning: true);
+                                  CustomNotification.show(
+                                      context, 'Sedang menyimpan foto...',
+                                      isWarning: true);
                                   try {
                                     final File file = File(newPath);
-                                    final String fileExtension = newPath.split('.').last;
-                                    final String fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+                                    final String fileExtension =
+                                        newPath.split('.').last;
+                                    final String fileName =
+                                        '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
                                     await Supabase.instance.client.storage
                                         .from('avatars')
                                         .upload(fileName, file);
-                                    final String imageUrl = Supabase.instance.client.storage
+                                    final String imageUrl = Supabase
+                                        .instance.client.storage
                                         .from('avatars')
                                         .getPublicUrl(fileName);
-                                    await Supabase.instance.client.auth.updateUser(
-                                      UserAttributes(data: {'avatar_url': imageUrl}),
+                                    await Supabase.instance.client.auth
+                                        .updateUser(
+                                      UserAttributes(
+                                          data: {'avatar_url': imageUrl}),
                                     );
-                                    await prefs.setString(ProfileImageCache.keyForUser(userId), newPath);
-                                    await prefs.remove(ProfileImageCache.legacyKey);
+                                    await prefs.setString(
+                                        ProfileImageCache.keyForUser(userId),
+                                        newPath);
+                                    await prefs
+                                        .remove(ProfileImageCache.legacyKey);
                                     if (context.mounted) {
-                                      CustomNotification.show(context, 'Foto profil berhasil diperbarui!');
+                                      CustomNotification.show(context,
+                                          'Foto profil berhasil diperbarui!');
                                       if (widget.onProfileUpdated != null) {
                                         widget.onProfileUpdated!();
                                       }
                                     }
                                   } catch (e) {
                                     if (context.mounted) {
-                                      NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui foto');
+                                      NetworkHelper.handleSupabaseError(
+                                          context, e,
+                                          prefix: 'Gagal memperbarui foto');
                                     }
                                   }
-                                } else if (action == 'delete' || action == 'avatar') {
-                                  String newUrl = action == 'delete'
-                                      ? ''
-                                      : result['url']!;
+                                } else if (action == 'delete' ||
+                                    action == 'avatar') {
+                                  String newUrl =
+                                      action == 'delete' ? '' : result['url']!;
                                   setState(() {
-                                    _profileImagePath = newUrl.isEmpty ? null : newUrl;
+                                    _profileImagePath =
+                                        newUrl.isEmpty ? null : newUrl;
                                   });
-                                  CustomNotification.show(context, 'Sedang memperbarui avatar...', isWarning: true);
+                                  CustomNotification.show(
+                                      context, 'Sedang memperbarui avatar...',
+                                      isWarning: true);
                                   try {
-                                    await Supabase.instance.client.auth.updateUser(
-                                      UserAttributes(data: {'avatar_url': newUrl}),
+                                    await Supabase.instance.client.auth
+                                        .updateUser(
+                                      UserAttributes(
+                                          data: {'avatar_url': newUrl}),
                                     );
-                                    await prefs.remove(ProfileImageCache.keyForUser(userId));
-                                    await prefs.remove(ProfileImageCache.legacyKey);
+                                    await prefs.remove(
+                                        ProfileImageCache.keyForUser(userId));
+                                    await prefs
+                                        .remove(ProfileImageCache.legacyKey);
                                     if (context.mounted) {
-                                      CustomNotification.show(context, 'Avatar berhasil diperbarui!');
+                                      CustomNotification.show(context,
+                                          'Avatar berhasil diperbarui!');
                                       if (widget.onProfileUpdated != null) {
                                         widget.onProfileUpdated!();
                                       }
                                     }
                                   } catch (e) {
                                     if (context.mounted) {
-                                      NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal memperbarui avatar');
+                                      NetworkHelper.handleSupabaseError(
+                                          context, e,
+                                          prefix: 'Gagal memperbarui avatar');
                                     }
                                   }
                                 }
@@ -924,9 +1074,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               decoration: BoxDecoration(
                                 color: AppColors.primaryGreen,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
                               ),
-                              child: const FaIcon(FontAwesomeIcons.penToSquare, color: Colors.white, size: 12),
+                              child: const FaIcon(FontAwesomeIcons.penToSquare,
+                                  color: Colors.white, size: 12),
                             ),
                           ),
                         ),
@@ -941,7 +1093,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Flexible(
                             child: Text(
                               _userName,
-                              style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -949,13 +1104,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(width: 8),
                           GestureDetector(
                             onTap: _showEditNameDialog,
-                            child: Icon(Icons.edit, size: 16, color: Colors.grey.shade500),
+                            child: Icon(Icons.edit,
+                                size: 16, color: Colors.grey.shade500),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(userEmail, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.grey)),
+                    Text(userEmail,
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -968,7 +1126,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const PasscodeSettingsScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const PasscodeSettingsScreen()),
                   ).then((_) => _loadSecuritySettings());
                 },
               ),
@@ -979,7 +1138,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const UpdateAccountPasswordScreen()),
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const UpdateAccountPasswordScreen()),
                   );
                 },
               ),
@@ -988,50 +1149,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'PIN Keamanan',
                   value: _isPinEnabled,
                   onChanged: _togglePin,
-                  activeColor: AppColors.primaryGreen
-              ),
+                  activeColor: AppColors.primaryGreen),
               _buildSwitchTile(
                   icon: FontAwesomeIcons.fingerprint,
                   title: 'Autentikasi Biometrik',
                   subtitle: 'Sidik Jari / Pemindai Wajah',
                   value: _isBiometricEnabled,
                   onChanged: _toggleBiometric,
-                  activeColor: AppColors.primaryGreen
-              ),
+                  activeColor: AppColors.primaryGreen),
               const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
-              _buildSectionTitle('PENGATURAN APLIKASI', color: AppColors.primaryGreen),
+              _buildSectionTitle('PENGATURAN APLIKASI',
+                  color: AppColors.primaryGreen),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                  border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.grey.shade200),
                 ),
                 child: Column(
                   children: [
-                    ListTile(leading: FaIcon(FontAwesomeIcons.bell, color: textColor, size: 20), title: Text('Pengaturan Notifikasi', style: GoogleFonts.plusJakartaSans(fontSize: 15, color: textColor))),
+                    ListTile(
+                        leading: FaIcon(FontAwesomeIcons.bell,
+                            color: textColor, size: 20),
+                        title: Text('Pengaturan Notifikasi',
+                            style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15, color: textColor))),
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
                         gradient: isDark
                             ? LinearGradient(
-                          colors: [
-                            Colors.white.withValues(alpha: 0.05),
-                            Colors.white.withValues(alpha: 0.02),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.05),
+                                  Colors.white.withValues(alpha: 0.02),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
                             : const LinearGradient(
-                          colors: [
-                            Color(0xFFF7FCF9),
-                            Color(0xFFEAF8F0),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                                colors: [
+                                  Color(0xFFF7FCF9),
+                                  Color(0xFFEAF8F0),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFD8EBDF)),
+                        border: Border.all(
+                            color: isDark
+                                ? Colors.white12
+                                : const Color(0xFFD8EBDF)),
                       ),
                       child: Material(
                         color: Colors.transparent,
@@ -1046,15 +1216,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   width: 42,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primaryGreen.withValues(alpha: isDark ? 0.18 : 0.12),
+                                    color: AppColors.primaryGreen.withValues(
+                                        alpha: isDark ? 0.18 : 0.12),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(Icons.access_time_rounded, color: AppColors.primaryGreen, size: 22),
+                                  child: const Icon(Icons.access_time_rounded,
+                                      color: AppColors.primaryGreen, size: 22),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Waktu Pengingat',
@@ -1077,11 +1250,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).cardColor.withValues(alpha: isDark ? 0.85 : 1),
+                                    color: Theme.of(context)
+                                        .cardColor
+                                        .withValues(alpha: isDark ? 0.85 : 1),
                                     borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFDDE8E0)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? Colors.white12
+                                            : const Color(0xFFDDE8E0)),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -1095,7 +1274,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      const Icon(Icons.keyboard_arrow_right_rounded, size: 18, color: AppColors.primaryGreen),
+                                      const Icon(
+                                          Icons.keyboard_arrow_right_rounded,
+                                          size: 18,
+                                          color: AppColors.primaryGreen),
                                     ],
                                   ),
                                 ),
@@ -1107,15 +1289,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1FAF5),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.03)
+                            : const Color(0xFFF1FAF5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                        title: Text('Pengingat Harian', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
-                        subtitle: Text('Aktif setiap hari pada jam pilihan', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 11)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 0),
+                        title: Text('Pengingat Harian',
+                            style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14, color: textColor)),
+                        subtitle: Text('Aktif setiap hari pada jam pilihan',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: Colors.grey, fontSize: 11)),
                         trailing: Switch.adaptive(
                           value: _isDailyReminderEnabled,
                           activeThumbColor: AppColors.primaryGreen,
@@ -1124,15 +1314,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1FAF5),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.03)
+                            : const Color(0xFFF1FAF5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                        title: Text('Pengingat Tagihan', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
-                        subtitle: Text('Mengikuti jadwal pengingat harian', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 11)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 0),
+                        title: Text('Pengingat Tagihan',
+                            style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14, color: textColor)),
+                        subtitle: Text('Mengikuti jadwal pengingat harian',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: Colors.grey, fontSize: 11)),
                         trailing: Switch.adaptive(
                           value: _isBillReminderEnabled,
                           activeThumbColor: AppColors.primaryGreen,
@@ -1141,20 +1339,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Divider(height: 1, thickness: 1, color: isDark ? Colors.white12 : const Color(0xFFF0F0F0)),
+                    Divider(
+                        height: 1,
+                        thickness: 1,
+                        color:
+                            isDark ? Colors.white12 : const Color(0xFFF0F0F0)),
                     ListTile(
                       onTap: () {
                         final cubit = context.read<ThemeCubit>();
                         cubit.toggleTheme(cubit.state != ThemeMode.dark);
                       },
-                      leading: FaIcon(FontAwesomeIcons.palette, color: textColor, size: 20),
-                      title: Text('Tema Aplikasi', style: GoogleFonts.plusJakartaSans(fontSize: 15, color: textColor)),
+                      leading: FaIcon(FontAwesomeIcons.palette,
+                          color: textColor, size: 20),
+                      title: Text('Tema Aplikasi',
+                          style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15, color: textColor)),
                       subtitle: BlocBuilder<ThemeCubit, ThemeMode>(
                         builder: (context, themeMode) {
-                          return Text(themeMode == ThemeMode.dark ? 'Gelap (Dark)' : 'Terang (Light)', style: GoogleFonts.plusJakartaSans(color: AppColors.primaryGreen, fontSize: 12));
+                          return Text(
+                              themeMode == ThemeMode.dark
+                                  ? 'Gelap (Dark)'
+                                  : 'Terang (Light)',
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: AppColors.primaryGreen, fontSize: 12));
                         },
                       ),
-                      trailing: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                      trailing: const Icon(Icons.keyboard_arrow_down,
+                          color: Colors.grey),
                     ),
                   ],
                 ),
@@ -1162,175 +1373,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
               _buildSectionTitle('DATA & SINKRONISASI'),
               _buildListTile(
-                  icon: FontAwesomeIcons.cloudArrowUp,
-                  title: 'Cadangkan & Sinkronisasi',
-                  subtitle: 'Amankan data ke Google Drive',
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Theme.of(context).cardColor,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                      ),
-                      builder: (BuildContext sheetContext) {
-                        Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
-                        return SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                                  child: Text(
-                                    'Google Drive Sync',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: sheetTextColor),
-                                  ),
-                                ),
-                                ListTile(
-                                    leading: const FaIcon(FontAwesomeIcons.cloudArrowUp, color: Colors.green),
-                                    title: Text('Cadangkan Data', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
-                                    subtitle: Text('Simpan seluruh data ke Google Drive', style: GoogleFonts.plusJakartaSans()),
-                                    onTap: () async {
-                                      bool isOnline = await NetworkHelper.checkConnection(context);
-                                      if (!mounted) return;
-                                      if (!isOnline) return;
-                                      if (!sheetContext.mounted) return;
-                                      Navigator.pop(sheetContext);
-                                      await DriveSyncService.backupToDrive(context);
-                                    }
-                                ),
-                                ListTile(
-                                  leading: const FaIcon(FontAwesomeIcons.cloudArrowDown, color: Colors.blue),
-                                  title: Text('Sinkronisasi Data', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
-                                  subtitle: Text('Pulihkan data dari Google Drive ke HP', style: GoogleFonts.plusJakartaSans()),
-                                  onTap: () async {
-                                    bool isOnline = await NetworkHelper.checkConnection(context);
-                                    if (!mounted) return;
-                                    if (!isOnline) return;
-                                    if (!sheetContext.mounted) return;
-                                    Navigator.pop(sheetContext);
-                                    await DriveSyncService.restoreFromDrive(context);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  }
+                icon: FontAwesomeIcons.cloudArrowUp,
+                title: 'Cadangkan & Sinkronisasi',
+                subtitle: 'Amankan data ke Google Drive',
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () => _showGoogleDriveSyncSheet(context),
               ),
               _buildListTile(
-                  icon: FontAwesomeIcons.fileExport,
-                  title: 'Ekspor Data (.csv, .pdf)',
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                  onTap: () {
-                    int selectedFilter = 0;
-                    showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Theme.of(context).cardColor,
-                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-                      builder: (BuildContext sheetContext) {
-                        Color sheetTextColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
-                        final bool isDarkSheet = Theme.of(context).brightness == Brightness.dark;
-                        return StatefulBuilder(
-                            builder: (BuildContext stateContext, StateSetter setSheetState) {
-                              return SafeArea(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 20.0),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                                        child: Text('Pilih Format Ekspor', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: sheetTextColor)),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                                        child: Row(
-                                          children: [
-                                            ChoiceChip(
-                                              label: Text('Semua Waktu', style: GoogleFonts.plusJakartaSans()),
-                                              labelStyle: GoogleFonts.plusJakartaSans(
-                                                color: selectedFilter == 0
-                                                    ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
-                                                    : (isDarkSheet ? Colors.white70 : Colors.black87),
-                                                fontWeight: selectedFilter == 0 ? FontWeight.w700 : FontWeight.w500,
-                                              ),
-                                              selected: selectedFilter == 0,
-                                              selectedColor: isDarkSheet
-                                                  ? AppColors.primaryGreen.withValues(alpha: 0.35)
-                                                  : AppColors.primaryGreen.withValues(alpha: 0.2),
-                                              backgroundColor: isDarkSheet ? Colors.white10 : Colors.white,
-                                              side: BorderSide(color: isDarkSheet ? Colors.white30 : Colors.grey.shade300),
-                                              checkmarkColor: selectedFilter == 0
-                                                  ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
-                                                  : (isDarkSheet ? Colors.white70 : Colors.black54),
-                                              onSelected: (val) => setSheetState(() => selectedFilter = 0),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            ChoiceChip(
-                                              label: Text('Bulan Ini', style: GoogleFonts.plusJakartaSans()),
-                                              labelStyle: GoogleFonts.plusJakartaSans(
-                                                color: selectedFilter == 1
-                                                    ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
-                                                    : (isDarkSheet ? Colors.white70 : Colors.black87),
-                                                fontWeight: selectedFilter == 1 ? FontWeight.w700 : FontWeight.w500,
-                                              ),
-                                              selected: selectedFilter == 1,
-                                              selectedColor: isDarkSheet
-                                                  ? AppColors.primaryGreen.withValues(alpha: 0.35)
-                                                  : AppColors.primaryGreen.withValues(alpha: 0.2),
-                                              backgroundColor: isDarkSheet ? Colors.white10 : Colors.white,
-                                              side: BorderSide(color: isDarkSheet ? Colors.white30 : Colors.grey.shade300),
-                                              checkmarkColor: selectedFilter == 1
-                                                  ? (isDarkSheet ? Colors.white : AppColors.primaryGreen)
-                                                  : (isDarkSheet ? Colors.white70 : Colors.black54),
-                                              onSelected: (val) => setSheetState(() => selectedFilter = 1),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const Divider(),
-                                      ListTile(
-                                        leading: const FaIcon(FontAwesomeIcons.fileCsv, color: Colors.green),
-                                        title: Text('Ekspor sebagai CSV', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
-                                        subtitle: Text('Cocok untuk Excel / Spreadsheet', style: GoogleFonts.plusJakartaSans()),
-                                        onTap: () async {
-                                          bool isOnline = await NetworkHelper.checkConnection(context);
-                                          if (!mounted) return;
-                                          if (!isOnline) return;
-                                          if (!sheetContext.mounted) return;
-                                          Navigator.pop(sheetContext);
-                                          await ExportService.exportTransactionsToCSV(context, selectedFilter);
-                                        },
-                                      ),
-                                      ListTile(
-                                        leading: const FaIcon(FontAwesomeIcons.filePdf, color: Colors.red),
-                                        title: Text('Ekspor sebagai PDF', style: GoogleFonts.plusJakartaSans(color: sheetTextColor)),
-                                        subtitle: Text('Format rapi, siap untuk dicetak', style: GoogleFonts.plusJakartaSans()),
-                                        onTap: () async {
-                                          bool isOnline = await NetworkHelper.checkConnection(context);
-                                          if (!mounted) return;
-                                          if (!isOnline) return;
-                                          if (!sheetContext.mounted) return;
-                                          Navigator.pop(sheetContext);
-                                          await ExportService.exportTransactionsToPDF(context, selectedFilter);
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
-                        );
-                      },
-                    );
-                  }
+                icon: FontAwesomeIcons.fileExport,
+                title: 'Ekspor Data (.csv, .pdf)',
+                subtitle: 'Laporan keuangan lengkap & siap cetak',
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () => _showExportDataSheet(context),
               ),
               const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
               _buildSectionTitle('BANTUAN & INFO'),
@@ -1341,10 +1395,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const FaqScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const FaqScreen()),
                     );
-                  }
-              ),
+                  }),
               _buildListTile(
                   icon: FontAwesomeIcons.circleInfo,
                   title: 'Tentang Spendly',
@@ -1353,21 +1407,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AboutScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const AboutScreen()),
                     );
-                  }
-              ),
+                  }),
               const Divider(height: 30, thickness: 1, color: Color(0xFFF0F0F0)),
               _buildSectionTitle('ZONA BERBAHAYA', color: Colors.redAccent),
               ListTile(
-                leading: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.red, size: 20),
-                title: Text('Reset Riwayat Transaksi', style: GoogleFonts.plusJakartaSans(color: Colors.red, fontSize: 14)),
+                leading: const FaIcon(FontAwesomeIcons.trashCan,
+                    color: Colors.red, size: 20),
+                title: Text('Reset Riwayat Transaksi',
+                    style: GoogleFonts.plusJakartaSans(
+                        color: Colors.red, fontSize: 14)),
                 onTap: _showDeleteDataDialog,
               ),
               const SizedBox(height: 4),
               ListTile(
-                leading: const FaIcon(FontAwesomeIcons.userSlash, color: Colors.red, size: 20),
-                title: Text('Hapus Akun & Data', style: GoogleFonts.plusJakartaSans(color: Colors.red, fontSize: 14)),
+                leading: const FaIcon(FontAwesomeIcons.userSlash,
+                    color: Colors.red, size: 20),
+                title: Text('Hapus Akun & Data',
+                    style: GoogleFonts.plusJakartaSans(
+                        color: Colors.red, fontSize: 14)),
                 onTap: _showDeleteAccountDialog,
               ),
               const SizedBox(height: 20),
@@ -1375,9 +1435,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: OutlinedButton.icon(
                   onPressed: _showLogoutDialog,
-                  icon: const FaIcon(FontAwesomeIcons.arrowRightFromBracket, color: Colors.red, size: 18),
-                  label: Text('Keluar', style: GoogleFonts.plusJakartaSans(color: Colors.red, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red.shade200), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), backgroundColor: Colors.red.shade50.withValues(alpha: 0.3)),
+                  icon: const FaIcon(FontAwesomeIcons.arrowRightFromBracket,
+                      color: Colors.red, size: 18),
+                  label: Text('Keluar',
+                      style: GoogleFonts.plusJakartaSans(
+                          color: Colors.red, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.red.shade200),
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      backgroundColor:
+                          Colors.red.shade50.withValues(alpha: 0.3)),
                 ),
               ),
               const SizedBox(height: 100),
@@ -1391,30 +1460,740 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSectionTitle(String title, {Color color = Colors.grey}) {
     return Padding(
       padding: const EdgeInsets.only(left: 20, bottom: 8, top: 8),
-      child: Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.bold, color: color, letterSpacing: 1.2)),
+      child: Text(title,
+          style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+              letterSpacing: 1.2)),
     );
   }
 
-  Widget _buildListTile({required dynamic icon, required String title, String? subtitle, Widget? trailing, VoidCallback? onTap}) {
+  Widget _buildListTile(
+      {required dynamic icon,
+      required String title,
+      String? subtitle,
+      Widget? trailing,
+      VoidCallback? onTap}) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
       leading: FaIcon(icon, color: Colors.grey[600], size: 20),
-      title: Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
-      subtitle: subtitle != null ? Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey[500])) : null,
+      title: Text(title,
+          style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).textTheme.bodyLarge?.color)),
+      subtitle: subtitle != null
+          ? Text(subtitle,
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12, color: Colors.grey[500]))
+          : null,
       trailing: trailing,
       onTap: onTap,
       dense: true,
     );
   }
 
-  Widget _buildSwitchTile({required dynamic icon, required String title, String? subtitle, required bool value, required ValueChanged<bool> onChanged, required Color activeColor}) {
+  Widget _buildSwitchTile(
+      {required dynamic icon,
+      required String title,
+      String? subtitle,
+      required bool value,
+      required ValueChanged<bool> onChanged,
+      required Color activeColor}) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
       leading: FaIcon(icon, color: Colors.grey[600], size: 20),
-      title: Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color)),
-      subtitle: subtitle != null ? Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey[500])) : null,
-      trailing: Switch(value: value, onChanged: onChanged, activeThumbColor: Colors.white, activeTrackColor: activeColor),
+      title: Text(title,
+          style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).textTheme.bodyLarge?.color)),
+      subtitle: subtitle != null
+          ? Text(subtitle,
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12, color: Colors.grey[500]))
+          : null,
+      trailing: Switch(
+          value: value,
+          onChanged: onChanged,
+          activeThumbColor: Colors.white,
+          activeTrackColor: activeColor),
       dense: true,
+    );
+  }
+
+  void _showGoogleDriveSyncSheet(BuildContext context) async {
+    if (!context.mounted) return;
+    final themeMode = Theme.of(context).brightness;
+    final cardColor = Theme.of(context).cardColor;
+    final textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+
+    final lastBackupTime = await DriveSyncService.getLastBackupInfo();
+    final lastBackupEmail = await DriveSyncService.getLastBackupEmail();
+    if (!context.mounted) return;
+
+    final isDark = themeMode == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color:
+                            Colors.blue.withValues(alpha: isDark ? 0.2 : 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const FaIcon(FontAwesomeIcons.googleDrive,
+                          color: Colors.blue, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Cadangkan & Sinkronisasi',
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor)),
+                          const SizedBox(height: 2),
+                          Text('Google Drive Cloud Backup',
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : const Color(0xFFF6F9FC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color: isDark ? Colors.white12 : Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_done_rounded,
+                          color: AppColors.primaryGreen, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              lastBackupTime != null
+                                  ? 'Terakhir Dicadangkan:'
+                                  : 'Status Cadangan:',
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              lastBackupTime != null
+                                  ? '$lastBackupTime WIB'
+                                  : 'Belum pernah dicadangkan',
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor),
+                            ),
+                            if (lastBackupEmail != null &&
+                                lastBackupEmail.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(lastBackupEmail,
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11, color: Colors.blue)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    bool isOnline =
+                        await NetworkHelper.checkConnection(context);
+                    if (!mounted || !isOnline) return;
+                    if (!sheetCtx.mounted) return;
+                    Navigator.pop(sheetCtx);
+                    await DriveSyncService.backupToDrive(context);
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen
+                          .withValues(alpha: isDark ? 0.15 : 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const FaIcon(FontAwesomeIcons.cloudArrowUp,
+                              color: Colors.white, size: 18),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Cadangkan Data Sekarang',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor)),
+                              const SizedBox(height: 2),
+                              Text(
+                                  'Upload salinan transaksi, dompet & anggaran ke Google Drive',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: AppColors.primaryGreen),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: () async {
+                    bool isOnline =
+                        await NetworkHelper.checkConnection(context);
+                    if (!mounted || !isOnline) return;
+                    if (!sheetCtx.mounted) return;
+                    Navigator.pop(sheetCtx);
+                    await DriveSyncService.restoreFromDrive(context);
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color:
+                              isDark ? Colors.white12 : Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const FaIcon(FontAwesomeIcons.cloudArrowDown,
+                              color: Colors.white, size: 18),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Pulihkan / Sinkronisasi Data',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor)),
+                              const SizedBox(height: 2),
+                              Text(
+                                  'Pilih dan unduh berkas cadangan dari Google Drive ke HP',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.lock_outline_rounded,
+                        size: 14, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Data dicadangkan langsung ke Google Drive pribadi Anda secara aman & terisolasi.',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showExportDataSheet(BuildContext context) {
+    int selectedFilter = 0;
+    int typeFilter = 0;
+    DateTime customStart = DateTime.now().subtract(const Duration(days: 30));
+    DateTime customEnd = DateTime.now();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen
+                                .withValues(alpha: isDark ? 0.2 : 0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const FaIcon(FontAwesomeIcons.fileExport,
+                              color: AppColors.primaryGreen, size: 20),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Ekspor Laporan Transaksi',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor)),
+                              const SizedBox(height: 2),
+                              Text(
+                                  'Simpan laporan keuangan dalam format CSV atau PDF',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text('PERIODE WAKTU',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                            letterSpacing: 1.1)),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          _buildFilterChip(
+                              'Bulan Ini',
+                              0,
+                              selectedFilter,
+                              (val) => setSheetState(() => selectedFilter = 0),
+                              isDark),
+                          _buildFilterChip(
+                              'Bulan Lalu',
+                              1,
+                              selectedFilter,
+                              (val) => setSheetState(() => selectedFilter = 1),
+                              isDark),
+                          _buildFilterChip(
+                              '3 Bulan Terakhir',
+                              2,
+                              selectedFilter,
+                              (val) => setSheetState(() => selectedFilter = 2),
+                              isDark),
+                          _buildFilterChip(
+                              'Tahun Ini',
+                              3,
+                              selectedFilter,
+                              (val) => setSheetState(() => selectedFilter = 3),
+                              isDark),
+                          _buildFilterChip(
+                              'Semua Waktu',
+                              4,
+                              selectedFilter,
+                              (val) => setSheetState(() => selectedFilter = 4),
+                              isDark),
+                          _buildFilterChip(
+                              'Rentang Kustom',
+                              5,
+                              selectedFilter,
+                              (val) => setSheetState(() => selectedFilter = 5),
+                              isDark),
+                        ],
+                      ),
+                    ),
+                    if (selectedFilter == 5) ...[
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () async {
+                          DateTimeRange? picked = await showDateRangePicker(
+                            context: context,
+                            firstDate: DateHelper.minDate,
+                            lastDate: DateHelper.nextMonthEnd(),
+                            initialDateRange: DateTimeRange(
+                                start: customStart, end: customEnd),
+                            builder: (c, ch) => Theme(
+                              data: Theme.of(c).copyWith(
+                                colorScheme: isDark
+                                    ? const ColorScheme.dark(
+                                        primary: AppColors.primaryGreen,
+                                        onPrimary: Colors.white,
+                                        surface: Color(0xFF1E1E1E),
+                                        onSurface: Colors.white)
+                                    : const ColorScheme.light(
+                                        primary: AppColors.primaryGreen,
+                                        onPrimary: Colors.white),
+                              ),
+                              child: ch!,
+                            ),
+                          );
+                          if (picked != null) {
+                            setSheetState(() {
+                              customStart = picked.start;
+                              customEnd = picked.end;
+                            });
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen
+                                .withValues(alpha: isDark ? 0.15 : 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: AppColors.primaryGreen
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '📅 ${DateFormat('dd MMM yyyy', 'id').format(customStart)} - ${DateFormat('dd MMM yyyy', 'id').format(customEnd)}',
+                                style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryGreen),
+                              ),
+                              const Icon(Icons.edit_calendar_rounded,
+                                  size: 16, color: AppColors.primaryGreen),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    Text('TIPE TRANSAKSI',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                            letterSpacing: 1.1)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: _buildTypeChip(
+                                'Semua',
+                                0,
+                                typeFilter,
+                                (v) => setSheetState(() => typeFilter = 0),
+                                isDark)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: _buildTypeChip(
+                                'Pengeluaran',
+                                1,
+                                typeFilter,
+                                (v) => setSheetState(() => typeFilter = 1),
+                                isDark)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: _buildTypeChip(
+                                'Pemasukan',
+                                2,
+                                typeFilter,
+                                (v) => setSheetState(() => typeFilter = 2),
+                                isDark)),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Text('PILIH FORMAT BERKAS',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                            letterSpacing: 1.1)),
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: () async {
+                        bool isOnline =
+                            await NetworkHelper.checkConnection(context);
+                        if (!mounted || !isOnline) return;
+                        if (!sheetCtx.mounted) return;
+                        Navigator.pop(sheetCtx);
+                        await ExportService.exportTransactionsToCSV(
+                          context,
+                          filterMode: selectedFilter,
+                          customStartDate: customStart,
+                          customEndDate: customEnd,
+                          typeFilter: typeFilter,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : const Color(0xFFF1FAF5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: Colors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const FaIcon(FontAwesomeIcons.fileCsv,
+                                  color: Colors.white, size: 18),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Ekspor sebagai CSV (.csv)',
+                                      style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      'Cocok untuk diolah di Microsoft Excel & Google Sheets',
+                                      style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11, color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.download_rounded,
+                                color: Colors.green),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: () async {
+                        bool isOnline =
+                            await NetworkHelper.checkConnection(context);
+                        if (!mounted || !isOnline) return;
+                        if (!sheetCtx.mounted) return;
+                        Navigator.pop(sheetCtx);
+                        await ExportService.exportTransactionsToPDF(
+                          context,
+                          filterMode: selectedFilter,
+                          customStartDate: customStart,
+                          customEndDate: customEnd,
+                          typeFilter: typeFilter,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : const Color(0xFFFFF5F5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: Colors.redAccent.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const FaIcon(FontAwesomeIcons.filePdf,
+                                  color: Colors.white, size: 18),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Ekspor sebagai Dokumen PDF (.pdf)',
+                                      style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      'Laporan resmi rapi dengan ringkasan keuangan siap cetak',
+                                      style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11, color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.download_rounded,
+                                color: Colors.redAccent),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChip(String label, int value, int selectedValue,
+      ValueChanged<bool> onSelected, bool isDark) {
+    final bool isSelected = value == selectedValue;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+        labelStyle: GoogleFonts.plusJakartaSans(
+          color: isSelected
+              ? Colors.white
+              : (isDark ? Colors.white70 : Colors.black87),
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        ),
+        selected: isSelected,
+        selectedColor: AppColors.primaryGreen,
+        backgroundColor: isDark ? Colors.white10 : Colors.grey.shade100,
+        side: BorderSide(
+            color: isSelected
+                ? AppColors.primaryGreen
+                : (isDark ? Colors.white12 : Colors.grey.shade300)),
+        showCheckmark: false,
+        onSelected: onSelected,
+      ),
+    );
+  }
+
+  Widget _buildTypeChip(String label, int value, int selectedValue,
+      ValueChanged<bool> onSelected, bool isDark) {
+    final bool isSelected = value == selectedValue;
+    return InkWell(
+      onTap: () => onSelected(true),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryGreen
+              : (isDark ? Colors.white10 : Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: isSelected
+                  ? AppColors.primaryGreen
+                  : (isDark ? Colors.white12 : Colors.grey.shade300)),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : Colors.black87),
+          ),
+        ),
+      ),
     );
   }
 }

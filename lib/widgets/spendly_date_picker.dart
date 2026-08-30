@@ -10,12 +10,14 @@ class SpendlyDatePicker extends StatefulWidget {
   final DateTime initialDate;
   final DateTime firstDate;
   final DateTime lastDate;
+  final bool monthYearOnly;
 
   const SpendlyDatePicker({
     super.key,
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
+    this.monthYearOnly = false,
   });
 
   static Future<DateTime?> show(
@@ -42,6 +44,36 @@ class SpendlyDatePicker extends StatefulWidget {
         initialDate: effectiveInitialDate,
         firstDate: effectiveFirstDate,
         lastDate: effectiveLastDate,
+        monthYearOnly: false,
+      ),
+    );
+  }
+
+  static Future<DateTime?> showMonthYearPicker(
+    BuildContext context, {
+    DateTime? initialDate,
+    DateTime? firstDate,
+    DateTime? lastDate,
+  }) async {
+    final DateTime effectiveFirstDate = firstDate ?? DateHelper.minDate;
+    final DateTime effectiveLastDate = lastDate ?? DateHelper.nextMonthEnd();
+    DateTime effectiveInitialDate = initialDate ?? DateHelper.today;
+
+    if (effectiveInitialDate.isBefore(effectiveFirstDate)) {
+      effectiveInitialDate = effectiveFirstDate;
+    } else if (effectiveInitialDate.isAfter(effectiveLastDate)) {
+      effectiveInitialDate = effectiveLastDate;
+    }
+
+    return showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SpendlyDatePicker(
+        initialDate: effectiveInitialDate,
+        firstDate: effectiveFirstDate,
+        lastDate: effectiveLastDate,
+        monthYearOnly: true,
       ),
     );
   }
@@ -54,19 +86,47 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
   late DateTime _selectedDate;
   late int _displayYear;
   late int _displayMonth;
-  _PickerViewMode _viewMode = _PickerViewMode.day;
+  late _PickerViewMode _viewMode;
 
   static const List<String> _monthNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
   ];
 
   static const List<String> _shortMonthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-    'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Ags',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
   ];
 
-  static const List<String> _dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  static const List<String> _dayNames = [
+    'Sen',
+    'Sel',
+    'Rab',
+    'Kam',
+    'Jum',
+    'Sab',
+    'Min'
+  ];
 
   @override
   void initState() {
@@ -74,6 +134,8 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
     _selectedDate = widget.initialDate;
     _displayYear = _selectedDate.year;
     _displayMonth = _selectedDate.month;
+    _viewMode =
+        widget.monthYearOnly ? _PickerViewMode.month : _PickerViewMode.day;
   }
 
   bool _isMonthAvailable(int year, int month) {
@@ -87,8 +149,10 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
 
   bool _isDayAvailable(DateTime date) {
     final clean = DateTime(date.year, date.month, date.day);
-    final first = DateTime(widget.firstDate.year, widget.firstDate.month, widget.firstDate.day);
-    final last = DateTime(widget.lastDate.year, widget.lastDate.month, widget.lastDate.day);
+    final first = DateTime(
+        widget.firstDate.year, widget.firstDate.month, widget.firstDate.day);
+    final last = DateTime(
+        widget.lastDate.year, widget.lastDate.month, widget.lastDate.day);
 
     return !clean.isBefore(first) && !clean.isAfter(last);
   }
@@ -130,7 +194,8 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color cardColor = Theme.of(context).cardColor;
     final Color textColor = isDark ? Colors.white : Colors.black87;
-    final Color secondaryTextColor = isDark ? Colors.white60 : Colors.grey.shade600;
+    final Color secondaryTextColor =
+        isDark ? Colors.white60 : Colors.grey.shade600;
 
     return SafeArea(
       top: false,
@@ -168,9 +233,11 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: isDark ? 0.15 : 0.08),
+                color: AppColors.primaryGreen
+                    .withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.25)),
+                border: Border.all(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.25)),
               ),
               child: Row(
                 children: [
@@ -180,21 +247,41 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                       color: AppColors.primaryGreen,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const FaIcon(FontAwesomeIcons.calendarDay, color: Colors.white, size: 18),
+                    child: FaIcon(
+                      widget.monthYearOnly
+                          ? FontAwesomeIcons.calendarCheck
+                          : FontAwesomeIcons.calendarDay,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'TANGGAL TERPILIH',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryGreen, letterSpacing: 1.1),
+                        Text(
+                          widget.monthYearOnly
+                              ? 'PERIODE BULAN TERPILIH'
+                              : 'TANGGAL TERPILIH',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryGreen,
+                            letterSpacing: 1.1,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          DateFormat('EEEE, dd MMMM yyyy', 'id').format(_selectedDate),
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
+                          widget.monthYearOnly
+                              ? DateFormat('MMMM yyyy', 'id').format(
+                                  DateTime(_displayYear, _displayMonth, 1))
+                              : DateFormat('EEEE, dd MMMM yyyy', 'id')
+                                  .format(_selectedDate),
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: textColor),
                         ),
                       ],
                     ),
@@ -209,18 +296,53 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               child: Row(
-                children: [
-                  _buildQuickChip('Hari Ini', DateHelper.today, textColor, isDark),
-                  _buildQuickChip('Kemarin', DateHelper.today.subtract(const Duration(days: 1)), textColor, isDark),
-                  _buildQuickChip('2 Hari Lalu', DateHelper.today.subtract(const Duration(days: 2)), textColor, isDark),
-                  _buildQuickChip(
-                    'Awal Bulan Depan',
-                    DateTime(DateHelper.today.year, DateHelper.today.month + 1, 1),
-                    textColor,
-                    isDark,
-                    isFuture: true,
-                  ),
-                ],
+                children: widget.monthYearOnly
+                    ? [
+                        _buildQuickMonthChip(
+                          'Bulan Ini',
+                          DateTime(
+                              DateHelper.today.year, DateHelper.today.month, 1),
+                          textColor,
+                          isDark,
+                        ),
+                        _buildQuickMonthChip(
+                          'Bulan Lalu',
+                          DateTime(DateHelper.today.year,
+                              DateHelper.today.month - 1, 1),
+                          textColor,
+                          isDark,
+                        ),
+                        _buildQuickMonthChip(
+                          'Bulan Depan',
+                          DateTime(DateHelper.today.year,
+                              DateHelper.today.month + 1, 1),
+                          textColor,
+                          isDark,
+                          isFuture: true,
+                        ),
+                      ]
+                    : [
+                        _buildQuickChip(
+                            'Hari Ini', DateHelper.today, textColor, isDark),
+                        _buildQuickChip(
+                            'Kemarin',
+                            DateHelper.today.subtract(const Duration(days: 1)),
+                            textColor,
+                            isDark),
+                        _buildQuickChip(
+                            '2 Hari Lalu',
+                            DateHelper.today.subtract(const Duration(days: 2)),
+                            textColor,
+                            isDark),
+                        _buildQuickChip(
+                          'Awal Bulan Depan',
+                          DateTime(DateHelper.today.year,
+                              DateHelper.today.month + 1, 1),
+                          textColor,
+                          isDark,
+                          isFuture: true,
+                        ),
+                      ],
               ),
             ),
             const SizedBox(height: 12),
@@ -233,18 +355,28 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                 InkWell(
                   onTap: () {
                     setState(() {
-                      _viewMode = _viewMode == _PickerViewMode.month ? _PickerViewMode.day : _PickerViewMode.month;
+                      if (widget.monthYearOnly) {
+                        _viewMode = _PickerViewMode.month;
+                      } else {
+                        _viewMode = _viewMode == _PickerViewMode.month
+                            ? _PickerViewMode.day
+                            : _PickerViewMode.month;
+                      }
                     });
                   },
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: _viewMode == _PickerViewMode.month
                           ? AppColors.primaryGreen
                           : (isDark ? Colors.white10 : const Color(0xFFF1FAF5)),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _viewMode == _PickerViewMode.month ? AppColors.primaryGreen : Colors.transparent),
+                      border: Border.all(
+                          color: _viewMode == _PickerViewMode.month
+                              ? AppColors.primaryGreen
+                              : Colors.transparent),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -254,14 +386,20 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: _viewMode == _PickerViewMode.month ? Colors.white : textColor,
+                            color: _viewMode == _PickerViewMode.month
+                                ? Colors.white
+                                : textColor,
                           ),
                         ),
                         const SizedBox(width: 4),
                         Icon(
-                          _viewMode == _PickerViewMode.month ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _viewMode == _PickerViewMode.month
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
                           size: 18,
-                          color: _viewMode == _PickerViewMode.month ? Colors.white : AppColors.primaryGreen,
+                          color: _viewMode == _PickerViewMode.month
+                              ? Colors.white
+                              : AppColors.primaryGreen,
                         ),
                       ],
                     ),
@@ -272,18 +410,30 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                 InkWell(
                   onTap: () {
                     setState(() {
-                      _viewMode = _viewMode == _PickerViewMode.year ? _PickerViewMode.day : _PickerViewMode.year;
+                      if (widget.monthYearOnly) {
+                        _viewMode = _viewMode == _PickerViewMode.year
+                            ? _PickerViewMode.month
+                            : _PickerViewMode.year;
+                      } else {
+                        _viewMode = _viewMode == _PickerViewMode.year
+                            ? _PickerViewMode.day
+                            : _PickerViewMode.year;
+                      }
                     });
                   },
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: _viewMode == _PickerViewMode.year
                           ? AppColors.primaryGreen
                           : (isDark ? Colors.white10 : const Color(0xFFF1FAF5)),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _viewMode == _PickerViewMode.year ? AppColors.primaryGreen : Colors.transparent),
+                      border: Border.all(
+                          color: _viewMode == _PickerViewMode.year
+                              ? AppColors.primaryGreen
+                              : Colors.transparent),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -293,14 +443,20 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: _viewMode == _PickerViewMode.year ? Colors.white : textColor,
+                            color: _viewMode == _PickerViewMode.year
+                                ? Colors.white
+                                : textColor,
                           ),
                         ),
                         const SizedBox(width: 4),
                         Icon(
-                          _viewMode == _PickerViewMode.year ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _viewMode == _PickerViewMode.year
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
                           size: 18,
-                          color: _viewMode == _PickerViewMode.year ? Colors.white : AppColors.primaryGreen,
+                          color: _viewMode == _PickerViewMode.year
+                              ? Colors.white
+                              : AppColors.primaryGreen,
                         ),
                       ],
                     ),
@@ -308,20 +464,26 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                 ),
 
                 // Next & Prev Month Arrows
-                if (_viewMode == _PickerViewMode.day)
+                if (!widget.monthYearOnly && _viewMode == _PickerViewMode.day)
                   Row(
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_left_rounded),
                         color: textColor,
-                        onPressed: _displayYear == widget.firstDate.year && _displayMonth <= widget.firstDate.month ? null : _prevMonth,
+                        onPressed: _displayYear == widget.firstDate.year &&
+                                _displayMonth <= widget.firstDate.month
+                            ? null
+                            : _prevMonth,
                         visualDensity: VisualDensity.compact,
                         splashRadius: 20,
                       ),
                       IconButton(
                         icon: const Icon(Icons.chevron_right_rounded),
                         color: textColor,
-                        onPressed: _displayYear == widget.lastDate.year && _displayMonth >= widget.lastDate.month ? null : _nextMonth,
+                        onPressed: _displayYear == widget.lastDate.year &&
+                                _displayMonth >= widget.lastDate.month
+                            ? null
+                            : _nextMonth,
                         visualDensity: VisualDensity.compact,
                         splashRadius: 20,
                       ),
@@ -346,24 +508,44 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                     onPressed: () => Navigator.pop(context, null),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      side: BorderSide(
+                          color:
+                              isDark ? Colors.white24 : Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: Text('Batal', style: TextStyle(color: secondaryTextColor, fontWeight: FontWeight.w600)),
+                    child: Text('Batal',
+                        style: TextStyle(
+                            color: secondaryTextColor,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, _selectedDate),
+                    onPressed: () {
+                      if (widget.monthYearOnly) {
+                        Navigator.pop(
+                            context, DateTime(_displayYear, _displayMonth, 1));
+                      } else {
+                        Navigator.pop(context, _selectedDate);
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryGreen,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
-                    child: const Text('Pilih Tanggal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: Text(
+                      widget.monthYearOnly ? 'Pilih Periode' : 'Pilih Tanggal',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15),
+                    ),
                   ),
                 ),
               ],
@@ -374,7 +556,9 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
     );
   }
 
-  Widget _buildQuickChip(String label, DateTime targetDate, Color textColor, bool isDark, {bool isFuture = false}) {
+  Widget _buildQuickChip(
+      String label, DateTime targetDate, Color textColor, bool isDark,
+      {bool isFuture = false}) {
     if (!_isDayAvailable(targetDate)) return const SizedBox.shrink();
 
     final bool isSelected = _selectedDate.year == targetDate.year &&
@@ -399,13 +583,17 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
             color: isSelected
                 ? AppColors.primaryGreen
                 : (isFuture
-                    ? (isDark ? Colors.blue.withValues(alpha: 0.15) : const Color(0xFFE3F2FD))
+                    ? (isDark
+                        ? Colors.blue.withValues(alpha: 0.15)
+                        : const Color(0xFFE3F2FD))
                     : (isDark ? Colors.white10 : Colors.grey.shade100)),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected
                   ? AppColors.primaryGreen
-                  : (isFuture ? const Color(0xFF2196F3).withValues(alpha: 0.3) : (isDark ? Colors.white12 : Colors.grey.shade300)),
+                  : (isFuture
+                      ? const Color(0xFF2196F3).withValues(alpha: 0.3)
+                      : (isDark ? Colors.white12 : Colors.grey.shade300)),
             ),
           ),
           child: Text(
@@ -413,7 +601,9 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: isSelected ? Colors.white : (isFuture ? const Color(0xFF2196F3) : textColor),
+              color: isSelected
+                  ? Colors.white
+                  : (isFuture ? const Color(0xFF2196F3) : textColor),
             ),
           ),
         ),
@@ -421,7 +611,64 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
     );
   }
 
-  Widget _buildCurrentView(Color textColor, Color secondaryTextColor, bool isDark) {
+  Widget _buildQuickMonthChip(
+      String label, DateTime targetDate, Color textColor, bool isDark,
+      {bool isFuture = false}) {
+    if (!_isMonthAvailable(targetDate.year, targetDate.month)) {
+      return const SizedBox.shrink();
+    }
+
+    final bool isSelected =
+        _displayYear == targetDate.year && _displayMonth == targetDate.month;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _displayYear = targetDate.year;
+            _displayMonth = targetDate.month;
+            _selectedDate = DateTime(targetDate.year, targetDate.month, 1);
+            _viewMode = _PickerViewMode.month;
+          });
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primaryGreen
+                : (isFuture
+                    ? (isDark
+                        ? Colors.blue.withValues(alpha: 0.15)
+                        : const Color(0xFFE3F2FD))
+                    : (isDark ? Colors.white10 : Colors.grey.shade100)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primaryGreen
+                  : (isFuture
+                      ? const Color(0xFF2196F3).withValues(alpha: 0.3)
+                      : (isDark ? Colors.white12 : Colors.grey.shade300)),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected
+                  ? Colors.white
+                  : (isFuture ? const Color(0xFF2196F3) : textColor),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentView(
+      Color textColor, Color secondaryTextColor, bool isDark) {
     switch (_viewMode) {
       case _PickerViewMode.month:
         return _buildMonthGridView(textColor, isDark);
@@ -449,7 +696,7 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
         itemBuilder: (context, index) {
           final monthNum = index + 1;
           final bool isAvailable = _isMonthAvailable(_displayYear, monthNum);
-          final bool isSelected = _selectedDate.year == _displayYear && _selectedDate.month == monthNum;
+          final bool isSelected = _displayMonth == monthNum;
           final bool isCurrentDisplay = _displayMonth == monthNum;
 
           return InkWell(
@@ -457,14 +704,23 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                 ? () {
                     setState(() {
                       _displayMonth = monthNum;
-                      // Keep selected day if valid, otherwise adjust to max days in new month
-                      final maxDays = DateTime(_displayYear, monthNum + 1, 0).day;
-                      final targetDay = _selectedDate.day > maxDays ? maxDays : _selectedDate.day;
-                      final candidate = DateTime(_displayYear, monthNum, targetDay);
-                      if (_isDayAvailable(candidate)) {
-                        _selectedDate = candidate;
+                      if (widget.monthYearOnly) {
+                        _selectedDate = DateTime(_displayYear, monthNum, 1);
+                        _viewMode = _PickerViewMode.month;
+                      } else {
+                        // Keep selected day if valid, otherwise adjust to max days in new month
+                        final maxDays =
+                            DateTime(_displayYear, monthNum + 1, 0).day;
+                        final targetDay = _selectedDate.day > maxDays
+                            ? maxDays
+                            : _selectedDate.day;
+                        final candidate =
+                            DateTime(_displayYear, monthNum, targetDay);
+                        if (_isDayAvailable(candidate)) {
+                          _selectedDate = candidate;
+                        }
+                        _viewMode = _PickerViewMode.day;
                       }
-                      _viewMode = _PickerViewMode.day;
                     });
                   }
                 : null,
@@ -474,22 +730,35 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primaryGreen
-                    : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)),
+                    : (isCurrentDisplay
+                        ? AppColors.primaryGreen
+                            .withValues(alpha: isDark ? 0.2 : 0.1)
+                        : (isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.grey.shade100)),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: isSelected
                       ? AppColors.primaryGreen
-                      : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: 0.4) : Colors.transparent),
+                      : (isCurrentDisplay
+                          ? AppColors.primaryGreen.withValues(alpha: 0.4)
+                          : Colors.transparent),
                 ),
               ),
               child: Text(
                 _shortMonthNames[index],
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: (isSelected || isCurrentDisplay) ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: (isSelected || isCurrentDisplay)
+                      ? FontWeight.bold
+                      : FontWeight.normal,
                   color: !isAvailable
                       ? (isDark ? Colors.white24 : Colors.grey.shade400)
-                      : (isSelected ? Colors.white : (isCurrentDisplay ? AppColors.primaryGreen : textColor)),
+                      : (isSelected
+                          ? Colors.white
+                          : (isCurrentDisplay
+                              ? AppColors.primaryGreen
+                              : textColor)),
                 ),
               ),
             ),
@@ -503,7 +772,8 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
     final years = _availableYears();
     final selectedIndex = years.indexOf(_displayYear);
     final row = selectedIndex >= 0 ? (selectedIndex / 3).floor() : 0;
-    final initialOffset = (row * 50.0).clamp(0.0, (years.length > 9 ? (years.length / 3 * 50.0) : 0.0));
+    final initialOffset = (row * 50.0)
+        .clamp(0.0, (years.length > 9 ? (years.length / 3 * 50.0) : 0.0));
     final controller = ScrollController(initialScrollOffset: initialOffset);
 
     return Container(
@@ -529,7 +799,7 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
           itemCount: years.length,
           itemBuilder: (context, index) {
             final year = years[index];
-            final bool isSelected = _selectedDate.year == year;
+            final bool isSelected = _displayYear == year;
             final bool isCurrentDisplay = _displayYear == year;
 
             return InkWell(
@@ -537,13 +807,21 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                 setState(() {
                   _displayYear = year;
                   if (!_isMonthAvailable(year, _displayMonth)) {
-                    _displayMonth = widget.lastDate.year == year ? widget.lastDate.month : 1;
+                    _displayMonth = widget.lastDate.year == year
+                        ? widget.lastDate.month
+                        : 1;
                   }
-                  final maxDays = DateTime(year, _displayMonth + 1, 0).day;
-                  final targetDay = _selectedDate.day > maxDays ? maxDays : _selectedDate.day;
-                  final candidate = DateTime(year, _displayMonth, targetDay);
-                  if (_isDayAvailable(candidate)) {
-                    _selectedDate = candidate;
+                  if (widget.monthYearOnly) {
+                    _selectedDate = DateTime(year, _displayMonth, 1);
+                  } else {
+                    final maxDays = DateTime(year, _displayMonth + 1, 0).day;
+                    final targetDay = _selectedDate.day > maxDays
+                        ? maxDays
+                        : _selectedDate.day;
+                    final candidate = DateTime(year, _displayMonth, targetDay);
+                    if (_isDayAvailable(candidate)) {
+                      _selectedDate = candidate;
+                    }
                   }
                   // Switch directly to month view so user can choose month next!
                   _viewMode = _PickerViewMode.month;
@@ -555,20 +833,33 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primaryGreen
-                      : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)),
+                      : (isCurrentDisplay
+                          ? AppColors.primaryGreen
+                              .withValues(alpha: isDark ? 0.2 : 0.1)
+                          : (isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.grey.shade100)),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isSelected
                         ? AppColors.primaryGreen
-                        : (isCurrentDisplay ? AppColors.primaryGreen.withValues(alpha: 0.4) : Colors.transparent),
+                        : (isCurrentDisplay
+                            ? AppColors.primaryGreen.withValues(alpha: 0.4)
+                            : Colors.transparent),
                   ),
                 ),
                 child: Text(
                   '$year',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: (isSelected || isCurrentDisplay) ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? Colors.white : (isCurrentDisplay ? AppColors.primaryGreen : textColor),
+                    fontWeight: (isSelected || isCurrentDisplay)
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isSelected
+                        ? Colors.white
+                        : (isCurrentDisplay
+                            ? AppColors.primaryGreen
+                            : textColor),
                   ),
                 ),
               ),
@@ -579,7 +870,8 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
     );
   }
 
-  Widget _buildDayGridView(Color textColor, Color secondaryTextColor, bool isDark) {
+  Widget _buildDayGridView(
+      Color textColor, Color secondaryTextColor, bool isDark) {
     final firstDayOfMonth = DateTime(_displayYear, _displayMonth, 1);
     final daysInMonth = DateTime(_displayYear, _displayMonth + 1, 0).day;
     // Monday = 1, Sunday = 7
@@ -651,7 +943,9 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primaryGreen : Colors.transparent,
+                    color: isSelected
+                        ? AppColors.primaryGreen
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     border: isToday && !isSelected
                         ? Border.all(color: AppColors.primaryGreen, width: 1.5)
@@ -661,10 +955,14 @@ class _SpendlyDatePickerState extends State<SpendlyDatePicker> {
                     '$dayIndex',
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: (isSelected || isToday) ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: (isSelected || isToday)
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       color: !isAvailable
                           ? (isDark ? Colors.white24 : Colors.grey.shade300)
-                          : (isSelected ? Colors.white : (isToday ? AppColors.primaryGreen : textColor)),
+                          : (isSelected
+                              ? Colors.white
+                              : (isToday ? AppColors.primaryGreen : textColor)),
                     ),
                   ),
                 ),

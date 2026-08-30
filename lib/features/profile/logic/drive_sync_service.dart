@@ -6,6 +6,8 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import '../../../widgets/custom_notification.dart';
 import '../../../widgets/network_helper.dart';
 
@@ -26,6 +28,23 @@ class DriveSyncService {
     scopes: [drive.DriveApi.driveFileScope],
   );
 
+  static Future<String?> getLastBackupInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timeStr = prefs.getString('last_google_drive_backup_time');
+    if (timeStr == null) return null;
+    try {
+      final date = DateTime.parse(timeStr);
+      return DateFormat('dd MMM yyyy, HH:mm', 'id').format(date);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<String?> getLastBackupEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('last_google_drive_backup_email');
+  }
+
   static Future<Map<String, dynamic>> _fetchAllSupabaseData() async {
     final supabase = Supabase.instance.client;
 
@@ -40,18 +59,22 @@ class DriveSyncService {
     };
   }
 
-  static Future<void> backupToDrive(BuildContext context) async {
+  static Future<bool> backupToDrive(BuildContext context) async {
     try {
       final g_auth.GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) {
         if (context.mounted) {
-          CustomNotification.show(context, 'Pencadangan Google Drive dibatalkan', isWarning: true);
+          CustomNotification.show(
+              context, 'Pencadangan Google Drive dibatalkan',
+              isWarning: true);
         }
-        return;
+        return false;
       }
 
       if (context.mounted) {
-        CustomNotification.show(context, 'Membaca seluruh data database...', isWarning: true);
+        CustomNotification.show(context,
+            'Mempersiapkan seluruh data transaksi, dompet & anggaran...',
+            isWarning: true);
       }
 
       final allData = await _fetchAllSupabaseData();
@@ -66,34 +89,48 @@ class DriveSyncService {
 
       final driveFile = drive.File();
       String tanggal = DateTime.now().toString().split(' ')[0];
-      driveFile.name = "Spendly_Full_Backup_${tanggal}_${DateTime.now().millisecondsSinceEpoch}.json";
+      driveFile.name =
+          "Spendly_Full_Backup_${tanggal}_${DateTime.now().millisecondsSinceEpoch}.json";
       driveFile.mimeType = "application/json";
 
       final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
       await driveApi.files.create(driveFile, uploadMedia: media);
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'last_google_drive_backup_time', DateTime.now().toIso8601String());
+      await prefs.setString('last_google_drive_backup_email', account.email);
+
       if (context.mounted) {
-        CustomNotification.show(context, 'Semua data berhasil dicadangkan ke Google Drive!');
+        CustomNotification.show(
+            context, 'Semua data berhasil dicadangkan ke Google Drive!');
       }
+      return true;
     } catch (e) {
       if (context.mounted) {
-        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal mencadangkan data');
+        NetworkHelper.handleSupabaseError(context, e,
+            prefix: 'Gagal mencadangkan data');
       }
+      return false;
     }
   }
 
-  static Future<void> restoreFromDrive(BuildContext context) async {
+  static Future<bool> restoreFromDrive(BuildContext context) async {
     try {
       final g_auth.GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) {
         if (context.mounted) {
-          CustomNotification.show(context, 'Sinkronisasi Google Drive dibatalkan', isWarning: true);
+          CustomNotification.show(
+              context, 'Sinkronisasi Google Drive dibatalkan',
+              isWarning: true);
         }
-        return;
+        return false;
       }
 
       if (context.mounted) {
-        CustomNotification.show(context, 'Mencari daftar cadangan di Google Drive...', isWarning: true);
+        CustomNotification.show(
+            context, 'Mencari daftar cadangan di Google Drive...',
+            isWarning: true);
       }
 
       final authHeaders = await account.authHeaders;
@@ -107,38 +144,58 @@ class DriveSyncService {
 
       if (fileList.files == null || fileList.files!.isEmpty) {
         if (context.mounted) {
-          CustomNotification.show(context, 'Tidak ditemukan file cadangan di Drive Anda.', isWarning: true);
+          CustomNotification.show(
+              context, 'Tidak ditemukan file cadangan di Google Drive Anda.',
+              isWarning: true);
         }
-        return;
+        return false;
       }
 
-      if (!context.mounted) return;
+      if (!context.mounted) return false;
 
       final drive.File? selectedFile = await showDialog<drive.File>(
         context: context,
         builder: (BuildContext dialogContext) {
+          final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Pilih File Pemulihan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Pilih Berkas Cadangan',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             content: SizedBox(
               width: double.maxFinite,
-              height: 300,
+              height: 320,
               child: ListView.builder(
                 shrinkWrap: true,
+                physics: const BouncingScrollPhysics(),
                 itemCount: fileList.files!.length,
                 itemBuilder: (context, index) {
                   final file = fileList.files![index];
                   final date = file.createdTime?.toLocal();
-                  final dateString = date != null ? "${date.day}-${date.month}-${date.year} (${date.hour}:${date.minute.toString().padLeft(2, '0')})" : "-";
+                  final dateString = date != null
+                      ? DateFormat('dd MMM yyyy, HH:mm', 'id').format(date)
+                      : '-';
 
-                  return Card(
-                    elevation: 0,
-                    color: Colors.blue.withValues(alpha: 0.05),
+                  return Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : const Color(0xFFF1FAF5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.2)),
+                    ),
                     child: ListTile(
-                      leading: const Icon(Icons.backup, color: Colors.blue),
-                      title: Text(file.name ?? 'File Cadangan', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('Dibuat: $dateString', style: const TextStyle(fontSize: 12)),
+                      leading: const Icon(Icons.cloud_done_rounded,
+                          color: Colors.green),
+                      title: Text(
+                        file.name ?? 'File Cadangan',
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text('Dibuat: $dateString WIB',
+                          style: const TextStyle(fontSize: 11)),
                       onTap: () => Navigator.pop(dialogContext, file),
                     ),
                   );
@@ -148,7 +205,8 @@ class DriveSyncService {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, null),
-                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                child:
+                    const Text('Batal', style: TextStyle(color: Colors.grey)),
               ),
             ],
           );
@@ -157,18 +215,22 @@ class DriveSyncService {
 
       if (selectedFile == null) {
         if (context.mounted) {
-          CustomNotification.show(context, 'Pemilihan file cadangan dibatalkan.', isWarning: true);
+          CustomNotification.show(
+              context, 'Pemilihan file cadangan dibatalkan.',
+              isWarning: true);
         }
-        return;
+        return false;
       }
 
       final String fileId = selectedFile.id!;
 
       if (context.mounted) {
-        CustomNotification.show(context, 'Mengunduh dan menyinkronkan data...', isWarning: true);
+        CustomNotification.show(context, 'Mengunduh dan memulihkan data...',
+            isWarning: true);
       }
 
-      final drive.Media response = await driveApi.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
+      final drive.Media response = await driveApi.files.get(fileId,
+          downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
 
       List<int> dataBytes = [];
       await response.stream.listen((data) {
@@ -181,22 +243,34 @@ class DriveSyncService {
       final supabase = Supabase.instance.client;
 
       if (backupData['wallets'] != null) {
-        await supabase.from('wallets').upsert(List<Map<String, dynamic>>.from(backupData['wallets']));
+        await supabase
+            .from('wallets')
+            .upsert(List<Map<String, dynamic>>.from(backupData['wallets']));
       }
       if (backupData['budgets'] != null) {
-        await supabase.from('budgets').upsert(List<Map<String, dynamic>>.from(backupData['budgets']));
+        await supabase
+            .from('budgets')
+            .upsert(List<Map<String, dynamic>>.from(backupData['budgets']));
       }
       if (backupData['transactions'] != null) {
-        await supabase.from('transactions').upsert(List<Map<String, dynamic>>.from(backupData['transactions']));
+        await supabase.from('transactions').upsert(
+            List<Map<String, dynamic>>.from(backupData['transactions']));
       }
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_google_drive_backup_email', account.email);
+
       if (context.mounted) {
-        CustomNotification.show(context, 'Pemulihan & Sinkronisasi data berhasil selesai!');
+        CustomNotification.show(
+            context, 'Pemulihan data dari Google Drive berhasil selesai!');
       }
+      return true;
     } catch (e) {
       if (context.mounted) {
-        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal sinkronisasi data balik');
+        NetworkHelper.handleSupabaseError(context, e,
+            prefix: 'Gagal memulihkan data dari Drive');
       }
+      return false;
     }
   }
 }

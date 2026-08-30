@@ -11,7 +11,9 @@ import '../../../../widgets/category_helper.dart';
 import '../../../../widgets/network_helper.dart';
 
 class AddBudgetScreen extends StatefulWidget {
-  const AddBudgetScreen({super.key});
+  const AddBudgetScreen({super.key, this.periodStart});
+
+  final DateTime? periodStart;
 
   @override
   State<AddBudgetScreen> createState() => _AddBudgetScreenState();
@@ -20,22 +22,49 @@ class AddBudgetScreen extends StatefulWidget {
 class _AddBudgetScreenState extends State<AddBudgetScreen> {
   final supabase = Supabase.instance.client;
 
+  DateTime get _periodDate => widget.periodStart ?? DateTime.now();
+
   String? selectedCategory;
   bool isAlertEnabled = true;
   bool _isLoading = false;
   int _monthlyIncome = 0;
   int _totalWalletBalance = 0;
-  final TextEditingController _limitController = TextEditingController(text: "");
+  final TextEditingController _limitController =
+      TextEditingController(text: "");
   final FocusNode _limitFocusNode = FocusNode();
   final ScrollController _categoryScrollController = ScrollController();
 
   List<Map<String, dynamic>> categories = [
-    {'name': 'Total Uang', 'icon': FontAwesomeIcons.coins, 'color': const Color(0xFFFFB300)},
-    {'name': 'Makanan', 'icon': FontAwesomeIcons.utensils, 'color': const Color(0xFFFF9800)},
-    {'name': 'Transportasi', 'icon': FontAwesomeIcons.car, 'color': const Color(0xFF2196F3)},
-    {'name': 'Belanja', 'icon': FontAwesomeIcons.bagShopping, 'color': const Color(0xFF9C27B0)},
-    {'name': 'Tagihan', 'icon': FontAwesomeIcons.fileInvoiceDollar, 'color': const Color(0xFFF44336)},
-    {'name': 'Hiburan', 'icon': FontAwesomeIcons.film, 'color': const Color(0xFF009688)},
+    {
+      'name': 'Total Uang',
+      'icon': FontAwesomeIcons.coins,
+      'color': const Color(0xFFFFB300)
+    },
+    {
+      'name': 'Makanan',
+      'icon': FontAwesomeIcons.utensils,
+      'color': const Color(0xFFFF9800)
+    },
+    {
+      'name': 'Transportasi',
+      'icon': FontAwesomeIcons.car,
+      'color': const Color(0xFF2196F3)
+    },
+    {
+      'name': 'Belanja',
+      'icon': FontAwesomeIcons.bagShopping,
+      'color': const Color(0xFF9C27B0)
+    },
+    {
+      'name': 'Tagihan',
+      'icon': FontAwesomeIcons.fileInvoiceDollar,
+      'color': const Color(0xFFF44336)
+    },
+    {
+      'name': 'Hiburan',
+      'icon': FontAwesomeIcons.film,
+      'color': const Color(0xFF009688)
+    },
     {'name': 'Baru', 'icon': FontAwesomeIcons.plus, 'color': Colors.grey},
   ];
 
@@ -52,9 +81,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final now = DateTime.now();
+      final now = _periodDate;
       final firstDay = DateTime(now.year, now.month, 1).toIso8601String();
-      final lastDay = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+      final lastDay =
+          DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
 
       final incomeRes = await supabase
           .from('transactions')
@@ -72,12 +102,31 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
       final walletRes = await supabase
           .from('wallets')
-          .select('balance')
+          .select('id, name, balance')
+          .eq('user_id', userId);
+
+      final allTxRes = await supabase
+          .from('transactions')
+          .select('wallet_id, amount, is_expense')
           .eq('user_id', userId);
 
       int totalBal = 0;
       for (var w in walletRes) {
-        totalBal += int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+        int wId = int.tryParse(w['id']?.toString() ?? '-1') ?? -1;
+        int currentBal = int.tryParse(w['balance']?.toString() ?? '0') ?? 0;
+        for (var tx in allTxRes) {
+          int txWalletId =
+              int.tryParse(tx['wallet_id']?.toString() ?? '-1') ?? -1;
+          if (txWalletId == wId) {
+            int amt = int.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
+            if (tx['is_expense'] == true) {
+              currentBal -= amt;
+            } else {
+              currentBal += amt;
+            }
+          }
+        }
+        totalBal += currentBal;
       }
 
       if (mounted) {
@@ -85,7 +134,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           _monthlyIncome = totalInc;
           _totalWalletBalance = totalBal;
           if (_limitController.text.isEmpty && totalInc > 0) {
-            _limitController.text = NumberFormat.decimalPattern('id').format(totalInc);
+            _limitController.text =
+                NumberFormat.decimalPattern('id').format(totalInc);
           }
         });
       }
@@ -102,15 +152,20 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
   Future<void> _loadCustomCategories() async {
     final prefs = await SharedPreferences.getInstance();
-    List<String> customCats = prefs.getStringList('custom_transaction_expense_categories_v5') ?? [];
-    List<String> hiddenCats = prefs.getStringList('custom_transaction_expense_categories_hidden_v5') ?? [];
+    List<String> customCats =
+        prefs.getStringList('custom_transaction_expense_categories_v5') ?? [];
+    List<String> hiddenCats = prefs
+            .getStringList('custom_transaction_expense_categories_hidden_v5') ??
+        [];
 
     if (!mounted) return;
     setState(() {
       for (String catName in customCats) {
         if (hiddenCats.contains(catName)) continue;
         if (!categories.any((c) => c['name'] == catName)) {
-          String iconId = prefs.getString('custom_transaction_expense_icon_v5_$catName') ?? 'invoice';
+          String iconId =
+              prefs.getString('custom_transaction_expense_icon_v5_$catName') ??
+                  'invoice';
           categories.insert(categories.length - 1, {
             'name': catName,
             'icon': CategoryHelper.getCustomIconById(iconId),
@@ -123,7 +178,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
   void _confirmDeleteCategory(String catName) {
     if (categories.length <= 2) {
-      CustomNotification.show(context, 'Minimal harus ada 1 kategori tersisa!', isWarning: true);
+      CustomNotification.show(context, 'Minimal harus ada 1 kategori tersisa!',
+          isWarning: true);
       return;
     }
 
@@ -131,20 +187,28 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Kategori?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Hapus kategori "$catName" dari daftar pilihan? (Ini juga akan menghapusnya dari pilihan transaksi)'),
+        title: const Text('Hapus Kategori?',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+            'Hapus kategori "$catName" dari daftar pilihan? (Ini juga akan menghapusnya dari pilihan transaksi)'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(ctx);
 
               final prefs = await SharedPreferences.getInstance();
-              final hiddenCats = prefs.getStringList('custom_transaction_expense_categories_hidden_v5') ?? [];
+              final hiddenCats = prefs.getStringList(
+                      'custom_transaction_expense_categories_hidden_v5') ??
+                  [];
               if (!hiddenCats.contains(catName)) {
                 hiddenCats.add(catName);
-                await prefs.setStringList('custom_transaction_expense_categories_hidden_v5', hiddenCats);
+                await prefs.setStringList(
+                    'custom_transaction_expense_categories_hidden_v5',
+                    hiddenCats);
               }
 
               setState(() {
@@ -155,7 +219,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               });
 
               if (mounted) {
-                CustomNotification.show(context, 'Kategori "$catName" berhasil dihapus.');
+                CustomNotification.show(
+                    context, 'Kategori "$catName" berhasil dihapus.');
               }
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
@@ -247,7 +312,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                           width: 36,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            color:
+                                isDark ? Colors.white24 : Colors.grey.shade300,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -255,12 +321,17 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Tambah Kategori Anggaran', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                          Text('Tambah Kategori Anggaran',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor)),
                           IconButton(
                             icon: Icon(Icons.close, size: 20, color: textColor),
                             onPressed: () => Navigator.pop(ctx),
                             padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            constraints: const BoxConstraints(
+                                minWidth: 32, minHeight: 32),
                           ),
                         ],
                       ),
@@ -272,11 +343,17 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         style: TextStyle(color: textColor, fontSize: 14),
                         decoration: InputDecoration(
                           hintText: 'Contoh: Edukasi / Kursus',
-                          hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                          hintStyle:
+                              const TextStyle(color: Colors.grey, fontSize: 13),
                           filled: true,
-                          fillColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade100,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          fillColor: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.grey.shade100,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none),
                           counterText: '',
                         ),
                         onTap: () {
@@ -290,12 +367,16 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         children: [
                           const Text(
                             'Pilih Ikon:',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             '(${availableIcons.length} pilihan)',
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -303,7 +384,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       Expanded(
                         child: GridView.builder(
                           physics: const BouncingScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 6,
                             crossAxisSpacing: 10,
                             mainAxisSpacing: 10,
@@ -313,7 +395,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                           itemBuilder: (context, index) {
                             final item = availableIcons[index];
                             final isSelected = tempIconId == item['id'];
-                            final Color iconColor = CategoryHelper.getColorForIcon(item['id']);
+                            final Color iconColor =
+                                CategoryHelper.getColorForIcon(item['id']);
 
                             return GestureDetector(
                               onTap: () => setStateSheet(() {
@@ -328,7 +411,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                       : iconColor.withValues(alpha: 0.10),
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: isSelected ? iconColor : iconColor.withValues(alpha: 0.25),
+                                    color: isSelected
+                                        ? iconColor
+                                        : iconColor.withValues(alpha: 0.25),
                                     width: isSelected ? 2.5 : 1.0,
                                   ),
                                 ),
@@ -351,29 +436,39 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryGreen,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
                           onPressed: () async {
                             if (catController.text.trim().isNotEmpty) {
                               String newCatName = catController.text.trim();
 
-                              final prefs = await SharedPreferences.getInstance();
-                              List<String> customCats = prefs.getStringList('custom_transaction_expense_categories_v5') ?? [];
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              List<String> customCats = prefs.getStringList(
+                                      'custom_transaction_expense_categories_v5') ??
+                                  [];
 
                               if (!customCats.contains(newCatName)) {
                                 customCats.add(newCatName);
-                                await prefs.setStringList('custom_transaction_expense_categories_v5', customCats);
-                                await prefs.setString('custom_transaction_expense_icon_v5_$newCatName', tempIconId);
+                                await prefs.setStringList(
+                                    'custom_transaction_expense_categories_v5',
+                                    customCats);
+                                await prefs.setString(
+                                    'custom_transaction_expense_icon_v5_$newCatName',
+                                    tempIconId);
                               }
 
                               if (!mounted) return;
                               setState(() {
-                                if (!categories.any((c) => c['name'] == newCatName)) {
+                                if (!categories
+                                    .any((c) => c['name'] == newCatName)) {
                                   categories.insert(categories.length - 1, {
                                     'name': newCatName,
                                     'icon': tempIcon,
-                                    'color': CategoryHelper.getColorForIcon(tempIconId),
+                                    'color': CategoryHelper.getColorForIcon(
+                                        tempIconId),
                                   });
                                 }
                                 selectedCategory = newCatName;
@@ -382,7 +477,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                               Navigator.pop(ctx);
                             }
                           },
-                          child: const Text('Simpan Kategori', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                          child: const Text('Simpan Kategori',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14)),
                         ),
                       ),
                     ],
@@ -398,7 +497,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
   Future<void> _saveBudget() async {
     if (selectedCategory == null) {
-      CustomNotification.show(context, 'Silakan pilih kategori terlebih dahulu', isWarning: true);
+      CustomNotification.show(context, 'Silakan pilih kategori terlebih dahulu',
+          isWarning: true);
       return;
     }
 
@@ -415,8 +515,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       final cleanLimit = _limitController.text.replaceAll('.', '');
       final limitAmount = int.tryParse(cleanLimit) ?? 0;
 
-      final now = DateTime.now();
-      final periodMonth = DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
+      final now = _periodDate;
+      final periodMonth =
+          DateTime(now.year, now.month, 1).toIso8601String().split('T')[0];
 
       final List<dynamic> existingBudgets = await supabase
           .from('budgets')
@@ -426,7 +527,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           .eq('period_month', periodMonth);
 
       final Map<String, dynamic>? existingBudget =
-      existingBudgets.isEmpty ? null : existingBudgets.first;
+          existingBudgets.isEmpty ? null : existingBudgets.first;
 
       bool isNewBudget = true;
 
@@ -457,7 +558,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       CustomNotification.show(context, msg);
     } catch (e) {
       if (mounted) {
-        NetworkHelper.handleSupabaseError(context, e, prefix: 'Gagal menyimpan');
+        NetworkHelper.handleSupabaseError(context, e,
+            prefix: 'Gagal menyimpan');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -468,7 +570,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color cardColor = Theme.of(context).cardColor;
-    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    Color textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -479,7 +582,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('BATAS ANGGARAN BULANAN',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 16),
             GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -489,7 +596,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                 decoration: BoxDecoration(
                   color: cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                  boxShadow: isDark
+                      ? []
+                      : [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4))
+                        ],
                 ),
                 child: SizedBox(
                   height: 60,
@@ -497,7 +611,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Text('Rp', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                      const Text('Rp',
+                          style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryGreen)),
                       const SizedBox(width: 10),
                       Flexible(
                         child: FittedBox(
@@ -507,24 +625,41 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                             child: TextField(
                               controller: _limitController,
                               focusNode: _limitFocusNode,
-                              style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: textColor),
+                              style: TextStyle(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor),
                               keyboardType: TextInputType.number,
-                              inputFormatters: [LengthLimitingTextInputFormatter(18)],
+                              inputFormatters: [
+                                LengthLimitingTextInputFormatter(18)
+                              ],
                               decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: '0',
-                                  hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black38)
-                              ),
+                                  hintStyle: TextStyle(
+                                      color: isDark
+                                          ? Colors.white30
+                                          : Colors.black38)),
                               onChanged: (value) {
                                 if (value.isNotEmpty) {
                                   String clean = value.replaceAll('.', '');
-                                  clean = clean.replaceFirst(RegExp(r'^0+'), '');
+                                  clean =
+                                      clean.replaceFirst(RegExp(r'^0+'), '');
                                   if (clean.isEmpty) {
-                                    _limitController.value = const TextEditingValue(text: '', selection: TextSelection.collapsed(offset: 0));
+                                    _limitController.value =
+                                        const TextEditingValue(
+                                            text: '',
+                                            selection: TextSelection.collapsed(
+                                                offset: 0));
                                     return;
                                   }
-                                  String formatted = NumberFormat.decimalPattern('id').format(int.tryParse(clean) ?? 0);
-                                  _limitController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                                  String formatted =
+                                      NumberFormat.decimalPattern('id')
+                                          .format(int.tryParse(clean) ?? 0);
+                                  _limitController.value = TextEditingValue(
+                                      text: formatted,
+                                      selection: TextSelection.collapsed(
+                                          offset: formatted.length));
                                 }
                               },
                             ),
@@ -546,16 +681,27 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ActionChip(
-                        avatar: const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.primaryGreen),
+                        avatar: const Icon(Icons.arrow_downward_rounded,
+                            size: 14, color: AppColors.primaryGreen),
                         label: Text(
                           'Pemasukan: ${NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(_monthlyIncome)}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryGreen),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryGreen),
                         ),
-                        backgroundColor: isDark ? AppColors.primaryGreen.withValues(alpha: 0.15) : const Color(0xFFE8F5E9),
-                        side: BorderSide(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        backgroundColor: isDark
+                            ? AppColors.primaryGreen.withValues(alpha: 0.15)
+                            : const Color(0xFFE8F5E9),
+                        side: BorderSide(
+                            color:
+                                AppColors.primaryGreen.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                         onPressed: () {
-                          _limitController.text = NumberFormat.decimalPattern('id').format(_monthlyIncome);
+                          _limitController.text =
+                              NumberFormat.decimalPattern('id')
+                                  .format(_monthlyIncome);
                         },
                       ),
                     ),
@@ -563,16 +709,29 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ActionChip(
-                        avatar: const Icon(Icons.account_balance_wallet_outlined, size: 14, color: Color(0xFF2196F3)),
+                        avatar: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: 14,
+                            color: Color(0xFF2196F3)),
                         label: Text(
                           'Saldo: ${NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(_totalWalletBalance)}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2196F3)),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2196F3)),
                         ),
-                        backgroundColor: isDark ? const Color(0xFF2196F3).withValues(alpha: 0.15) : const Color(0xFFE3F2FD),
-                        side: BorderSide(color: const Color(0xFF2196F3).withValues(alpha: 0.3)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        backgroundColor: isDark
+                            ? const Color(0xFF2196F3).withValues(alpha: 0.15)
+                            : const Color(0xFFE3F2FD),
+                        side: BorderSide(
+                            color:
+                                const Color(0xFF2196F3).withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                         onPressed: () {
-                          _limitController.text = NumberFormat.decimalPattern('id').format(_totalWalletBalance);
+                          _limitController.text =
+                              NumberFormat.decimalPattern('id')
+                                  .format(_totalWalletBalance);
                         },
                       ),
                     ),
@@ -581,14 +740,20 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       padding: const EdgeInsets.only(right: 8),
                       child: ActionChip(
                         label: Text(
-                          NumberFormat.compactSimpleCurrency(locale: 'id_ID').format(amt),
+                          NumberFormat.compactSimpleCurrency(locale: 'id_ID')
+                              .format(amt),
                           style: TextStyle(fontSize: 11, color: textColor),
                         ),
-                        backgroundColor: isDark ? Colors.white10 : Colors.grey.shade100,
-                        side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        backgroundColor:
+                            isDark ? Colors.white10 : Colors.grey.shade100,
+                        side: BorderSide(
+                            color:
+                                isDark ? Colors.white12 : Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                         onPressed: () {
-                          _limitController.text = NumberFormat.decimalPattern('id').format(amt);
+                          _limitController.text =
+                              NumberFormat.decimalPattern('id').format(amt);
                         },
                       ),
                     );
@@ -600,8 +765,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
-                Text('PILIH KATEGORI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                Text('Tahan untuk hapus', style: TextStyle(fontSize: 9, color: Colors.grey)),
+                Text('PILIH KATEGORI',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                        letterSpacing: 1.2)),
+                Text('Tahan untuk hapus',
+                    style: TextStyle(fontSize: 9, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 12),
@@ -611,7 +782,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
+                      ],
               ),
               child: RawScrollbar(
                 controller: _categoryScrollController,
@@ -636,21 +814,32 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                             setState(() => selectedCategory = cat['name']);
                           }
                         },
-                        onLongPress: isNew ? null : () => _confirmDeleteCategory(cat['name']),
+                        onLongPress: isNew
+                            ? null
+                            : () => _confirmDeleteCategory(cat['name']),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: cat['color'].withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: FaIcon(cat['icon'], color: cat['color'] == Colors.green ? AppColors.primaryGreen : cat['color'], size: 20),
+                          child: FaIcon(cat['icon'],
+                              color: cat['color'] == Colors.green
+                                  ? AppColors.primaryGreen
+                                  : cat['color'],
+                              size: 20),
                         ),
-                        title: Text(cat['name'], style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
+                        title: Text(cat['name'],
+                            style: TextStyle(
+                                fontWeight: FontWeight.w500, color: textColor)),
                         trailing: isNew
-                            ? const Icon(Icons.chevron_right, color: Colors.grey)
+                            ? const Icon(Icons.chevron_right,
+                                color: Colors.grey)
                             : (isSelected
-                            ? const FaIcon(FontAwesomeIcons.circleCheck, color: AppColors.primaryGreen)
-                            : const FaIcon(FontAwesomeIcons.circle, color: Colors.grey)),
+                                ? const FaIcon(FontAwesomeIcons.circleCheck,
+                                    color: AppColors.primaryGreen)
+                                : const FaIcon(FontAwesomeIcons.circle,
+                                    color: Colors.grey)),
                       );
                     }).toList(),
                   ),
@@ -663,25 +852,37 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
+                      ],
               ),
               child: Row(
                 children: [
-                  const FaIcon(FontAwesomeIcons.bell, color: AppColors.primaryGreen),
+                  const FaIcon(FontAwesomeIcons.bell,
+                      color: AppColors.primaryGreen),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Aktifkan Peringatan', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                        const Text('Beri tahu jika sudah mencapai 80%', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('Aktifkan Peringatan',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, color: textColor)),
+                        const Text('Beri tahu jika sudah mencapai 80%',
+                            style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
                   Switch(
                     value: isAlertEnabled,
                     onChanged: (val) => setState(() => isAlertEnabled = val),
-                    activeTrackColor: AppColors.primaryGreen.withValues(alpha: 0.5),
+                    activeTrackColor:
+                        AppColors.primaryGreen.withValues(alpha: 0.5),
                     activeThumbColor: AppColors.primaryGreen,
                   ),
                 ],
@@ -695,12 +896,21 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryGreen,
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
                 child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Buat Anggaran', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Buat Anggaran',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
               ),
             ),
           ],
